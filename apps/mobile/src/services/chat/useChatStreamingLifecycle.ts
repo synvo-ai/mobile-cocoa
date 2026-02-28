@@ -421,8 +421,14 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       setSessionId: setSessionIdWithRekey,
     });
 
+    /** Snapshot of message count when SSE opens. If unchanged at stream end,
+     *  no new content was produced during this connection → refresh from disk. */
+    let messageCountAtSseOpen = 0;
+
     const openHandler = () => {
       hasStreamEndedRef.current = false;
+      const sid = connectionSessionIdRef.current;
+      messageCountAtSseOpen = sid ? getOrCreateSessionMessages(sid).length : 0;
       retryCountRef.current = 0;
       clearRetryTimeout();
       if (__DEV__) console.log("[sse] connected", { sessionId: connectionSessionIdRef.current });
@@ -634,6 +640,20 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       flushAssistantText();
       handlers.finalizeAssistantMessageForSession();
       closeActiveSse("stream-end");
+
+      // If no new messages were produced and no draft is pending during this SSE
+      // connection (e.g. reconnecting after a server restart where the replayed
+      // JSONL events don't produce real content), refresh from disk so the UI
+      // picks up any messages completed since the last REST load.
+      const endedSid = connectionSessionIdRef.current;
+      if (endedSid && exitCode === 0) {
+        const currentMessages = getOrCreateSessionMessages(endedSid);
+        const currentDraft = getSessionDraft(endedSid);
+        const hasNewContent = currentMessages.length > messageCountAtSseOpen || (currentDraft && currentDraft.length > 0);
+        if (!hasNewContent) {
+          void refreshCurrentSessionFromDisk(endedSid);
+        }
+      }
     };
 
     const endHandler = (event: any) => handleStreamEnd(event, 0);

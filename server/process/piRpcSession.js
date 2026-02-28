@@ -9,8 +9,8 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
-    PI_CLI_PATH, PORT,
-    SESSIONS_ROOT
+  PI_CLI_PATH, PORT,
+  SESSIONS_ROOT
 } from "../config/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
 import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
@@ -156,13 +156,22 @@ export function createPiRpcSession({
   let stdoutBuffer = "";
   let turnRunning = false;
   let pendingExtensionUiRequest = null;
-  let piIoOutputStream = null;
+  /** Path to the JSONL session log. Set when a turn begins; cleared when it ends. */
+  let piIoOutputPath = null;
   let turnCompleted = false;
+
+  /** Append a single line to the JSONL log synchronously so it's on disk immediately. */
+  function appendToSessionLog(data) {
+    if (!piIoOutputPath) return;
+    try {
+      fs.appendFileSync(piIoOutputPath, data);
+    } catch (_) { }
+  }
 
   /** Emit full event to client; write slim event to log for message_update to avoid O(n²) growth. */
   function emitOutputLine(line) {
     socket.emit("output", line);
-    if (!piIoOutputStream?.writable) return;
+    if (!piIoOutputPath) return;
     const str = typeof line === "string" ? line : JSON.stringify(line);
     const trimmed = str.trimEnd();
     if (trimmed.startsWith('{"type":"message_update"')) {
@@ -177,32 +186,25 @@ export function createPiRpcSession({
             delta: ev.delta ?? ev.content,
           },
         };
-        piIoOutputStream.write(JSON.stringify(slim) + "\n");
+        appendToSessionLog(JSON.stringify(slim) + "\n");
       } catch {
-        piIoOutputStream.write(str + (str.endsWith("\n") ? "" : "\n"));
+        appendToSessionLog(str + (str.endsWith("\n") ? "" : "\n"));
       }
     } else {
-      piIoOutputStream.write(str + (str.endsWith("\n") ? "" : "\n"));
+      appendToSessionLog(str + (str.endsWith("\n") ? "" : "\n"));
     }
   }
 
   function closeIoOutputStream() {
-    if (!piIoOutputStream?.writable) return;
-    try {
-      piIoOutputStream.end();
-    } catch (_) { }
-    piIoOutputStream = null;
+    piIoOutputPath = null;
   }
 
   function openPiIoOutputStream() {
-    if (!existingSessionPath || typeof existingSessionPath !== "string" || piIoOutputStream?.writable) return;
+    if (!existingSessionPath || typeof existingSessionPath !== "string") return;
     try {
       fs.mkdirSync(path.dirname(existingSessionPath), { recursive: true });
-      piIoOutputStream = fs.createWriteStream(existingSessionPath, { flags: "a" });
-      piIoOutputStream.on("error", () => {
-        piIoOutputStream = null;
-      });
     } catch (_) { }
+    piIoOutputPath = existingSessionPath;
   }
 
   function signalTurnComplete(exitCode = 0, options = {}) {

@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Load Test: 5 Long Questions → Codex 5.2 in Separate Concurrent Sessions
+ * Load Test: 10 Distinct Queries → Codex 5.2 in Separate Concurrent Sessions
  *
- * Fires 5 detailed "explain the code" prompts to gpt-5.2-codex simultaneously,
+ * Fires 10 distinct prompts to gpt-5.2-codex simultaneously,
  * each in its own session, to stress-test multi-session concurrency.
  *
  * What it tests:
- * - 5 concurrent Pi RPC sessions running at the same time
+ * - 10 concurrent Pi RPC sessions running at the same time
  * - Each session receives only its own output (no cross-talk)
  * - All sessions complete with exit events
  * - Background streaming works for all sessions
@@ -33,77 +33,118 @@ const { EventSource } = require("eventsource");
 
 // ── Configuration ──────────────────────────────────────────────────────────
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3456";
-const CODEX_MODEL = process.env.CODEX_MODEL || "gpt-5.2-codex";
-const PROVIDER = "codex";
 const TIMEOUT_MS = parseInt(process.env.TIMEOUT_MS || "600000", 10); // 10 min default
 const STAGGER_MS = parseInt(process.env.STAGGER_MS || "1000", 10); // stagger start by 1s
-const CWD = process.env.CWD_PROJECT || "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3";
+const CWD_BASE = process.env.CWD_BASE || "/Users/yifanxu/machine_learning/LoVC/vce_test_space";
 
-// ── 5 Long "Explain the Code" Prompts ──────────────────────────────────────
+// ── 5 Diverse Queries across Claude, Gemini, Codex ─────────────────────────
 const PROMPTS = [
     {
-        label: "Q1-ServerArchitecture",
-        prompt: `Examine the entire server/ directory in this project. I want an extremely detailed explanation of the server architecture. Specifically:
-1. Walk through every file in server/ and server/routes/ — explain what each file does, its exports, and how it connects to the main server.js entry point.
-2. Explain the session management system: how sessions are created, stored on disk as JSONL files, discovered on startup, and streamed via SSE.
-3. Describe the Pi RPC process lifecycle — how piRpcSession.js spawns the Pi CLI, handles stdin/stdout JSON-RPC communication, and manages turn-based conversation flow.
-4. Explain the proxy.js module and how it handles request forwarding.
-5. Detail all environment variables and configuration options from server/config/index.js and how they affect behavior.
-6. Describe error handling patterns, graceful shutdown, and process cleanup across the server codebase.
-Be as thorough as possible — include code references, function signatures, and data flow diagrams in your explanation. In your final reply, include this exact verification token: {TOKEN}`,
+        // CODING PROJECT: Full-stack todo app — Claude
+        label: "Q01-TodoApp-Claude",
+        provider: "claude",
+        model: "sonnet4.5",
+        prompt: `Build a complete Todo application as a single-page HTML file called todo-app.html. It should be fully self-contained with inline CSS and JavaScript. Requirements:
+1. A beautiful dark-themed UI with a gradient header, rounded cards for each todo, and smooth animations.
+2. Features: add todos, mark complete (with strikethrough animation), delete (with fade-out), edit inline, filter by All/Active/Completed, clear completed button.
+3. Persist todos in localStorage so they survive page refresh.
+4. Show a count of remaining items. Add subtle hover effects on buttons and cards.
+5. Use CSS transitions and transforms — no external libraries.
+6. The design should feel premium: use a color palette of deep purple (#1a1a2e), accent blue (#e94560), and soft grays. Add box-shadows and glassmorphism effects.
+7. Make it fully responsive — works on mobile and desktop.
+Write the complete file. In your final reply, include this exact verification token: {TOKEN}`,
     },
     {
-        label: "Q2-MobileAppServices",
-        prompt: `Analyze the apps/mobile/src/services/ directory comprehensively. I need a deep-dive explanation covering:
-1. List every service file and module — explain the purpose of each, its public API, and internal implementation details.
-2. Focus on the chat/ subdirectory: explain how chat sessions are managed client-side, how SSE connections are established and maintained, and how messages flow from user input to server and back.
-3. Explain the sessionCacheHelpers — what caching strategy is used, how cache eviction works, and how sessions persist across app restarts.
-4. Detail any API client utilities — how HTTP requests are constructed, error handling, retry logic, and authentication flow.
-5. Walk through any state management patterns — React hooks, context providers, or stores used by the services layer.
-6. Explain how the mobile app handles offline scenarios, reconnection, and session recovery.
-7. Describe the relationship between the services layer and the UI components that consume them.
-Include specific function names, type signatures, and data flow explanations. In your final reply, include this exact verification token: {TOKEN}`,
+        // PUZZLE: Brain teasers — Gemini
+        label: "Q02-BrainTeasers-Gemini",
+        provider: "gemini",
+        model: "gemini-2.5-pro",
+        prompt: `Create a file called brain-teasers.js that solves these classic puzzles programmatically. For each puzzle, implement the solution and print the answer with a clear explanation:
+
+1. **River Crossing**: A farmer needs to cross a river with a wolf, a goat, and a cabbage. The boat fits only the farmer + one item. The wolf eats the goat if left alone, the goat eats the cabbage. Find the sequence of crossings using BFS.
+
+2. **Einstein's Riddle**: There are 5 houses in a row, each a different color, with owners of different nationalities, drinks, cigarette brands, and pets. Given the 15 classic clues, determine who owns the fish. Solve with constraint satisfaction.
+
+3. **Tower of Hanoi**: Solve for 6 disks and print each move. Count total moves and verify it equals 2^n - 1.
+
+4. **Knight's Tour**: Find a valid Knight's Tour on an 8x8 chessboard using Warnsdorff's heuristic. Print the board showing visit order.
+
+5. **Sudoku Solver**: Implement a backtracking Sudoku solver. Solve this puzzle:
+   530070000, 600195000, 098000060, 800060003, 400803001, 700020006, 060000280, 000419005, 000080079
+   Print the solved board.
+
+6. **Water Jug Problem**: You have a 5-gallon and 3-gallon jug. Measure exactly 4 gallons using BFS to find the shortest sequence of operations.
+
+Run all solutions when executed with node. In your final reply, include this exact verification token: {TOKEN}`,
     },
     {
-        label: "Q3-ComponentArchitecture",
-        prompt: `Perform a comprehensive analysis of the apps/mobile/src/components/ directory. I want an exhaustive explanation of the component architecture:
-1. List all top-level component directories and files — explain the purpose and responsibility of each component group.
-2. For the chat-related components, explain the full rendering pipeline: how messages are displayed, how streaming SSE data is rendered in real-time, auto-scroll behavior, and message formatting (markdown, code blocks, etc.).
-3. Analyze the file/ components — workspace sidebar, file tree, commit display — explain how they integrate with the backend file system APIs.
-4. Detail the navigation structure: how screens are organized, routing patterns, tab navigation, and deep linking if present.
-5. Explain the theming system: how dark/light mode works, color tokens, typography, spacing, and how themes are applied across components.
-6. Walk through any animation patterns: entrance animations, transitions, gesture handlers, and performance optimization techniques.
-7. Describe the modal system and how overlay components (process dashboard, workspace picker, etc.) are managed.
-8. Identify any shared utilities, custom hooks, or higher-order components that cross-cut the component tree.
-Be extremely detailed with code references and component hierarchy diagrams. In your final reply, include this exact verification token: {TOKEN}`,
+        // CODING PROJECT: REST API server — Codex
+        label: "Q03-RestApi-Codex",
+        provider: "codex",
+        model: "gpt-5.2-codex",
+        prompt: `Create a complete REST API project with 3 files:
+
+1. **server.js** — A Node.js HTTP server (no express, pure http module) that implements a JSON API for a "bookstore":
+   - GET /api/books — list all books (supports ?genre= filter and ?sort=title|year query params)
+   - GET /api/books/:id — get a single book
+   - POST /api/books — add a book (validate: title, author, year, genre required)
+   - PUT /api/books/:id — update a book
+   - DELETE /api/books/:id — delete a book
+   - GET /api/stats — return count by genre, average year, total books
+   - Handle CORS headers, proper HTTP status codes (201, 400, 404, 405), JSON error responses.
+   - Store data in memory with 10 pre-seeded books spanning different genres.
+
+2. **test-api.js** — A test script that makes fetch() calls to test every endpoint and prints pass/fail results. Should test happy paths and error cases.
+
+3. **README.md** — API documentation with endpoint table, request/response examples, and setup instructions.
+
+Write all 3 files. In your final reply, include this exact verification token: {TOKEN}`,
     },
     {
-        label: "Q4-BuildAndConfig",
-        prompt: `Analyze the entire build system, configuration, and project infrastructure. I need an exhaustive explanation covering:
-1. Walk through package.json at the root AND apps/mobile/package.json — explain every script, dependency, and devDependency. What does each package do and why is it included?
-2. Explain the monorepo structure: how the root package.json relates to apps/mobile, any workspace configuration (npm/yarn workspaces), and how dependencies are hoisted.
-3. Detail the TypeScript configuration: tsconfig.json files, path aliases, compiler options, and how they differ between environments (dev, build, test).
-4. Analyze Expo configuration: app.json, metro.config.js, babel.config, and any native build configurations. Explain how EAS Build works if configured.
-5. Walk through the jest.config: test setup, module name mapping, transform configuration, and test file patterns.
-6. Explain any CI/CD configuration, linting (ESLint), formatting (Prettier), and code quality tools.
-7. Detail the .env and .env.example files — all environment variables, their purposes, and how they flow from server to mobile app.
-8. Analyze the scripts/ directory: what each script does, when to use them, and how they integrate with the development workflow.
-9. Explain the docker/ directory and any containerization setup.
-Be comprehensive and include specific configuration values and their effects. In your final reply, include this exact verification token: {TOKEN}`,
+        // UI: Animated landing page — Claude
+        label: "Q04-LandingPage-Claude",
+        provider: "claude",
+        model: "sonnet4.5",
+        prompt: `Create a file called landing-page.html — a stunning, modern landing page for a fictional AI startup called "NeuralFlow". Single self-contained HTML file with inline CSS and JS. Requirements:
+
+1. **Hero section**: Large animated gradient background that slowly shifts colors. Bold headline with a typewriter text animation cycling through: "Build Faster", "Think Deeper", "Ship Smarter". A glowing CTA button with pulse animation.
+
+2. **Features section**: 3 feature cards with icons (use SVG icons inline), each card slides in from below on scroll using IntersectionObserver. Glassmorphism card style with backdrop-filter blur.
+
+3. **Stats counter section**: Animated number counters (e.g. "10M+ API Calls", "50K+ Developers", "99.9% Uptime") that count up when scrolled into view.
+
+4. **Testimonials**: A horizontal auto-scrolling carousel of 4 testimonial cards with avatar placeholders, quotes, and names.
+
+5. **Pricing section**: 3 pricing tiers (Free, Pro, Enterprise) with the Pro tier highlighted/recommended. Hover effects that lift the cards.
+
+6. **Footer**: Multi-column footer with links, social icons, and a newsletter signup input.
+
+7. Use smooth scroll, dark theme, Inter font from Google Fonts, and ensure it's fully responsive.
+
+Write the complete file. In your final reply, include this exact verification token: {TOKEN}`,
     },
     {
-        label: "Q5-SkillsAndExtensions",
-        prompt: `Analyze the skills/ directory and the entire skill/extension system in this project. I want a comprehensive explanation covering:
-1. List every skill directory and explain what each skill does — its purpose, how it's activated, and what capabilities it provides.
-2. Explain the skill loading mechanism: how skills are discovered from the skills/ folder, how they're synced to .pi/skills-enabled, and how the server registers them with the Pi CLI via --skill flags.
-3. Detail the skill configuration format: what files each skill contains (SKILL.md, scripts/, examples/, resources/), the YAML frontmatter schema, and how instructions are structured.
-4. Analyze the skills-lock.json file — what it tracks, how it's updated, and its role in skill version management.
-5. Walk through the server/skills/index.js module — explain syncEnabledSkillsFolder, resolveAgentDir, and how symlinks are managed.
-6. Explain how skills interact with the Pi agent at runtime — how skill instructions are injected into the system prompt, how tool definitions are registered, and how the agent invokes skill capabilities.
-7. Describe the .agents/skills/ directory in the mobile app — how it differs from the server skills, and any skill-specific configurations.
-8. Analyze at least 3 specific skills in depth (e.g. terminal-runner, better-icons, nanobanana) — explain their implementation, MCP server integration if applicable, and usage patterns.
-9. Explain how new skills can be created, tested, and deployed.
-Include specific file paths, function signatures, and configuration examples. In your final reply, include this exact verification token: {TOKEN}`,
+        // UI: Interactive dashboard — Gemini
+        label: "Q05-Dashboard-Gemini",
+        provider: "gemini",
+        model: "gemini-2.5-pro",
+        prompt: `Create a file called dashboard.html — an analytics dashboard UI as a single self-contained HTML file. Requirements:
+
+1. **Sidebar**: A collapsible sidebar (toggle with hamburger icon) with navigation items: Dashboard, Analytics, Users, Settings. Active item highlighted. Icons as inline SVGs.
+
+2. **Top bar**: Shows page title, a search input, notification bell icon with a red badge showing "3", and a user avatar circle with dropdown menu.
+
+3. **Stats row**: 4 stat cards showing: Total Revenue ($48,250), Active Users (2,847), Conversion Rate (3.6%), Avg Session (4m 32s). Each with a trend arrow (green up or red down) and percentage change.
+
+4. **Chart area**: Create 2 charts using pure Canvas API (no chart libraries):
+   - A line chart showing "Revenue over 12 months" with a gradient fill under the line, dots on data points with tooltips on hover.
+   - A donut/ring chart showing "Traffic Sources" with 4 segments (Direct 35%, Search 30%, Social 20%, Referral 15%) with a legend.
+
+5. **Recent activity table**: A table with 8 rows showing recent transactions: user name, action, amount, date, status badge (completed/pending/failed with colors).
+
+6. **Design**: Dark theme using colors: background #0f0f23, cards #1a1a3e, accent #7c3aed (violet), text #e2e8f0. Smooth transitions everywhere. Glassmorphism on cards. Fully responsive — sidebar collapses to icons on smaller screens.
+
+Write the complete file. In your final reply, include this exact verification token: {TOKEN}`,
     },
 ];
 
@@ -273,24 +314,26 @@ function startProgressReporter(liveStates, labels) {
 // ── Main ────────────────────────────────────────────────────────────────────
 
 async function main() {
+    const { mkdirSync } = await import("fs");
+
     console.error("╔════════════════════════════════════════════════════════════╗");
-    console.error("║  LOAD TEST: 5 Long Questions → Codex in 5 Sessions       ║");
+    console.error("║  LOAD TEST: 5 Queries → Claude / Gemini / Codex          ║");
     console.error("╚════════════════════════════════════════════════════════════╝");
     console.error(`  Server:   ${SERVER_URL}`);
-    console.error(`  Model:    ${CODEX_MODEL}`);
-    console.error(`  Provider: ${PROVIDER}`);
+    console.error(`  Providers: claude (sonnet4.5), gemini (2.5-pro), codex (gpt-5.2-codex)`);
     console.error(`  Timeout:  ${TIMEOUT_MS / 1000}s per session`);
     console.error(`  Stagger:  ${STAGGER_MS}ms between session starts`);
-    console.error(`  CWD:      ${CWD}`);
+    console.error(`  CWD Base: ${CWD_BASE} (each session gets its own /1 .. /5)`);
     console.error("");
 
-    // Set workspace once
-    try {
-        await setWorkspace(CWD);
-        console.error(`[setup] Workspace set to: ${CWD}`);
-    } catch (err) {
-        console.error(`[setup] WARNING: Failed to set workspace: ${err.message}`);
+    // Create all 10 workspace directories
+    for (let n = 1; n <= PROMPTS.length; n++) {
+        const dir = `${CWD_BASE}/${n}`;
+        try {
+            mkdirSync(dir, { recursive: true });
+        } catch (_) { /* ignore if exists */ }
     }
+    console.error(`[setup] Created ${PROMPTS.length} workspace dirs: ${CWD_BASE}/1 .. ${CWD_BASE}/${PROMPTS.length}`);
 
     const collectors = [];
     const liveStates = [];
@@ -298,9 +341,10 @@ async function main() {
     const sessionTokens = [];
     const startTime = Date.now();
 
-    // Fire all 5 sessions with slight stagger
+    // Fire all 5 sessions with slight stagger, each in its own workspace
     for (let i = 0; i < PROMPTS.length; i++) {
         const cfg = PROMPTS[i];
+        const cwd = `${CWD_BASE}/${i + 1}`;
         const sessionId = `load-test-${i}-${crypto.randomUUID()}`;
         const token = `LOADTEST_${i}_${Date.now()}`;
         const prompt = cfg.prompt.replace("{TOKEN}", token);
@@ -308,13 +352,21 @@ async function main() {
         labels.push(cfg.label);
         sessionTokens.push(token);
 
+        // Set workspace for this session
+        try {
+            await setWorkspace(cwd);
+            console.error(`[${cfg.label}] Workspace set to: ${cwd}`);
+        } catch (err) {
+            console.error(`[${cfg.label}] WARNING: Failed to set workspace: ${err.message}`);
+        }
+
         console.error(
-            `[${cfg.label}] Submitting... (session: ${sessionId.slice(0, 20)}...)`
+            `[${cfg.label}] Submitting [${cfg.provider}/${cfg.model}]... (session: ${sessionId.slice(0, 20)}...)`
         );
 
         try {
-            await submitPrompt(sessionId, PROVIDER, CODEX_MODEL, prompt);
-            console.error(`[${cfg.label}] ✓ Submitted`);
+            await submitPrompt(sessionId, cfg.provider, cfg.model, prompt);
+            console.error(`[${cfg.label}] ✓ Submitted [${cfg.provider}/${cfg.model}]`);
         } catch (err) {
             console.error(`[${cfg.label}] ✗ Submit FAILED: ${err.message}`);
             collectors.push(
@@ -419,12 +471,12 @@ async function main() {
     console.error(`  Avg session time:   ${avgTime}s`);
     console.error(`  Total output:       ${(totalOutput / 1024).toFixed(1)}KB`);
     console.error(`  Total SSE events:   ${totalEvents}`);
-    console.error(`  Model:              ${CODEX_MODEL}`);
+    console.error(`  Providers:          claude, gemini, codex`);
     console.error("─────────────────────────────────────────────────────────────\n");
 
     if (allPassed) {
         console.error("🎉 LOAD TEST PASSED — All 5 sessions completed successfully.");
-        console.error("   Multi-session concurrency with Codex is working correctly.\n");
+        console.error("   Multi-provider concurrency (Claude/Gemini/Codex) is working correctly.\n");
         process.exit(0);
     } else {
         console.error("⚠️  LOAD TEST HAD FAILURES — Check individual results above.\n");

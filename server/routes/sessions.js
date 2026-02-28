@@ -486,7 +486,28 @@ export function registerSessionsRoutes(app) {
         res.flushHeaders?.();
 
         if (!session) {
-            res.write(`event: end\ndata: {"exitCode": 1, "error": "Session not found"}\n\n`);
+            // Session not in registry (e.g. server restarted). Try to replay history from disk
+            // before closing the connection so the client can restore its message history.
+            const skipReplay = req.query.skipReplay === "1" || req.query.skipReplay === "true";
+            if (!skipReplay && !sessionId.startsWith("temp-")) {
+                const filePath = resolveSessionFilePath(sessionId);
+                if (filePath && fs.existsSync(filePath)) {
+                    try {
+                        const raw = fs.readFileSync(filePath, "utf-8");
+                        const lines = raw.split("\n").filter((l) => l.trim());
+                        for (const line of lines) {
+                            // Skip lifecycle events from previous turns — replaying agent_end/agent_start
+                            // confuses the client into thinking the current session has ended.
+                            if (/"type"\s*:\s*"agent_(end|start)"/.test(line)) continue;
+                            res.write(`data: ${line}\n\n`);
+                        }
+                        console.log(`[SSE] sessionId=${sessionId} not in registry — replayed ${lines.length} lines from disk`);
+                    } catch (e) {
+                        console.error("[sessions] Failed to replay history for unregistered session:", e?.message);
+                    }
+                }
+            }
+            res.write(`event: end\ndata: {"exitCode": 0}\n\n`);
             res.end();
             return;
         }
@@ -505,6 +526,9 @@ export function registerSessionsRoutes(app) {
                     const raw = fs.readFileSync(filePath, "utf-8");
                     const lines = raw.split("\n").filter((l) => l.trim());
                     for (const line of lines) {
+                        // Skip lifecycle events from previous turns — replaying agent_end/agent_start
+                        // confuses the client into thinking the current session has ended.
+                        if (/"type"\s*:\s*"agent_(end|start)"/.test(line)) continue;
                         res.write(`data: ${line}\n\n`);
                         sentLines++;
                     }

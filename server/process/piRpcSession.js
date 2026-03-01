@@ -9,10 +9,8 @@ import { execSync, spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
-  DEFAULT_PROVIDER_MODEL_ALIASES,
   DEFAULT_PROVIDER,
   DEFAULT_SERVER_HOST,
-  LOOPBACK_HOSTS,
   PI_CLI_PATH, PORT,
   SESSIONS_ROOT,
   PI_SYSTEM_PROMPT_TERMINAL_RULES,
@@ -20,180 +18,24 @@ import {
   loadPiConfig,
   loadSkillsConfig,
   PI_FALLBACK_MODEL,
-  PI_PROVIDER_FALLBACK,
 } from "../config/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
-import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
+import { getPreviewHost } from "../utils/index.js";
+import {
+  decideApprovalFromAnswers,
+  parseAskQuestionAnswersFromInput,
+  slimEventForSse,
+  toAskUserQuestionPayload,
+} from "./piEventHandler.js";
+import {
+  getConnectionContext,
+  getPiProviderForModel,
+  getRemoteHostFromSocket,
+  toPiModel,
+} from "./piProviderMapping.js";
 
-/** Byte threshold above which assistant message SSE events are stripped to prevent unbounded responseText growth. */
-const SLIM_SSE_THRESHOLD_BYTES = 2048;
-function isLoopbackHost(rawHost) {
-  const host = String(rawHost || "").toLowerCase();
-  if (!host) return false;
-  if (LOOPBACK_HOSTS.length === 0) return false;
-  return LOOPBACK_HOSTS.some(
-    (alias) =>
-      host === alias || host.startsWith(`${alias}:`) || host === `[${alias}]` || host.startsWith(`[${alias}]:`),
-  );
-}
-
-/** Map client short model names to Pi CLI model IDs, loaded from config/models.json. */
-function toPiModel(clientModel, piProvider) {
-  if (piProvider !== "anthropic" || !clientModel) return clientModel;
-  try {
-    const modelsConfig = loadModelsConfig();
-    const aliases = modelsConfig.modelAliases ?? DEFAULT_PROVIDER_MODEL_ALIASES;
-    return aliases[clientModel] ?? clientModel;
-  } catch (_) {
-    return DEFAULT_PROVIDER_MODEL_ALIASES[clientModel] ?? clientModel;
-  }
-}
-
-/**
- * Extract hostname the client used to connect (from Host header).
- * This is the remote_host for terminal-runner and preview URLs.
- * @param {import('socket.io').Socket} socket
- * @returns {string} hostname, or "" if unavailable
- */
-function getRemoteHostFromSocket(socket) {
-  const hostHeader = String(socket?.handshake?.headers?.host ?? "").trim();
-  const host = hostHeader.split(":")[0]?.trim() ?? "";
-  if (!host) return "";
-  return isLoopbackHost(host) ? DEFAULT_SERVER_HOST : host;
-}
-
-/**
- * Derive connection context from socket for Pi agent awareness.
- * Supports tunnel (dev proxy, e.g. Cloudflare) and localhost connections.
- * @param {import('socket.io').Socket} socket
- * @returns {string} "local", "tunnel remote host", or "remote"
- */
-function getConnectionContext(socket) {
-  const addr = String(socket?.handshake?.address ?? socket?.conn?.remoteAddress ?? "");
-  const host = String((socket?.handshake?.headers?.host ?? "").split(":")[0] ?? "");
-  const isLocal = isLoopbackHost(addr) || isLoopbackHost(host);
-
-  const overlay = getActiveOverlay();
-  if (overlay === "tunnel") {
-    const tunnelHeader = socket?.handshake?.headers?.["x-tunnel-proxy"];
-    if (tunnelHeader) return "tunnel remote host";
-    if (isLocal) return DEFAULT_SERVER_HOST;
-    return "tunnel remote host";
-  }
-
-  if (isLocal) return DEFAULT_SERVER_HOST;
-  return "remote";
-}
-
-/**
- * Map client provider + model to the Pi CLI --provider value.
- *
- * Pi CLI providers (from `pi --list-models`):
- *   - google-gemini-cli  → gemini-2.x, gemini-3.x-preview, gemini-3.1-*
- *   - google-antigravity  → gemini-3-pro-low, gemini-3-pro-high, gemini-3-flash
- *   - anthropic           → claude-*
- *   - openai              → gpt-*, codex-*
- */
-export function getPiProviderForModel(clientProvider, model) {
-  const piConfig = loadPiConfig();
-  const routing = piConfig.providerRouting ?? {};
-  const rules = routing.rules ?? [];
-  const fallback = routing.fallback ?? {};
-  const providerMap = piConfig.providerMapping ?? {};
-  const compileModelPattern = (pattern, context) => {
-    if (!pattern) return null;
-    try {
-      return new RegExp(pattern);
-    } catch (error) {
-      console.warn(`Skipping invalid ${context} regex "${pattern}" in pi config`, error);
-      return null;
-    }
-  };
-
-  if (typeof model === "string") {
-    // Evaluate routing rules in order; first match wins
-    for (const rule of rules) {
-      const matchPattern = compileModelPattern(rule.modelPattern, "modelPattern");
-      if (!matchPattern || !matchPattern.test(model)) {
-        continue;
-      }
-      const excludePattern = compileModelPattern(rule.excludePattern, "excludePattern");
-      if (excludePattern && excludePattern.test(model)) {
-        continue;
-      }
-      if (!rule.provider) {
-        continue;
-      }
-      return rule.provider;
-    }
-  }
-
-  // Fallback by client provider name
-  if (fallback[clientProvider]) return fallback[clientProvider];
-  if (providerMap[clientProvider]) return providerMap[clientProvider];
-  return PI_PROVIDER_FALLBACK;
-}
-
-function parseAskQuestionAnswersFromInput(raw) {
-  if (typeof raw !== "string" || !raw.trim()) return null;
-  try {
-    const top = JSON.parse(raw);
-    const content = top?.message?.content;
-    if (!Array.isArray(content) || content.length === 0) return null;
-    const first = content[0];
-    const inner = typeof first?.content === "string" ? first.content : null;
-    if (!inner) return null;
-    const parsed = JSON.parse(inner);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch (_) {
-    return null;
-  }
-}
-
-function decideApprovalFromAnswers(answers, fallbackRaw) {
-  const selected = Array.isArray(answers)
-    ? answers.flatMap((a) => (Array.isArray(a?.selected) ? a.selected : []))
-    : [];
-  const normalized = selected.map((s) => String(s).trim().toLowerCase());
-  const hasAccept = normalized.some((s) => /approve|accept|allow|run/.test(s));
-  const hasDeny = normalized.some((s) => /deny|decline|reject|cancel|block/.test(s));
-  if (hasAccept && !hasDeny) return true;
-  if (hasDeny && !hasAccept) return false;
-  const fallbackText = typeof fallbackRaw === "string" ? fallbackRaw.trim().toLowerCase() : "";
-  if (["y", "yes", "approve", "accept", "allow", "run"].includes(fallbackText)) return true;
-  if (["n", "no", "deny", "decline", "reject", "cancel", "block"].includes(fallbackText)) return false;
-  return false;
-}
-
-/**
- * Transform Pi extension_ui_request to AskUserQuestion format for client modal.
- */
-function toAskUserQuestionPayload(request) {
-  const id = request.id;
-  const method = request.method;
-  const title = request.title ?? "Approval";
-  const message = request.message ?? title;
-  const options = request.options ?? ["Allow", "Deny"];
-
-  const questions = [
-    {
-      header: String(title),
-      question: String(message),
-      options: options.map((o) => ({
-        label: typeof o === "string" ? o : String(o?.label ?? o),
-        description: typeof o === "object" && o != null ? o.description : undefined,
-      })),
-      multiSelect: false,
-    },
-  ];
-
-  return {
-    tool_name: "AskUserQuestion",
-    tool_use_id: id,
-    uuid: id,
-    tool_input: { questions },
-  };
-}
+// Re-export for backward compatibility
+export { getPiProviderForModel } from "./piProviderMapping.js";
 
 export function createPiRpcSession({
   socket,
@@ -238,6 +80,7 @@ export function createPiRpcSession({
             type: assistantMessageEvent.type,
             contentIndex: assistantMessageEvent.contentIndex,
             delta: assistantMessageEvent.delta ?? assistantMessageEvent.content,
+            ...(assistantMessageEvent.toolCall != null ? { toolCall: assistantMessageEvent.toolCall } : {}),
           },
         };
         appendToSessionLog(JSON.stringify(slim) + "\n");
@@ -322,48 +165,6 @@ export function createPiRpcSession({
     turnRunning = false;
   }
 
-  /**
-   * Strip heavy content from snapshot/lifecycle events before forwarding to SSE clients.
-   * Events like message_end, turn_end, agent_end carry the full message content (60KB+)
-   * but the mobile client treats them as no-ops. Sending slim versions prevents
-   * xhr.responseText from growing unboundedly, which causes RangeError in Hermes.
-   * message_update events can carry full accumulated content; we only need type/delta.
-   */
-  function slimEventForSse(parsed) {
-    const type = String(parsed.type ?? "");
-    // These event types carry full message/content snapshots that the client ignores
-    const HEAVY_TYPES = new Set(["message_end", "turn_end", "message_start"]);
-    if (HEAVY_TYPES.has(type)) {
-      return { type };
-    }
-    // agent_end carries all conversation messages — strip to just type
-    if (type === "agent_end") {
-      return { type: "agent_end" };
-    }
-    // message events with role: assistant may contain full content — strip if > 2KB
-    if (type === "message" && parsed.message?.role === "assistant") {
-      const serialized = JSON.stringify(parsed);
-      if (serialized.length > SLIM_SSE_THRESHOLD_BYTES) {
-        return { type: "message", id: parsed.id, parentId: parsed.parentId, timestamp: parsed.timestamp, message: { role: "assistant", content: "[content stripped for SSE]" } };
-      }
-    }
-    // message_update: client only needs assistantMessageEvent.type, contentIndex, delta/content.
-    // Pi can send full accumulated content; slimming prevents unbounded xhr.responseText growth.
-    if (type === "message_update") {
-      const assistantMessageEvent = parsed.assistantMessageEvent ?? {};
-      return {
-        type: "message_update",
-        assistantMessageEvent: {
-          type: assistantMessageEvent.type,
-          contentIndex: assistantMessageEvent.contentIndex,
-          delta: assistantMessageEvent.delta ?? assistantMessageEvent.content,
-          ...(assistantMessageEvent.toolCall != null ? { toolCall: assistantMessageEvent.toolCall } : {}),
-        },
-      };
-    }
-    return parsed;
-  }
-
   function handlePiEvent(parsed) {
     if (!parsed || typeof parsed !== "object") return;
     const type = String(parsed.type ?? "");
@@ -372,7 +173,7 @@ export function createPiRpcSession({
     if (type === "extension_ui_request") {
       const method = parsed.method;
       // Dialog methods (select, confirm, input, editor) need user response
-      if (["select", "confirm"].includes(method)) {
+      if (["select", "confirm", "input", "editor"].includes(method)) {
         // Auto-approve tool execution confirmations to prevent blocking when modal
         // is not shown or user cannot respond (e.g. terminal-runner bash approval).
         const piCfgForApprove = loadPiConfig();
@@ -412,8 +213,8 @@ export function createPiRpcSession({
     }
 
     if (type === "response" && parsed.success === false) {
-      const err = parsed.error ?? "Pi request failed";
-      emitOutputLine(`\r\n\x1b[31m[Error] ${err}\x1b[0m\r\n`);
+      const errorMessage = parsed.error ?? "Pi request failed";
+      emitOutputLine(`\r\n\x1b[31m[Error] ${errorMessage}\x1b[0m\r\n`);
       if (parsed.command === "prompt") {
         signalTurnComplete(1);
       }
@@ -421,8 +222,8 @@ export function createPiRpcSession({
     }
 
     if (type === "extension_error") {
-      const err = parsed.error ?? "Extension error";
-      emitOutputLine(`\r\n\x1b[31m[Error] ${err}\x1b[0m\r\n`);
+      const errorMessage = parsed.error ?? "Extension error";
+      emitOutputLine(`\r\n\x1b[31m[Error] ${errorMessage}\x1b[0m\r\n`);
       return;
     }
 
@@ -442,9 +243,9 @@ export function createPiRpcSession({
     // If the client sent a stale/cached model ID (e.g. deprecated "gemini-3-pro-high"),
     // fall back to the provider's default model.
     let rawModel = options.model ?? (defaultModels[piProvider] || PI_FALLBACK_MODEL);
-    const modelsCfg = loadModelsConfig();
-    const allKnownModels = Object.values(modelsCfg.providers ?? {}).flatMap(
-      (p) => (p.models ?? []).map((m) => m.value)
+    const modelsConfig = loadModelsConfig();
+    const allKnownModels = Object.values(modelsConfig.providers ?? {}).flatMap(
+      (providerConfig) => (providerConfig.models ?? []).map((modelOption) => modelOption.value)
     );
     if (rawModel && allKnownModels.length > 0 && !allKnownModels.includes(rawModel)) {
       const fallbackModel = defaultModels[piProvider] || PI_FALLBACK_MODEL;
@@ -566,10 +367,18 @@ export function createPiRpcSession({
         if (!line) continue;
         const jsonStart = line.indexOf("{");
         const candidate = jsonStart >= 0 ? line.slice(jsonStart) : line;
+        let parsed;
         try {
-          const parsed = JSON.parse(candidate);
-          handlePiEvent(parsed);
-        } catch (_) {
+          parsed = JSON.parse(candidate);
+        } catch (_) { }
+
+        if (parsed !== undefined) {
+          try {
+            handlePiEvent(parsed);
+          } catch (err) {
+            console.error("[PiRpcSession] Error handling Pi event:", err);
+          }
+        } else {
           emitOutputLine(line + "\n");
         }
       }
@@ -618,8 +427,8 @@ export function createPiRpcSession({
   function handleInput(data) {
     if (!piProcess || !pendingExtensionUiRequest) return false;
 
-    const raw = typeof data === "string" ? data : JSON.stringify(data);
-    const answers = parseAskQuestionAnswersFromInput(raw);
+    const inputText = typeof data === "string" ? data : JSON.stringify(data);
+    const answers = parseAskQuestionAnswersFromInput(inputText);
     const pending = pendingExtensionUiRequest;
     pendingExtensionUiRequest = null;
 
@@ -632,6 +441,12 @@ export function createPiRpcSession({
       const selected = Array.isArray(answers) && answers[0]?.selected?.[0];
       if (selected != null) {
         response.value = String(selected);
+      } else {
+        response.cancelled = true;
+      }
+    } else if (["input", "editor"].includes(pending.method)) {
+      if (typeof data === "string" && data.trim()) {
+        response.value = data;
       } else {
         response.cancelled = true;
       }

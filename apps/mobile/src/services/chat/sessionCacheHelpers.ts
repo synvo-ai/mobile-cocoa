@@ -1,11 +1,17 @@
 import type { Message } from "@/core/types";
 import type { SessionLiveState } from "./hooksTypes";
+import type { SessionCacheEntry, SessionToolUse } from "./sessionCacheTypes";
+import { createSessionCacheEntry } from "./sessionCacheTypes";
 
 // ── LRU Cache Eviction ───────────────────────────────────────────────────
 // Prevents unbounded memory growth on mobile devices when users access
 // many sessions over time. Keeps the most recently accessed sessions.
 export const MAX_CACHED_SESSIONS = 15;
 const sessionAccessOrder: string[] = [];
+
+// Re-export types for convenience
+export type { SessionCacheEntry, SessionToolUse } from "./sessionCacheTypes";
+export { createSessionCacheEntry } from "./sessionCacheTypes";
 
 /** Mark a session as recently used (moves it to the end of the LRU list). */
 export const touchSession = (sessionId: string): void => {
@@ -103,6 +109,67 @@ export const moveSessionCacheData = (
     sessionDrafts.set(nextSessionId, draft);
   }
   // Update LRU order for the rekey
+  const existingIndex = sessionAccessOrder.indexOf(currentSessionId);
+  if (existingIndex >= 0) {
+    sessionAccessOrder[existingIndex] = nextSessionId;
+  } else {
+    sessionAccessOrder.push(nextSessionId);
+  }
+};
+
+// ── Unified Cache Helpers ─────────────────────────────────────────────────
+// These helpers work with the unified SessionCacheEntry structure.
+
+/**
+ * Get or create a unified session cache entry.
+ */
+export const getOrCreateUnifiedSession = (
+  cache: Map<string, SessionCacheEntry>,
+  sessionId: string
+): SessionCacheEntry => {
+  let entry = cache.get(sessionId);
+  if (!entry) {
+    entry = createSessionCacheEntry();
+    cache.set(sessionId, entry);
+  }
+  return entry;
+};
+
+/**
+ * Evict oldest sessions from unified cache.
+ */
+export const evictOldestUnifiedSessions = (
+  cache: Map<string, SessionCacheEntry>,
+  activeSessionId?: string | null,
+): void => {
+  let safetyCounter = 0;
+  while (sessionAccessOrder.length > MAX_CACHED_SESSIONS && safetyCounter < sessionAccessOrder.length + 5) {
+    safetyCounter++;
+    const oldest = sessionAccessOrder[0];
+    if (!oldest) break;
+    if (oldest === activeSessionId) {
+      sessionAccessOrder.splice(0, 1);
+      sessionAccessOrder.push(oldest);
+      continue;
+    }
+    sessionAccessOrder.splice(0, 1);
+    cache.delete(oldest);
+  }
+};
+
+/**
+ * Move unified session cache data during rekey.
+ */
+export const moveUnifiedSessionCacheData = (
+  currentSessionId: string,
+  nextSessionId: string,
+  cache: Map<string, SessionCacheEntry>,
+): void => {
+  const entry = cache.get(currentSessionId);
+  if (entry) {
+    cache.delete(currentSessionId);
+    cache.set(nextSessionId, entry);
+  }
   const existingIndex = sessionAccessOrder.indexOf(currentSessionId);
   if (existingIndex >= 0) {
     sessionAccessOrder[existingIndex] = nextSessionId;

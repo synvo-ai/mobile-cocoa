@@ -7,6 +7,7 @@ import { execSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { PORT, TUNNEL_PROXY_PORT } from "../config/index.js";
+import { isInsideRoot } from "./pathHelpers.js";
 
 /** Common development server ports to scan. */
 const COMMON_DEV_PORTS = [3000, 3456, 4000, 5000, 5173, 8000, 8080, 3001, 4001];
@@ -20,11 +21,6 @@ const PROTECTED_PORTS = new Set([Number(PORT), Number(TUNNEL_PROXY_PORT)]);
 
 /** Set of PIDs currently known to be on protected ports. Updated on each scan. */
 let protectedPids = new Set();
-
-function isInsideRoot(rootDir, targetPath) {
-  const rel = path.relative(rootDir, targetPath);
-  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
-}
 
 /** Check whether a PID belongs to a protected process. */
 export function isProtectedPid(pid) {
@@ -131,7 +127,9 @@ export function listProcessesOnPorts(workspacePath) {
     return results;
   }
 
-  for (const port of COMMON_DEV_PORTS) {
+  const protectedPorts = [...PROTECTED_PORTS].filter((port) => Number.isInteger(port) && port > 0);
+  const portsToScan = [...new Set([...COMMON_DEV_PORTS, ...protectedPorts])];
+  for (const port of portsToScan) {
     const isProtectedPort = PROTECTED_PORTS.has(port);
     try {
       const pidOut = execSync(`lsof -ti :${port} 2>/dev/null || true`, {
@@ -210,8 +208,8 @@ export function killProcess(pid) {
       });
     }
     return { ok: true };
-  } catch (err) {
-    return { ok: false, error: err?.message ?? "Failed to kill process" };
+  } catch (error) {
+    return { ok: false, error: error?.message ?? "Failed to kill process" };
   }
 }
 
@@ -295,8 +293,8 @@ export function getLogTail(absPath, workspacePath, lines = TAIL_LINES, allowOuts
       return { ok: false, error: errText || "Failed to read log" };
     }
     return { ok: true, content: result.stdout ?? "", path: resolved };
-  } catch (err) {
-    return { ok: false, error: err?.message ?? "Failed to read log" };
+  } catch (error) {
+    return { ok: false, error: error?.message ?? "Failed to read log" };
   }
 }
 

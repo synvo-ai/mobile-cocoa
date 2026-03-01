@@ -72,7 +72,13 @@ function resolveThroughExistingAncestor(candidatePath) {
   return path.resolve(currentReal, remainder);
 }
 
-function isInsideRoot(rootDir, targetPath) {
+/**
+ * Check if a target path is inside (or equal to) a root directory.
+ * @param {string} rootDir - Absolute root directory path
+ * @param {string} targetPath - Path to check
+ * @returns {boolean} True if targetPath is inside rootDir
+ */
+export function isInsideRoot(rootDir, targetPath) {
   const rel = path.relative(rootDir, targetPath);
   return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
 }

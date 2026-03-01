@@ -5,7 +5,7 @@
  * These are pure functions / factory helpers with no React dependencies.
  */
 import EventSource from "react-native-sse";
-import type { EventSourceCtor, EventSourceLike } from "./hooksTypes";
+import type { EventSourceCtor, EventSourceLike, SseMessageEvent } from "./hooksTypes";
 
 export const SSE_MAX_RETRIES = 5;
 const SSE_RETRY_BASE_MS = 1000;
@@ -19,9 +19,9 @@ export function resolveEventSourceCtor(): EventSourceCtor {
 export type SseEventHandlers = {
   open: (event: unknown) => void;
   error: (event: unknown) => void;
-  message: (event: any) => void;
-  end: (event: any) => void;
-  done: (event: any) => void;
+  message: (event: SseMessageEvent) => void;
+  end: (event: SseMessageEvent) => void;
+  done: (event: SseMessageEvent) => void;
 };
 
 /** Attach the given handlers to an SSE source. */

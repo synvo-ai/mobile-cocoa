@@ -8,7 +8,8 @@ import type {
     PermissionDenial,
 } from "@/core/types";
 import type {
-    SessionRuntimeState
+    SessionRuntimeState,
+    SseMessageEvent,
 } from "./hooksTypes";
 import { createSessionMessageHandlers } from "./sessionMessageHandlers";
 import {
@@ -19,10 +20,9 @@ import {
     resolveEventSourceCtor,
     type SseEventHandlers,
 } from "./sseConnection";
-import {
-    createStreamFlusher,
-} from "./streamFlusher";
+import { createStreamFlusher } from "./streamFlusher";
 import { processRawSseLine } from "./sseMessageParser";
+import { OUTPUT_BUFFER_MAX_SIZE, resolveStreamUrl } from "./sseMessageProcessor";
 import type { UseSessionCache } from "./useSessionCache";
 
 
@@ -46,23 +46,6 @@ type UseChatStreamingLifecycleParams = {
   setLastSessionTerminated: Dispatch<SetStateAction<boolean>>;
   setStoreSessionId: (sessionId: string | null) => void;
   lastRunOptionsRef: MutableRefObject<LastRunOptions>;
-};
-
-/** Safety limit for outputBufferRef to prevent RangeError from unbounded string growth.
- *  5MB is well under Hermes' ~500MB limit but large enough for any legitimate partial line. */
-const OUTPUT_BUFFER_MAX_SIZE = 5 * 1024 * 1024;
-
-const resolveStreamUrl = (
-  serverUrl: string,
-  sessionId: string,
-  skipReplayForSession: string | null
-): { url: string; applySkipReplay: boolean } => {
-  const baseUrl = `${serverUrl}/api/sessions/${sessionId}/stream?activeOnly=1`;
-  const applySkipReplay = skipReplayForSession === sessionId;
-  return {
-    url: applySkipReplay ? `${baseUrl}&skipReplay=1` : baseUrl,
-    applySkipReplay,
-  };
 };
 
 export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParams) {
@@ -402,7 +385,11 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         detachSseHandlers(currentSseRef.current, sseHandlers);
         currentSseRef.current.close();
 
-        const { url: retryUrl } = resolveStreamUrl(serverUrl, connectionSessionIdRef.current, null);
+        const { url: retryUrl } = resolveStreamUrl(
+          serverUrl,
+          connectionSessionIdRef.current,
+          connectionSessionIdRef.current
+        );
         const retrySse = new (resolveEventSourceCtor())(retryUrl);
         currentSseRef.current = retrySse;
         activeSseRef.current = { id: connectionSessionIdRef.current, source: retrySse };
@@ -427,7 +414,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       scheduleRetry();
     };
 
-    const messageHandler = (event: any) => {
+    const messageHandler = (event: SseMessageEvent) => {
       if (event.data == null) return;
 
       const dataStr = event.data;
@@ -572,7 +559,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         }
       }
 
-      flusher.cancel();
       flusher.flush();
       hasFinalizedRef.current = true;
       msgHandlers.finalizeAssistantMessageForSession();
@@ -609,7 +595,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       isAborted = true;
       clearRetryTimeout();
       // Flush pending text before the effect is abandoned (queued text would be lost on re-run).
-      flusher.cancel();
       flusher.flush();
       // Only finalize if handleStreamEnd hasn't already done so to avoid double finalize.
       if (!hasFinalizedRef.current) {

@@ -6,6 +6,7 @@ import path from "path";
 import { getWorkspaceCwd, WORKSPACE_ALLOWED_ROOT } from "../config/index.js";
 import {
   buildWorkspaceTree, getMimeForFile, IMAGE_EXT,
+  isInsideRoot,
   MAX_TEXT_FILE_BYTES,
   normalizeRelativePath,
   resolveWithinRoot
@@ -18,11 +19,6 @@ const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
     return path.resolve(WORKSPACE_ALLOWED_ROOT);
   }
 })();
-
-function isInsideRoot(rootDir, targetPath) {
-  const rel = path.relative(rootDir, targetPath);
-  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
-}
 
 function isDisallowedPreviewPath(fullPath, baseDir) {
   const relative = path.relative(baseDir, fullPath);

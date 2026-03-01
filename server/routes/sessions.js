@@ -10,7 +10,9 @@ import {
     WORKSPACE_ALLOWED_ROOT,
 } from "../config/index.js";
 import { formatSessionLogTimestamp } from "../process/index.js";
-import { createSession, getSession, removeSession, resolveSession, subscribeToSession } from "../sessionRegistry.js";
+import { createSession, removeSession, resolveSession, subscribeToSession } from "../sessionRegistry.js";
+import { isInsideRoot } from "../utils/index.js";
+import { findOrCreateSession } from "./sessionFactory.js";
 import {
     uuidFromFileStem,
     normalizeProvider,
@@ -27,15 +29,17 @@ import {
     assertValidSessionId,
     isValidSessionId,
 } from "./sessionHelpers.js";
+import {
+    handleSsePolling,
+    handleSseNoSession,
+    handleSseReplay,
+    isTempSessionId,
+    parseBooleanQueryParam,
+    setupSseHeaders,
+} from "./sessionSseHandler.js";
 
 const DEFAULT_SESSION_PROVIDER = DEFAULT_PROVIDER;
 const DEFAULT_SESSION_MODEL = DEFAULT_PROVIDER_MODELS?.[DEFAULT_SESSION_PROVIDER];
-
-/** Maximum ms to wait for an agent process to start before sending SSE end. */
-const SSE_PROCESS_START_WAIT_MS = 6_000;
-/** Interval in ms to poll for process start during active-only SSE connections. */
-const SSE_PROCESS_START_POLL_MS = 150;
-const TRUE_VALUES = new Set(["1", "true"]);
 
 const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
     try {
@@ -44,19 +48,6 @@ const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
         return path.resolve(WORKSPACE_ALLOWED_ROOT);
     }
 })();
-
-function isInsideRoot(rootDir, targetPath) {
-    const rel = path.relative(rootDir, targetPath);
-    return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
-}
-
-function isTempSessionId(sessionId) {
-    return typeof sessionId === "string" && sessionId.startsWith("temp-");
-}
-
-function parseBooleanQueryParam(rawValue) {
-    return TRUE_VALUES.has(String(rawValue ?? ""));
-}
 
 function normalizeStringOrNull(value) {
     return typeof value === "string" && value.trim() ? value.trim() : null;
@@ -118,92 +109,6 @@ function requireValidSessionIdParam(req, res) {
         res.status(400).json({ error: "Invalid sessionId" });
         return null;
     }
-}
-
-function appendUserPromptToSessionFile(filePath, prompt) {
-    if (!filePath || !prompt) return false;
-    try {
-        const messageId = crypto.randomUUID();
-        const userMsgLine = JSON.stringify({
-            type: "message",
-            id: messageId,
-            timestamp: new Date().toISOString(),
-            message: {
-                id: messageId,
-                role: "user",
-                content: [{ type: "text", text: prompt }],
-                metadata: {
-                    source: "client_prewrite",
-                    sourceId: messageId,
-                },
-            },
-        }) + "\n";
-        fs.appendFileSync(filePath, userMsgLine, "utf-8");
-        return true;
-    } catch (error) {
-        console.error("[sessions] Failed to persist pre-written prompt:", error?.message);
-    }
-    return false;
-}
-
-/**
- * Find an existing session or create (and optionally replace) one.
- * Writes the user prompt to the JSONL immediately so GET /messages can find it
- * during streaming — Pi may not log the user message until many events later.
- * @returns {{ session: object, sessionId: string }}
- */
-function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
-    let sessionId = null;
-    if (typeof payload?.sessionId === "string" && payload.sessionId.trim()) {
-        const candidate = payload.sessionId.trim();
-        if (!candidate.startsWith("temp-")) {
-            sessionId = assertValidSessionId(candidate);
-        }
-    }
-
-    let session = sessionId ? getSession(sessionId) : null;
-    let existingPath = null;
-
-    if (!session || payload.replaceRunning) {
-        if (session) removeSession(sessionId);
-        if (!sessionId) sessionId = crypto.randomUUID();
-
-        existingPath = resolveSessionFilePath(sessionId);
-        if (!existingPath) {
-            existingPath = createNewSessionFile(sessionId, sessionCwd);
-        }
-        if (!existingPath) {
-            throw new Error("Failed to create session file path");
-        }
-
-        session = createSession(sessionId, provider, model, {
-            existingSessionPath: existingPath,
-            sessionLogTimestamp: formatSessionLogTimestamp(),
-        });
-    } else {
-        // Update provider/model if changed
-        session.provider = provider;
-        session.model = model;
-        existingPath = session.existingSessionPath && fs.existsSync(session.existingSessionPath)
-            ? session.existingSessionPath
-            : resolveSessionFilePath(sessionId);
-        if (!existingPath) {
-            existingPath = createNewSessionFile(sessionId, sessionCwd);
-            if (!existingPath) {
-                throw new Error("Failed to create session file path");
-            }
-            session.existingSessionPath = existingPath;
-        }
-    }
-
-    // Pre-write the user prompt to JSONL for all submit paths so /messages
-    // can surface the latest user turn immediately during/after streaming.
-    const didAppendPrompt = appendUserPromptToSessionFile(existingPath, prompt);
-    if (!didAppendPrompt) {
-        throw new Error("Failed to persist user prompt before streaming");
-    }
-
-    return { session, sessionId };
 }
 
 export function registerSessionsRoutes(app) {
@@ -314,7 +219,16 @@ export function registerSessionsRoutes(app) {
                 const resolvedCwd = (typeof cwd === "string" && cwd.trim())
                     ? path.resolve(cwd)
                     : (derived ? path.resolve(derived) : null);
-                if (resolvedCwd !== targetPath) continue;
+                const resolvedCwdCanonical = resolvedCwd
+                    ? (() => {
+                        try {
+                            return fs.realpathSync(resolvedCwd);
+                        } catch {
+                            return path.resolve(resolvedCwd);
+                        }
+                    })()
+                    : null;
+                if (resolvedCwdCanonical !== targetPath) continue;
                 try {
                     const activeSession = resolveSession(sessionId);
                     if (activeSession) removeSession(activeSession.id);
@@ -341,7 +255,10 @@ export function registerSessionsRoutes(app) {
         const session = resolveSession(sessionId);
         if (!session) return res.status(404).json({ error: "Session not found" });
 
-        session.processManager.handleInput(req.body);
+        const accepted = session.processManager.handleInput(req.body);
+        if (!accepted) {
+            return res.status(409).json({ ok: false, error: "No pending input request" });
+        }
         res.json({ ok: true });
     });
 
@@ -368,7 +285,10 @@ export function registerSessionsRoutes(app) {
     router.get("/:sessionId/messages", (req, res) => {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
-        const filePath = resolveSessionFilePath(sessionId);
+        const activeSession = resolveSession(sessionId);
+        const filePath = activeSession?.existingSessionPath && fs.existsSync(activeSession.existingSessionPath)
+            ? activeSession.existingSessionPath
+            : resolveSessionFilePath(sessionId);
         if (!filePath || !fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Session not found" });
         }
@@ -376,12 +296,12 @@ export function registerSessionsRoutes(app) {
         try {
             const messages = parseMessagesFromJsonl(filePath);
             const { provider, modelId, cwd } = parseSessionMetadata(filePath);
-            const activeSession = resolveSession(sessionId) || resolveSession(canonicalSessionId);
-            const running = activeSession?.processManager?.processRunning?.() ?? false;
-            const sseConnected = activeSession ? activeSession.subscribers?.size > 0 : false;
+            const liveSession = activeSession || resolveSession(canonicalSessionId);
+            const running = liveSession?.processManager?.processRunning?.() ?? false;
+            const sseConnected = liveSession ? liveSession.subscribers?.size > 0 : false;
             // When session is running, registry may have migrated to a different id (e.g. Pi session_id).
             // Return that id so the client connects to the correct stream and does not open a duplicate.
-            const activeSessionId = activeSession?.id ?? canonicalSessionId;
+            const activeSessionId = liveSession?.id ?? canonicalSessionId;
             res.json({
                 messages,
                 sessionId: canonicalSessionId,
@@ -402,15 +322,35 @@ export function registerSessionsRoutes(app) {
     router.delete("/:sessionId", (req, res) => {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
-        const resolvedSessionId = resolveSession(sessionId)?.id ?? sessionId;
-        const resolvedSessionDir = getSessionDir(resolvedSessionId);
-        if (!fs.existsSync(resolvedSessionDir)) {
+        const activeSession = resolveSession(sessionId);
+        const candidateSessionIds = [activeSession?.id, sessionId].filter(Boolean);
+        let filePath = activeSession?.existingSessionPath && fs.existsSync(activeSession.existingSessionPath)
+            ? activeSession.existingSessionPath
+            : null;
+        if (!filePath) {
+            for (const candidateSessionId of candidateSessionIds) {
+                const resolvedPath = resolveSessionFilePath(candidateSessionId);
+                if (resolvedPath) {
+                    filePath = resolvedPath;
+                    break;
+                }
+            }
+        }
+        if (!filePath || !fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Session not found" });
         }
+        const resolvedSessionDir = path.dirname(filePath);
         try {
-            const activeSession = resolveSession(resolvedSessionId);
             if (activeSession) {
                 removeSession(activeSession.id);
+            } else {
+                for (const candidateSessionId of candidateSessionIds) {
+                    const resolved = resolveSession(candidateSessionId);
+                    if (resolved) {
+                        removeSession(resolved.id);
+                        break;
+                    }
+                }
             }
             fs.rmSync(resolvedSessionDir, { recursive: true });
             res.json({ ok: true });

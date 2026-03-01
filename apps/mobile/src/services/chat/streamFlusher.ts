@@ -14,7 +14,7 @@ const STREAM_FLUSH_INTERVAL_LARGE_MS = 95;
 const STREAM_FLUSH_DRAFT_THRESHOLD = 2400;
 const STREAM_BOUNDARY_MARKER = /[.!?;,\n]/;
 
-type StreamFlushContext = {
+export type StreamFlusher = {
   /** Flush any accumulated text immediately. */
   flush: () => void;
   /** Enqueue a text chunk, flushing immediately on boundary chars or after a short timer. */
@@ -37,14 +37,26 @@ export function createStreamFlusher(
   getSessionDraft: () => string,
   timerRef: { current: ReturnType<typeof setTimeout> | null },
   onDebugFlush?: (chunk: string) => void,
-): StreamFlushContext {
+): StreamFlusher {
   let pending = "";
 
+  const cancel = (): void => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  };
+
   const flush = (): void => {
+    cancel();
     if (!pending) return;
     const chunk = pending;
     pending = "";
-    onFlush(chunk);
+    try {
+      onFlush(chunk);
+    } catch (err) {
+      console.error("[streamFlusher] onFlush error", err);
+    }
     if (onDebugFlush) {
       try {
         onDebugFlush(chunk);
@@ -54,22 +66,15 @@ export function createStreamFlusher(
     }
   };
 
-  const cancel = (): void => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  };
-
   const queue = (chunk: string): void => {
+    if (!chunk) return;
     pending += chunk;
     if (STREAM_BOUNDARY_MARKER.test(chunk)) {
-      cancel();
       flush();
       return;
     }
     if (timerRef.current) return;
-    const draft = getSessionDraft();
+    const draft = getSessionDraft() || "";
     const delay =
       draft.length + pending.length > STREAM_FLUSH_DRAFT_THRESHOLD
         ? STREAM_FLUSH_INTERVAL_LARGE_MS

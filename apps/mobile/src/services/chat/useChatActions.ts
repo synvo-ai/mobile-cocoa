@@ -11,6 +11,7 @@ import { useSessionManagementStore } from "@/state/sessionManagementStore";
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { normalizeSubmitPayload, stableStringify } from "./hooksSerialization";
 import { appendCodeRefsToPrompt } from "./hooksUtils";
+import { applySubmitError, applySubmitSuccess, type SubmitHandlerDeps } from "./submitPromptHandler";
 import type { UseSessionCache } from "./useSessionCache";
 
 type UseChatActionsParams = {
@@ -138,56 +139,25 @@ export function useChatActions(params: UseChatActionsParams) {
         setWaitingForUserInput(false);
       };
 
-      /** Apply a successful submit response from the server. */
-      const applySubmitSuccess = (data: { ok: true; sessionId: string }) => {
-        const newSessionId = data.sessionId;
-        syncRunningStatusToGlobalStore(newSessionId, safePrompt);
-        const newState = getOrCreateSessionState(newSessionId);
-        const currentMessages = getOrCreateSessionMessages(newSessionId);
-        newState.sessionState = "running";
-        const merged = deduplicateMessageIds([...currentMessages, ...pendingMessagesForNewSessionRef.current]);
-        setSessionMessages(newSessionId, merged.length > 0 ? merged : []);
-        pendingMessagesForNewSessionRef.current = [];
-        setSessionDraft(newSessionId, "");
-        const messagesToDisplay = getOrCreateSessionMessages(newSessionId);
-        if (displayedSessionIdRef.current === newSessionId) {
-          setLiveSessionMessages([...messagesToDisplay]);
-          liveMessagesRef.current = messagesToDisplay;
-        }
-        outputBufferRef.current = "";
-        setSessionStateForSession(newSessionId, "running");
-        // Skip JSONL replay so previous turns' message_update events aren't re-processed.
-        skipReplayForSessionRef.current = newSessionId;
-        setConnectionIntent(newSessionId, true);
-        touchSession(newSessionId);
-        evictOldestSessions(newSessionId);
-        if (!sessionId || sessionId !== newSessionId) {
-          setSessionId(newSessionId);
-        }
-      };
-
-      /** Apply an error response (server returned ok: false or missing sessionId). */
-      const applySubmitError = (data: Record<string, unknown>) => {
-        const errorSessionId = typeof data.sessionId === "string" && !data.sessionId.startsWith("temp-")
-          ? data.sessionId
-          : null;
-        if (errorSessionId) {
-          const errorState = getOrCreateSessionState(errorSessionId);
-          const errorStateMessages = getOrCreateSessionMessages(errorSessionId);
-          errorState.sessionState = "idle";
-          const merged = deduplicateMessageIds([...errorStateMessages, ...pendingMessagesForNewSessionRef.current]);
-          setSessionMessages(errorSessionId, merged);
-          pendingMessagesForNewSessionRef.current = [];
-          setLiveSessionMessages([...merged]);
-          liveMessagesRef.current = merged;
-          setSessionId(errorSessionId);
-          setSessionStateForSession(errorSessionId, "idle");
-        }
-        resetRunningState();
-        setConnectionIntent(sessionId, false);
-        if (__DEV__ && !data.ok) {
-          console.warn("[sse] submit prompt failed:", data?.error ?? "no sessionId in response");
-        }
+      const submitHandlerDeps: SubmitHandlerDeps = {
+        sessionId,
+        displayedSessionIdRef,
+        liveMessagesRef,
+        pendingMessagesForNewSessionRef,
+        outputBufferRef,
+        skipReplayForSessionRef,
+        getOrCreateSessionState,
+        getOrCreateSessionMessages,
+        setSessionMessages,
+        setSessionDraft,
+        setSessionStateForSession,
+        setConnectionIntent,
+        deduplicateMessageIds,
+        touchSession,
+        evictOldestSessions,
+        setLiveSessionMessages,
+        setSessionId,
+        syncRunningStatusToGlobalStore,
       };
 
       let submitStage = "prepare";
@@ -210,9 +180,9 @@ export function useChatActions(params: UseChatActionsParams) {
         const data = await response.json();
         submitStage = "apply-result";
         if (data.ok && data.sessionId) {
-          applySubmitSuccess(data);
+          applySubmitSuccess(data, safePrompt, submitHandlerDeps);
         } else {
-          applySubmitError(data);
+          applySubmitError(data, submitHandlerDeps, resetRunningState);
         }
       } catch (error) {
         const errStage = submitStage;
@@ -322,9 +292,15 @@ export function useChatActions(params: UseChatActionsParams) {
           setSessionId(nextSessionId);
           setSessionStateForSession(nextSessionId, "running");
           setConnectionIntent(nextSessionId, true);
+        } else {
+          setSessionStateForSession(sessionId, "idle");
+          setWaitingForUserInput(false);
+          setConnectionIntent(sessionId, false);
         }
       } catch (error) {
         console.error("Failed to retry after permission", error);
+        setSessionStateForSession(sessionId, "idle");
+        setWaitingForUserInput(false);
         setConnectionIntent(sessionId, false);
       }
 

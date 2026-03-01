@@ -15,7 +15,14 @@ export interface UseChatOptions {
   onMessagesChange?: (messages: Message[]) => void;
 }
 
-export type { CodeReference, IServerConfig, LastRunOptions, Message, PendingAskUserQuestion, PermissionDenial };
+export type {
+  CodeReference,
+  IServerConfig,
+  LastRunOptions,
+  Message,
+  PendingAskUserQuestion,
+  PermissionDenial,
+} from "@/core/types";
 
 export type EventSourceLike = {
   addEventListener: (event: string, handler: (...args: any[]) => void) => void;
@@ -24,6 +31,11 @@ export type EventSourceLike = {
 };
 
 export type EventSourceCtor = new (url: string) => EventSourceLike;
+
+export interface SseMessageEvent {
+  data?: string | null;
+  type?: string;
+}
 
 export type SessionRuntimeState = "idle" | "running";
 

@@ -11,7 +11,7 @@
  */
 import { isProviderStream, isProviderSystemNoise, stripAnsi } from "@/services/providers/stream";
 
-type ParsedLineAction =
+export type SseAction =
   | { kind: "skip" }
   | { kind: "providerEvent"; data: Record<string, unknown> }
   | { kind: "agentEnd" }
@@ -23,7 +23,7 @@ type ParsedLineAction =
  * Parse a single raw SSE line from the output buffer.
  * Returns a discriminated union describing what action the caller should take.
  */
-function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
+function parseSseLine(clean: string): SseAction | SseAction[] {
   try {
     const parsed = JSON.parse(clean);
 
@@ -43,7 +43,7 @@ function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
       return { kind: "sessionRekey", sessionId: parsed.id };
     }
 
-    const actions: ParsedLineAction[] = [];
+    const actions: SseAction[] = [];
 
     if (parsed.type === "agent_end") {
       actions.push({ kind: "agentEnd" });
@@ -69,7 +69,7 @@ function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
     if (clean.startsWith("<u") && jsonStart > 0) {
       try {
         const parsed = JSON.parse(clean.slice(jsonStart));
-        const actions: ParsedLineAction[] = [];
+        const actions: SseAction[] = [];
         if (parsed?.type === "agent_end") actions.push({ kind: "agentEnd" });
         if (isProviderStream(parsed)) {
           actions.push({ kind: "providerEvent", data: parsed as Record<string, unknown> });
@@ -95,7 +95,7 @@ function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
  *
  * Returns null when the line should be silently discarded.
  */
-export function processRawSseLine(raw: string): ParsedLineAction | ParsedLineAction[] | null {
+export function processRawSseLine(raw: string): SseAction | SseAction[] | null {
   const clean = stripAnsi(raw.trim());
   if (!clean) return null;
   if (isProviderSystemNoise(clean)) return null;

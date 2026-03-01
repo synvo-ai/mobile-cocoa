@@ -37,13 +37,6 @@ export interface EventContext {
 
 export type EventHandler = (data: Record<string, unknown>, ctx: EventContext) => void;
 
-export interface ProviderContentBlock {
-  type?: string;
-  text?: string;
-  name?: string;
-  input?: unknown;
-}
-
 /** Basename for display (no Node path dependency). */
 export function basename(filePath: string): string {
   const s = String(filePath).replace(/\\/g, "/").trim();
@@ -75,62 +68,6 @@ export function appendToolUseDisplayLine(
 ): void {
   const line = formatToolUseForDisplay(name, input);
   ctx.appendAssistantText(`\n\n<think>\n${line}\n</think>\n\n`);
-}
-
-/** Join all text blocks from provider content arrays. */
-export function collectTextFromContentBlocks(contents: ProviderContentBlock[]): string {
-  return contents
-    .filter((c) => c.type === "text")
-    .map((c) => c.text ?? "")
-    .join("");
-}
-
-/** Append only delta when provider sends a full accumulated assistant snapshot.
- * Avoids duplicate display when fullText is already contained in current (e.g. turn_end
- * snapshot differs slightly from streamed text_delta content).
- * Handles the common case where current draft contains \<think\> blocks from
- * reasoning/tool output that the snapshot doesn't include. */
-export function appendSnapshotTextDelta(ctx: EventContext, fullText: string): void {
-  if (!fullText) return;
-  const current = ctx.getCurrentAssistantContent();
-  // fullText already fully in current → nothing to append (prevents duplicate)
-  if (current.length >= fullText.length && (current.startsWith(fullText) || current === fullText)) {
-    return;
-  }
-  // current is prefix of fullText → append only the new part
-  if (current.length > 0 && fullText.startsWith(current)) {
-    const delta = fullText.slice(current.length);
-    if (delta) ctx.appendAssistantText(delta);
-    return;
-  }
-  // Draft may contain <think> blocks from reasoning/tool output that the
-  // turn_end snapshot doesn't include. Strip them and re-compare against
-  // just the visible text portion.
-  if (current.length > 0) {
-    const visibleCurrent = current
-      .replace(/<think(?:_start)?>[\s\S]*?<\/think(?:_end)?>/gi, "")
-      .replace(/<think(?:_start)?>[\s\S]*$/i, "")  // trailing unclosed
-      .trim();
-    if (visibleCurrent.length >= fullText.length && visibleCurrent.endsWith(fullText.trimEnd())) {
-      return; // visible text is already present
-    }
-    if (visibleCurrent.length > 0 && fullText.startsWith(visibleCurrent)) {
-      const delta = fullText.slice(visibleCurrent.length);
-      if (delta) ctx.appendAssistantText(delta);
-      return;
-    }
-    // Partial overlap or unrelated — fall through to append full text
-    // rather than silently dropping content. Minor duplication is
-    // preferable to losing the entire snapshot.
-    if (__DEV__) {
-      console.warn("[appendSnapshotTextDelta] partial overlap fallback", {
-        visibleLen: visibleCurrent.length,
-        fullTextLen: fullText.length,
-      });
-    }
-  }
-  // current is empty → fresh message, append everything
-  ctx.appendAssistantText(fullText);
 }
 
 /** Format one tool_use block as a short human-readable markdown line for the assistant bubble. */

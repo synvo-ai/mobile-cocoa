@@ -14,7 +14,7 @@ const STREAM_FLUSH_INTERVAL_LARGE_MS = 95;
 const STREAM_FLUSH_DRAFT_THRESHOLD = 2400;
 const STREAM_BOUNDARY_MARKER = /[.!?;,\n]/;
 
-export type StreamFlushContext = {
+type StreamFlushContext = {
   /** Flush any accumulated text immediately. */
   flush: () => void;
   /** Enqueue a text chunk, flushing immediately on boundary chars or after a short timer. */
@@ -44,10 +44,9 @@ export function createStreamFlusher(
     if (!pending) return;
     const chunk = pending;
     pending = "";
+    onFlush(chunk);
     if (onDebugFlush) {
       onDebugFlush(chunk);
-    } else {
-      onFlush(chunk);
     }
   };
 

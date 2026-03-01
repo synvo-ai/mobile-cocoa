@@ -44,8 +44,8 @@ function resolveProvider(fromPayload) {
  */
 function getDefaultModelForProvider(provider) {
   try {
-    const cfg = loadModelsConfig();
-    return cfg.providers?.[provider]?.defaultModel ?? getBuiltinDefaultModel(provider);
+    const modelsConfig = loadModelsConfig();
+    return modelsConfig.providers?.[provider]?.defaultModel ?? getBuiltinDefaultModel(provider);
   } catch (_) {
     return getBuiltinDefaultModel(provider);
   }
@@ -61,9 +61,9 @@ function emitError(socket, message) {
 
 /** Format current time as yyyy-MM-dd_HH-mm-ss (24-hour) for log directory names. */
 export function formatSessionLogTimestamp() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+  const date = new Date();
+  const pad = (value) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}_${pad(date.getHours())}-${pad(date.getMinutes())}-${pad(date.getSeconds())}`;
 }
 
 /**
@@ -170,28 +170,28 @@ function createSseSocketAdapter(sessionId, session, host = DEFAULT_SSE_HOST) {
     },
     conn: { remoteAddress: "" },
     emit(event, data) {
-      const subs = session.subscribers;
-      if (!subs || subs.size === 0) return;
+      const subscribers = session.subscribers;
+      if (!subscribers || subscribers.size === 0) return;
       const line = typeof data === "string" ? data : JSON.stringify(data);
       const sseData = line.replace(/\r?\n/g, "\ndata: ");
       const payload = `data: ${sseData}\n\n`;
       const endPayload = event === "exit"
         ? `event: end\ndata: ${JSON.stringify(data ?? {})}\n\n`
         : null;
-      for (const res of subs) {
+      for (const response of subscribers) {
         try {
-          if (res.writableEnded) continue;
+          if (response.writableEnded) continue;
           if (endPayload) {
-            res.write(endPayload);
-            res.end();
+            response.write(endPayload);
+            response.end();
           } else {
-            res.write(payload);
+            response.write(payload);
           }
         } catch (_) { }
       }
     },
-    setHost(h) {
-      adapter.handshake.headers.host = h || DEFAULT_SSE_HOST;
+    setHost(hostValue) {
+      adapter.handshake.headers.host = hostValue || DEFAULT_SSE_HOST;
     },
   };
   return adapter;

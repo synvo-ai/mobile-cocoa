@@ -1,4 +1,4 @@
-import type { ChatPageContext, ChatPageConversation, ChatPageFileViewer, ChatPageHeader, ChatPageInputDock, ChatPageRuntime, ChatPageSidebar } from "@/components/pages/ChatPage";
+import type { ChatPageContext, ChatPageConversation, ChatPageHeader, ChatPageInputDock, ChatPageRuntime, ChatPageSidebar } from "@/components/pages/ChatPage";
 import { ChatConversationSection, ChatHeaderSection, ChatInputDockSection } from "@/components/pages/ChatPageSections";
 import { layoutOuterStyle } from "@/components/styles/appStyles";
 import type { ChatModalOpenHandlers } from "@/components/types/chatModalTypes";
@@ -14,7 +14,6 @@ export type ChatPageShellProps = {
   runtime: ChatPageRuntime;
   header: ChatPageHeader;
   conversation: ChatPageConversation;
-  fileViewer: ChatPageFileViewer;
   sidebar: ChatPageSidebar;
   inputDock: ChatPageInputDock;
   modalHandlers: ChatModalOpenHandlers;
@@ -25,7 +24,6 @@ export function ChatPageShell({
   runtime,
   header,
   conversation,
-  fileViewer,
   sidebar,
   inputDock,
   modalHandlers,
@@ -55,7 +53,6 @@ export function ChatPageShell({
               <Box className="flex-1 min-h-0" style={{ overflow: "hidden" }}>
                 {!isAnyOverlayOpen && (
                   <ChatHeaderSection
-                    theme={context.theme}
                     onOpenExplorer={header.onOpenExplorer}
                     onOpenSessionManagement={modalHandlers.onOpenSessionManagement}
                     sidebarVisible={header.sidebarVisible || modalHandlers.isAnyModalOpen}

@@ -1,10 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import Svg, { Circle, Defs, G, LinearGradient, Path, Rect, Stop } from "react-native-svg";
-
-const RAINBOW_COLORS = [
-  "#D07B7B", "#D0A57B", "#D0D07B", "#7BD094",
-  "#7BD0D0", "#7BA5D0", "#7B7BD0", "#A57BD0", "#D07BD0",
-];
+import React from "react";
+import Svg, { Circle, G, Path, Rect } from "react-native-svg";
 
 type IconProps = {
   color?: string;

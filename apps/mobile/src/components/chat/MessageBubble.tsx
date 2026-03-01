@@ -136,9 +136,6 @@ const BASH_LANGUAGES = new Set(["bash", "sh", "shell", "zsh"]);
 /** Supports both emoji and non-emoji prefixes. Groups: 1=prefix, 2=label, 3=encodedPath. */
 const FILE_ACTIVITY_LINK_REGEX = /^((?:(?:📝\s*)?Writing|(?:✏️\s*)?Editing|(?:📖\s*)?Reading))\s+\[([^\]]+)\]\(file:(.+)\)\s*$/;
 
-/** Matches "Running command:" or "🖥 Running command:" followed by newlines, `cmd`, optional Output block, and optional status (→ or ->). */
-const BASH_COMMAND_BLOCK_REGEX = /(?:🖥\s*)?Running command:(?:\r?\n)+`([^`]*)`(?:(?:\r?\n)+Output:\r?\n```(?:[a-zA-Z0-9-]*)\r?\n([\s\S]*?)\r?\n```)?(?:(?:\r?\n)+(?:→|->)\s*(Completed|Failed)(?:\s*\((\d+)\))?)?/g;
-
 /** Split regex to safely parse commands and outputs even if there is interleaved text between them. */
 const COMMAND_RUN_SECTION_REGEX = /(?:(?:🖥\s*)?Running command:(?:\r?\n)+`([^`]*)`)|(?:Output:\r?\n```(?:[a-zA-Z0-9-]*)\r?\n([\s\S]*?)\r?\n```(?:(?:\r?\n)+(?:→|->)\s*(Completed|Failed)(?:\s*\((\d+)\))?)?)/g;
 
@@ -364,7 +361,6 @@ function CollapsibleThinkingBlock({
     setExpanded(initiallyExpanded);
   }, [initiallyExpanded]);
 
-  const MIN_TOUCH = 44;
   return (
     <Box
       className="my-2 rounded-xl border border-l-4 overflow-hidden"
@@ -512,7 +508,7 @@ const TERMINAL_BG = "#1e293b";
 const TERMINAL_TEXT = "rgba(255,255,255,0.9)";
 const TERMINAL_PROMPT = "rgba(255,255,255,0.5)";
 
-function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, tailBoxMaxHeight = 360, provider, onOpenUrl, onFileSelect, isStreaming }: MessageBubbleProps) {
+function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenUrl, onFileSelect, isStreaming }: MessageBubbleProps) {
   const theme = useTheme();
   const [bubbleSize, setBubbleSize] = useState({ width: 0, height: 0 });
   const codeBlockBg = theme.colors.surfaceMuted;

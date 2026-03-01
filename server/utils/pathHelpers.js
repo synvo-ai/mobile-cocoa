@@ -5,8 +5,10 @@
 import path from "path";
 import fs from "fs";
 
-/** Pattern to strip leading directory traversal segments. */
-const TRAVERSAL_STRIP = /^(\.\.(\/|\\|$))+/;
+/** Pattern to detect directory traversal segment usage. */
+const TRAVERSAL_PATTERN = /(?:^|[\\/])\.\.(?:$|[\\/])/;
+
+const hasTraversalSegment = (value) => TRAVERSAL_PATTERN.test(value);
 
 /**
  * Normalize a relative path and strip directory traversal attempts.
@@ -15,8 +17,22 @@ const TRAVERSAL_STRIP = /^(\.\.(\/|\\|$))+/;
  */
 export function normalizeRelativePath(relPath) {
   if (typeof relPath !== "string" || !relPath.trim()) return "";
-  const normalized = path.normalize(relPath).replace(TRAVERSAL_STRIP, "").replace(/^[/\\]+/, "");
-  return normalized;
+  const sanitizedInput = relPath.trim().replace(/\\/g, "/");
+
+  if (hasTraversalSegment(sanitizedInput)) {
+    throw new Error(`Path traversal detected: "${relPath}"`);
+  }
+
+  const normalized = path.normalize(sanitizedInput);
+  if (!normalized || normalized === "." || normalized === "/" || normalized === "\\") {
+    return "";
+  }
+
+  if (path.isAbsolute(normalized) || /^[a-zA-Z]:[\\/]/.test(normalized)) {
+    throw new Error(`Absolute paths are not allowed: "${relPath}"`);
+  }
+
+  return normalized.replace(/^[/\\]+/, "");
 }
 
 function existsOrSymbolic(pathToCheck) {
@@ -68,7 +84,16 @@ function isInsideRoot(rootDir, targetPath) {
  * @returns {{ ok: boolean; fullPath?: string; error?: string }}
  */
 export function resolveWithinRoot(rootDir, relativePath) {
-  const normalized = normalizeRelativePath(relativePath);
+  let normalized;
+  try {
+    normalized = normalizeRelativePath(relativePath);
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Invalid path",
+    };
+  }
+
   const requested = path.resolve(path.join(rootDir, normalized));
   const rootReal = safeRealPath(rootDir);
 

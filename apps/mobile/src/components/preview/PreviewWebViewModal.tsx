@@ -357,7 +357,6 @@ export function PreviewWebViewModal({
                 onChangeText={setUrlInputValue}
                 onSubmit={handleGo}
                 onReload={handleReload}
-                onFullscreen={() => setIsFullScreen(true)}
                 resolvedUrl={resolvedUrl}
                 loading={loading}
                 theme={theme}

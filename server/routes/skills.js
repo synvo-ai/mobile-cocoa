@@ -9,8 +9,8 @@ import {
 
 /** Resolve skills directory from config/skills.json. */
 function getSkillsDir() {
-  const cfg = loadSkillsConfig();
-  return path.join(projectRoot, cfg.skillsLibraryDir);
+  const skillsConfig = loadSkillsConfig();
+  return path.join(projectRoot, skillsConfig.skillsLibraryDir);
 }
 
 export function registerSkillsRoutes(app) {

@@ -14,10 +14,10 @@ const SAFE_SESSION_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 export function isValidSessionId(sessionId) {
     if (typeof sessionId !== "string") return false;
-    const sid = sessionId.trim();
-    if (!sid || sid === "." || sid === "..") return false;
-    if (sid.includes("/") || sid.includes("\\")) return false;
-    return SAFE_SESSION_ID_RE.test(sid);
+    const trimmedSessionId = sessionId.trim();
+    if (!trimmedSessionId || trimmedSessionId === "." || trimmedSessionId === "..") return false;
+    if (trimmedSessionId.includes("/") || trimmedSessionId.includes("\\")) return false;
+    return SAFE_SESSION_ID_RE.test(trimmedSessionId);
 }
 
 export function assertValidSessionId(sessionId) {
@@ -28,13 +28,13 @@ export function assertValidSessionId(sessionId) {
 }
 
 /** Extract content from Pi message content array. Thinking uses c.thinking, text uses c.text. */
-export function extractMessageContent(contentArr) {
-    if (!Array.isArray(contentArr)) return "";
-    return contentArr
-        .filter((c) => c && (c.type === "text" || c.type === "thinking"))
-        .map((c) => {
-            if (c.type === "thinking" && typeof c.thinking === "string") return `<think>\n${c.thinking}\n</think>\n\n`;
-            if (c.type === "text" && typeof c.text === "string") return c.text;
+function extractMessageContent(contentItems) {
+    if (!Array.isArray(contentItems)) return "";
+    return contentItems
+        .filter((contentItem) => contentItem && (contentItem.type === "text" || contentItem.type === "thinking"))
+        .map((contentItem) => {
+            if (contentItem.type === "thinking" && typeof contentItem.thinking === "string") return `<think>\n${contentItem.thinking}\n</think>\n\n`;
+            if (contentItem.type === "text" && typeof contentItem.text === "string") return contentItem.text;
             return "";
         })
         .filter(Boolean)
@@ -48,12 +48,12 @@ export function uuidFromFileStem(stem) {
 }
 
 /** Map Pi CLI provider string to app provider (claude, gemini, codex). */
-export function mapProvider(providerStr) {
+function mapProvider(providerStr) {
     if (!providerStr || typeof providerStr !== "string") return null;
-    const s = providerStr.toLowerCase();
-    if (s.includes("gemini")) return "gemini";
-    if (s.includes("claude") || s.includes("anthropic")) return "claude";
-    if (s.includes("codex") || s.includes("openai")) return "codex";
+    const providerLower = providerStr.toLowerCase();
+    if (providerLower.includes("gemini")) return "gemini";
+    if (providerLower.includes("claude") || providerLower.includes("anthropic")) return "claude";
+    if (providerLower.includes("codex") || providerLower.includes("openai")) return "codex";
     return null;
 }
 
@@ -81,25 +81,25 @@ export function parseSessionMetadata(filePath) {
     let modelId = null;
     let cwd = null;
     try {
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const lines = raw.split("\n").filter((l) => l.trim());
+        const jsonlText = fs.readFileSync(filePath, "utf-8");
+        const lines = jsonlText.split("\n").filter((lineText) => lineText.trim());
         for (const line of lines) {
             try {
-                const obj = JSON.parse(line);
-                if (obj.type === "session" && typeof obj.id === "string") {
-                    sessionId = obj.id;
-                    if (typeof obj.cwd === "string" && obj.cwd) cwd = obj.cwd;
+                const parsedLine = JSON.parse(line);
+                if (parsedLine.type === "session" && typeof parsedLine.id === "string") {
+                    sessionId = parsedLine.id;
+                    if (typeof parsedLine.cwd === "string" && parsedLine.cwd) cwd = parsedLine.cwd;
                 }
-                if (obj.type === "model_change" && typeof obj.modelId === "string") {
-                    provider = mapProvider(obj.provider) || provider;
-                    modelId = obj.modelId;
+                if (parsedLine.type === "model_change" && typeof parsedLine.modelId === "string") {
+                    provider = mapProvider(parsedLine.provider) || provider;
+                    modelId = parsedLine.modelId;
                 }
-                if ((obj.type === "message" || obj.type === "message_start") && obj.message?.role === "user" && firstUserInput == null) {
-                    const content = obj.message.content;
+                if ((parsedLine.type === "message" || parsedLine.type === "message_start") && parsedLine.message?.role === "user" && firstUserInput == null) {
+                    const content = parsedLine.message.content;
                     if (Array.isArray(content)) {
                         const textParts = content
-                            .filter((c) => c?.type === "text" && typeof c.text === "string")
-                            .map((c) => c.text);
+                            .filter((contentItem) => contentItem?.type === "text" && typeof contentItem.text === "string")
+                            .map((contentItem) => contentItem.text);
                         firstUserInput = textParts.join("").trim().slice(0, FIRST_USER_INPUT_MAX_LEN) || null;
                     } else if (typeof content === "string") {
                         firstUserInput = content.trim().slice(0, FIRST_USER_INPUT_MAX_LEN) || null;
@@ -111,24 +111,24 @@ export function parseSessionMetadata(filePath) {
             }
         }
         if (!cwd) cwd = deriveCwdFromFilePath(filePath);
-    } catch (e) {
-        console.error("[sessions] Failed to parse metadata:", filePath, e?.message);
+    } catch (error) {
+        console.error("[sessions] Failed to parse metadata:", filePath, error?.message);
     }
     return { sessionId, firstUserInput, provider, modelId, cwd };
 }
 
 /** Session dir = sessions/{sessionId}. Dir name is just the session id. */
 export function getSessionDir(sessionId) {
-    const sid = assertValidSessionId(sessionId);
-    return path.join(SESSIONS_ROOT, "sessions", sid);
+    const validatedSessionId = assertValidSessionId(sessionId);
+    return path.join(SESSIONS_ROOT, "sessions", validatedSessionId);
 }
 
 /** Find .jsonl file in a session dir. */
 export function findJsonlInDir(dir) {
     if (!fs.existsSync(dir)) return null;
     const entries = fs.readdirSync(dir);
-    const jsonl = entries.find((n) => n.endsWith(".jsonl"));
-    return jsonl ? path.join(dir, jsonl) : null;
+    const jsonlFileName = entries.find((entryName) => entryName.endsWith(".jsonl"));
+    return jsonlFileName ? path.join(dir, jsonlFileName) : null;
 }
 
 /** Resolve session file path. Session dir is sessions/{sessionId}. */
@@ -140,10 +140,10 @@ export function listDiscoveredSessions() {
     const sessionsBase = path.join(SESSIONS_ROOT, "sessions");
     if (!fs.existsSync(sessionsBase)) return [];
 
-    const subdirs = fs.readdirSync(sessionsBase, { withFileTypes: true }).filter((e) => e.isDirectory());
+    const subdirs = fs.readdirSync(sessionsBase, { withFileTypes: true }).filter((entry) => entry.isDirectory());
     const discovered = [];
-    for (const d of subdirs) {
-        const dirSessionId = d.name;
+    for (const sessionDirEntry of subdirs) {
+        const dirSessionId = sessionDirEntry.name;
         const filePath = findJsonlInDir(path.join(sessionsBase, dirSessionId));
         if (!filePath) continue;
 
@@ -170,7 +170,7 @@ export function listDiscoveredSessions() {
 }
 
 /** Staleness threshold (ms): sessions not modified within this window are considered idling. */
-export const STALE_SESSION_MS = 60_000; // 1 minute
+const STALE_SESSION_MS = 60_000; // 1 minute
 
 /**
  * Returns the effective running status of a session record,
@@ -207,7 +207,7 @@ export function createNewSessionFile(sessionId, cwd) {
  * xhr.responseText from growing unboundedly on the mobile client.
  * Returns the line unchanged if it's not a heavy event.
  */
-export function slimReplayLine(line) {
+function slimReplayLine(line) {
     // Fast regex checks before any JSON.parse
     if (/"type"\s*:\s*"(message_end|turn_end|message_start)"/.test(line)) {
         // Extract just the type and return a tiny event
@@ -235,16 +235,16 @@ export function slimReplayLine(line) {
 export function replayHistoryToResponse(filePath, res) {
     if (!filePath || !fs.existsSync(filePath)) return 0;
     try {
-        const raw = fs.readFileSync(filePath, "utf-8");
-        const lines = raw.split("\n").filter((l) => l.trim());
+        const jsonlText = fs.readFileSync(filePath, "utf-8");
+        const lines = jsonlText.split("\n").filter((lineText) => lineText.trim());
         for (const line of lines) {
             if (/\"type\"\s*:\s*\"agent_(end|start)\"/.test(line)) continue;
             const slimmed = slimReplayLine(line);
             res.write(`data: ${slimmed}\n\n`);
         }
         return lines.length;
-    } catch (e) {
-        console.error("[sessions] Failed to replay history from disk:", e?.message);
+    } catch (error) {
+        console.error("[sessions] Failed to replay history from disk:", error?.message);
         return 0;
     }
 }
@@ -256,50 +256,50 @@ export function replayHistoryToResponse(filePath, res) {
  * @returns {{ id: string, role: string, content: string }[]}
  */
 export function parseMessagesFromJsonl(filePath) {
-    const raw = fs.readFileSync(filePath, "utf-8");
-    const lines = raw.split("\n").filter((l) => l.trim());
+    const jsonlText = fs.readFileSync(filePath, "utf-8");
+    const lines = jsonlText.split("\n").filter((lineText) => lineText.trim());
 
     const messages = [];
     const seenUserMessageIds = new Set();
     const seenUserMessageContents = new Set();
-    let idx = 0;
+    let nextMessageIndex = 0;
     let pendingAssistantContent = [];
     let pendingDeltaText = "";
 
     for (const line of lines) {
         try {
-            const obj = JSON.parse(line);
-            if (!obj) continue;
+            const parsedEvent = JSON.parse(line);
+            if (!parsedEvent) continue;
 
             // ── Handle message_update streaming deltas ───────────────
             // Providers like Codex/Claude stream via message_update events with
             // assistantMessageEvent deltas rather than complete message objects.
-            if (obj.type === "message_update" && obj.assistantMessageEvent) {
-                const evt = obj.assistantMessageEvent;
+            if (parsedEvent.type === "message_update" && parsedEvent.assistantMessageEvent) {
+                const assistantMessageEvent = parsedEvent.assistantMessageEvent;
                 // Regular text deltas (Codex uses "text_delta")
-                if ((evt.type === "text_delta" || evt.type === "delta") && typeof evt.delta === "string") {
-                    pendingDeltaText += evt.delta;
+                if ((assistantMessageEvent.type === "text_delta" || assistantMessageEvent.type === "delta") && typeof assistantMessageEvent.delta === "string") {
+                    pendingDeltaText += assistantMessageEvent.delta;
                 }
                 // Claude-style content_block_delta with nested text
-                if (evt.type === "content_block_delta" && typeof evt.delta?.text === "string") {
-                    pendingDeltaText += evt.delta.text;
+                if (assistantMessageEvent.type === "content_block_delta" && typeof assistantMessageEvent.delta?.text === "string") {
+                    pendingDeltaText += assistantMessageEvent.delta.text;
                 }
                 // Thinking blocks — reconstruct <think>...</think> wrappers
-                if (evt.type === "thinking_start") pendingDeltaText += "<think>\n";
-                if (evt.type === "thinking_delta" && typeof evt.delta === "string") pendingDeltaText += evt.delta;
-                if (evt.type === "thinking_end") pendingDeltaText += "\n</think>\n\n";
+                if (assistantMessageEvent.type === "thinking_start") pendingDeltaText += "<think>\n";
+                if (assistantMessageEvent.type === "thinking_delta" && typeof assistantMessageEvent.delta === "string") pendingDeltaText += assistantMessageEvent.delta;
+                if (assistantMessageEvent.type === "thinking_end") pendingDeltaText += "\n</think>\n\n";
                 continue;
             }
 
             // ── Handle standard message/message_start/message_end ────
-            if (!["message", "message_start", "message_end"].includes(obj.type) || !obj.message) continue;
+            if (!["message", "message_start", "message_end"].includes(parsedEvent.type) || !parsedEvent.message) continue;
 
-            const m = obj.message;
-            const role = m.role;
+            const messagePayload = parsedEvent.message;
+            const role = messagePayload.role;
             if (role !== "user" && role !== "assistant") continue;
-            if (role === "assistant" && (!m.content || m.content.length === 0)) continue;
+            if (role === "assistant" && (!messagePayload.content || messagePayload.content.length === 0)) continue;
 
-            const contentStr = extractMessageContent(m.content).trim();
+            const contentStr = extractMessageContent(messagePayload.content).trim();
             if (!contentStr) continue;
 
             if (role === "user") {
@@ -309,7 +309,7 @@ export function parseMessagesFromJsonl(filePath) {
                     pendingDeltaText = "";
                 }
                 // Prefer event message ID for dedupe; fallback to content only when no id is present.
-                const messageId = typeof m.id === "string" && m.id.trim().length > 0 ? m.id.trim() : "";
+                const messageId = typeof messagePayload.id === "string" && messagePayload.id.trim().length > 0 ? messagePayload.id.trim() : "";
                 if (messageId) {
                     if (seenUserMessageIds.has(messageId)) continue;
                     seenUserMessageIds.add(messageId);
@@ -320,10 +320,10 @@ export function parseMessagesFromJsonl(filePath) {
 
                 // Flush pending assistant chunks
                 if (pendingAssistantContent.length > 0) {
-                    messages.push({ id: `msg-${++idx}`, role: "assistant", content: pendingAssistantContent.join("\n\n").trim() });
+                    messages.push({ id: `msg-${++nextMessageIndex}`, role: "assistant", content: pendingAssistantContent.join("\n\n").trim() });
                     pendingAssistantContent = [];
                 }
-                messages.push({ id: `msg-${++idx}`, role: "user", content: contentStr });
+                messages.push({ id: `msg-${++nextMessageIndex}`, role: "user", content: contentStr });
             } else {
                 // role === 'assistant': flush delta text then accumulate
                 if (pendingDeltaText) {
@@ -340,7 +340,7 @@ export function parseMessagesFromJsonl(filePath) {
     // Final flush
     if (pendingDeltaText) pendingAssistantContent.push(pendingDeltaText);
     if (pendingAssistantContent.length > 0) {
-        messages.push({ id: `msg-${++idx}`, role: "assistant", content: pendingAssistantContent.join("\n\n").trim() });
+        messages.push({ id: `msg-${++nextMessageIndex}`, role: "assistant", content: pendingAssistantContent.join("\n\n").trim() });
     }
 
     return messages;

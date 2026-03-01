@@ -57,10 +57,10 @@ function useApprovalNeededSideEffect({
       (permissionDenials != null && permissionDenials.length > 0);
 
     if (approvalNeeded && !prevApprovalNeededRef.current) {
-      const q = pendingAskQuestion?.questions?.[0];
+      const firstQuestion = pendingAskQuestion?.questions?.[0];
       const title =
-        typeof (q?.header ?? q?.question) === "string"
-          ? (q?.header ?? q?.question)
+        typeof (firstQuestion?.header ?? firstQuestion?.question) === "string"
+          ? (firstQuestion?.header ?? firstQuestion?.question)
           : permissionDenials && permissionDenials.length > 0
             ? "Permission decision needed"
             : undefined;

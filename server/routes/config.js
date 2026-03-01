@@ -25,8 +25,8 @@ export function registerConfigRoutes(app) {
    * Re-reads from disk on every request so edits take effect without restart.
    */
   app.get("/api/models", (_, res) => {
-    const cfg = loadModelsConfig();
-    res.json(cfg);
+    const modelsConfig = loadModelsConfig();
+    res.json(modelsConfig);
   });
 
   app.get("/api/workspace-path", (_, res) => {
@@ -68,8 +68,8 @@ export function registerConfigRoutes(app) {
   });
 
   app.post("/api/workspace-path", (req, res) => {
-    const raw = req.body?.path ?? req.query?.path;
-    const result = setWorkspaceCwd(raw);
+    const rawPath = req.body?.path ?? req.query?.path;
+    const result = setWorkspaceCwd(rawPath);
     if (result.ok) {
       res.json({ path: getWorkspaceCwd() });
     } else {

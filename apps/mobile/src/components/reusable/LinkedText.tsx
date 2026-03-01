@@ -26,7 +26,6 @@ function parseSegments(text: string): Segment[] {
     let match: RegExpExecArray | null;
     while ((match = URL_REGEX.exec(text)) !== null) {
         const matchStart = match.index;
-        const matchEnd = URL_REGEX.lastIndex;
         // Push preceding text
         if (matchStart > lastIndex) {
             segments.push({ type: "text", value: text.slice(lastIndex, matchStart) });

@@ -11,10 +11,10 @@ import {
   PORT,
   SERVER_LISTEN_HOST,
   getWorkspaceCwd,
-} from "./server/config/index.js";
-import { shutdown } from "./server/process/index.js";
-import { setupRoutes } from "./server/routes/index.js";
-import { getActiveOverlay, getPreviewHost } from "./server/utils/index.js";
+} from "./config/index.js";
+import { shutdown } from "./process/index.js";
+import { setupRoutes } from "./routes/index.js";
+import { getActiveOverlay, getPreviewHost } from "./utils/index.js";
 
 const app = express();
 app.use(express.json());

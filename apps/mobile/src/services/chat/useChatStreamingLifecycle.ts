@@ -6,6 +6,8 @@ import type {
     LastRunOptions, Message,
     PendingAskUserQuestion,
     PermissionDenial,
+} from "@/core/types";
+import type {
     SessionRuntimeState
 } from "./hooksTypes";
 import { createSessionMessageHandlers } from "./sessionMessageHandlers";
@@ -42,7 +44,7 @@ type UseChatStreamingLifecycleParams = {
   setPendingAskQuestion: Dispatch<SetStateAction<PendingAskUserQuestion | null>>;
   setPermissionDenials: Dispatch<SetStateAction<PermissionDenial[] | null>>;
   setLastSessionTerminated: Dispatch<SetStateAction<boolean>>;
-  setStoreSessionId: (sid: string | null) => void;
+  setStoreSessionId: (sessionId: string | null) => void;
   lastRunOptionsRef: MutableRefObject<LastRunOptions>;
 };
 
@@ -114,9 +116,13 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
   // sessionStatuses array changes identity every 3s poll, but this boolean
   // only changes when the session *actually* transitions — avoiding unnecessary
   // effect re-runs.
-  const isTargetSessionRunning = Boolean(
+  const isTargetSessionRunningFromStore = Boolean(
     storeSessionId && sessionStatuses.find((s) => s.id === storeSessionId)?.status === "running"
   );
+  const isTargetSessionRunningFromRuntime = Boolean(
+    selectedSessionRuntimeRef.current?.id === storeSessionId && selectedSessionRuntimeRef.current?.running
+  );
+  const isTargetSessionRunning = isTargetSessionRunningFromRuntime || isTargetSessionRunningFromStore;
   const streamFlushPerfRef = useRef({
     flushCount: 0,
     totalChars: 0,
@@ -126,42 +132,42 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
   // ── Refresh from disk ─────────────────────────────────────────────────────
 
   const refreshCurrentSessionFromDisk = useCallback(
-    async (sid: string | null) => {
-      if (!sid || sid.startsWith("temp-")) return;
+    async (sessionIdToRefresh: string | null) => {
+      if (!sessionIdToRefresh || sessionIdToRefresh.startsWith("temp-")) return;
       // If there is an active draft, streaming hasn't finalized yet — skip to
       // avoid clobbering streamed content with a stale disk snapshot.
-      const activeDraft = getSessionDraft(sid);
+      const activeDraft = getSessionDraft(sessionIdToRefresh);
       if (activeDraft && activeDraft.length > 0) {
         if (__DEV__) {
-          console.log("[sse] skipping disk refresh — active draft exists", { sid, draftLen: activeDraft.length });
+          console.log("[sse] skipping disk refresh — active draft exists", { sessionId: sessionIdToRefresh, draftLen: activeDraft.length });
         }
         return;
       }
       try {
-        const res = await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(sid)}/messages`);
-        if (!res.ok) return;
-        const data = await res.json();
+        const response = await fetch(`${serverUrl}/api/sessions/${encodeURIComponent(sessionIdToRefresh)}/messages`);
+        if (!response.ok) return;
+        const data = await response.json();
         const loadedMessages = Array.isArray(data?.messages) ? (data.messages as Message[]) : [];
-        const state = getOrCreateSessionState(sid);
+        const state = getOrCreateSessionState(sessionIdToRefresh);
         const deduped = deduplicateMessageIds(loadedMessages);
         const maxN = getMaxMessageId(deduped);
 
         nextIdRef.current = Math.max(nextIdRef.current, maxN);
-        setSessionMessages(sid, deduped);
-        setSessionDraft(sid, "");
+        setSessionMessages(sessionIdToRefresh, deduped);
+        setSessionDraft(sessionIdToRefresh, "");
         state.sessionState = "idle";
         setSessionState(state.sessionState);
 
-        if (displayedSessionIdRef.current === sid) {
+        if (displayedSessionIdRef.current === sessionIdToRefresh) {
           setLiveSessionMessages([...deduped]);
           liveMessagesRef.current = deduped;
-          setSessionStateForSession(sid, "idle");
+          setSessionStateForSession(sessionIdToRefresh, "idle");
           setWaitingForUserInput(false);
           outputBufferRef.current = "";
         }
       } catch (err) {
         if (__DEV__) {
-          console.warn("[sse] refresh session from disk failed", { sessionId: sid, error: String(err) });
+          console.warn("[sse] refresh session from disk failed", { sessionId: sessionIdToRefresh, error: String(err) });
         }
       }
     },
@@ -224,11 +230,11 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
 
     if (__DEV__) console.log("[sse] effect mount", { serverUrl, sessionId: targetSessionId });
 
-    const sid = targetSessionId;
-    const connectionSessionIdRef = { current: sid };
+    const activeSessionId = targetSessionId;
+    const connectionSessionIdRef = { current: activeSessionId };
 
     const msgHandlers = createSessionMessageHandlers({
-      sidRef: connectionSessionIdRef,
+      sessionIdRef: connectionSessionIdRef,
       getOrCreateSessionState,
       getOrCreateSessionMessages,
       setSessionMessages,
@@ -267,7 +273,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       }
     };
 
-    const { url: streamUrl, applySkipReplay } = resolveStreamUrl(serverUrl, sid, skipReplayForSessionRef.current);
+    const { url: streamUrl, applySkipReplay } = resolveStreamUrl(serverUrl, activeSessionId, skipReplayForSessionRef.current);
     if (applySkipReplay) {
       skipReplayForSessionRef.current = null;
     }
@@ -275,14 +281,14 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     // Mutable ref so that scheduleRetry always cleans up the *current* SSE instance,
     // not the original one captured by closure (fixes zombie connection bug).
     const currentSseRef = { current: sse };
-    activeSseRef.current = { id: sid, source: sse };
+    activeSseRef.current = { id: activeSessionId, source: sse };
 
     // ── Session ID rekey (temp-* → real ID) ────────────────────────────────
 
     const setSessionIdWithRekey = (newId: string | null) => {
-      const currentSid = connectionSessionIdRef.current;
-      if (newId && newId !== currentSid && !newId.startsWith("temp-")) {
-        sessionCache.rekeySessionData(currentSid, newId);
+      const currentSessionId = connectionSessionIdRef.current;
+      if (newId && newId !== currentSessionId && !newId.startsWith("temp-")) {
+        sessionCache.rekeySessionData(currentSessionId, newId);
         connectionSessionIdRef.current = newId;
       }
       setSessionId(newId);
@@ -303,7 +309,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
             const sinceLast = perf.lastFlushAt ? now - perf.lastFlushAt : 0;
             perf.lastFlushAt = now;
             const start = now;
-            msgHandlers.appendAssistantTextForSession(chunk);
+            // Telemetry-only callback.
             if (perf.flushCount % 15 === 0) {
               console.debug("[stream] assistant flush", {
                 flushCount: perf.flushCount,
@@ -339,12 +345,12 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         return draft;
       },
       getLastMessageRole: () => {
-        const m = getOrCreateSessionMessages(connectionSessionIdRef.current);
-        return m.length ? m[m.length - 1]?.role ?? null : null;
+        const messages = getOrCreateSessionMessages(connectionSessionIdRef.current);
+        return messages.length ? messages[messages.length - 1]?.role ?? null : null;
       },
       getLastMessageContent: () => {
-        const m = getOrCreateSessionMessages(connectionSessionIdRef.current);
-        const last = m.length ? m[m.length - 1] : null;
+        const messages = getOrCreateSessionMessages(connectionSessionIdRef.current);
+        const last = messages.length ? messages[messages.length - 1] : null;
         return (last?.content as string) ?? "";
       },
       deduplicateDenials: (d) => deduplicateDenialsRef.current(d),
@@ -405,11 +411,11 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     };
 
     const errorHandler = (err: unknown) => {
-      const e = err as { xhrStatus?: number; xhrState?: number; message?: string };
+      const eventError = err as { xhrStatus?: number; xhrState?: number; message?: string };
       const isExpectedServerClose =
-        e?.xhrStatus === 200 &&
-        e?.xhrState === 4 &&
-        (typeof e?.message === "string" && e.message.toLowerCase().includes("connection abort"));
+        eventError?.xhrStatus === 200 &&
+        eventError?.xhrState === 4 &&
+        (typeof eventError?.message === "string" && eventError.message.toLowerCase().includes("connection abort"));
       if (isExpectedServerClose) {
         if (__DEV__) console.log("[sse] stream ended (server closed)", { sessionId: connectionSessionIdRef.current });
         handleStreamEnd({}, 0);

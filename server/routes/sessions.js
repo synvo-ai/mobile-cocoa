@@ -58,6 +58,24 @@ function requireValidSessionIdParam(req, res) {
     }
 }
 
+function appendUserPromptToSessionFile(filePath, prompt) {
+    if (!filePath || !prompt) return;
+    try {
+        const messageId = crypto.randomUUID();
+        const userMsgLine = JSON.stringify({
+            type: "message",
+            id: messageId,
+            timestamp: new Date().toISOString(),
+            message: {
+                id: messageId,
+                role: "user",
+                content: [{ type: "text", text: prompt }],
+            },
+        }) + "\n";
+        fs.appendFileSync(filePath, userMsgLine, "utf-8");
+    } catch (_) { /* non-fatal */ }
+}
+
 /**
  * Find an existing session or create (and optionally replace) one.
  * Writes the user prompt to the JSONL immediately so GET /messages can find it
@@ -74,25 +92,14 @@ function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
     }
 
     let session = sessionId ? getSession(sessionId) : null;
+    let existingPath = null;
 
     if (!session || payload.replaceRunning) {
         if (session) removeSession(sessionId);
         if (!sessionId) sessionId = crypto.randomUUID();
 
-        let existingPath = resolveSessionFilePath(sessionId);
+        existingPath = resolveSessionFilePath(sessionId);
         if (!existingPath) existingPath = createNewSessionFile(sessionId, sessionCwd);
-
-        // Pre-write the user prompt to the JSONL so parseSessionMetadata
-        // and GET /messages can surface it immediately during streaming.
-        try {
-            const userMsgLine = JSON.stringify({
-                type: "message",
-                id: crypto.randomUUID(),
-                timestamp: new Date().toISOString(),
-                message: { role: "user", content: [{ type: "text", text: prompt }] },
-            }) + "\n";
-            fs.appendFileSync(existingPath, userMsgLine, "utf-8");
-        } catch (_) { /* non-fatal */ }
 
         session = createSession(sessionId, provider, model, {
             existingSessionPath: existingPath,
@@ -102,7 +109,18 @@ function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
         // Update provider/model if changed
         session.provider = provider;
         session.model = model;
+        existingPath = session.existingSessionPath && fs.existsSync(session.existingSessionPath)
+            ? session.existingSessionPath
+            : resolveSessionFilePath(sessionId);
+        if (!existingPath) {
+            existingPath = createNewSessionFile(sessionId, sessionCwd);
+            session.existingSessionPath = existingPath;
+        }
     }
+
+    // Pre-write the user prompt to JSONL for all submit paths so /messages
+    // can surface the latest user turn immediately during/after streaming.
+    appendUserPromptToSessionFile(existingPath, prompt);
 
     return { session, sessionId };
 }
@@ -131,8 +149,8 @@ export function registerSessionsRoutes(app) {
                     title: record.firstUserInput || "(no input)",
                 });
             }
-        } catch (e) {
-            console.error("[sessions] Failed to list .pi/agent/sessions for status:", e?.message);
+        } catch (error) {
+            console.error("[sessions] Failed to list .pi/agent/sessions for status:", error?.message);
         }
         res.json({ ok: true, sessions: discovered, projectRootPath: getWorkspaceCwd() });
     });
@@ -176,8 +194,8 @@ export function registerSessionsRoutes(app) {
                     cwd: resolvedCwd || getWorkspaceCwd(),
                 });
             }
-        } catch (e) {
-            console.error("[sessions] Failed to list .pi/agent/sessions:", e?.message);
+        } catch (error) {
+            console.error("[sessions] Failed to list .pi/agent/sessions:", error?.message);
         }
         res.json({ sessions: discovered, projectRootPath: getWorkspaceCwd() });
     });
@@ -234,9 +252,9 @@ export function registerSessionsRoutes(app) {
             if (!fs.existsSync(sessionsBase)) {
                 return res.json({ ok: true, deletedCount: 0 });
             }
-            const subdirs = fs.readdirSync(sessionsBase, { withFileTypes: true }).filter((e) => e.isDirectory());
-            for (const d of subdirs) {
-                const sessionId = d.name;
+            const subdirs = fs.readdirSync(sessionsBase, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+            for (const sessionDirEntry of subdirs) {
+                const sessionId = sessionDirEntry.name;
                 if (!isValidSessionId(sessionId)) continue;
                 const filePath = findJsonlInDir(path.join(sessionsBase, sessionId));
                 if (!filePath) continue;
@@ -254,13 +272,13 @@ export function registerSessionsRoutes(app) {
                         fs.rmSync(sessionDir, { recursive: true });
                         deletedCount++;
                     }
-                } catch (e) {
-                    console.error("[sessions] Failed to delete session folder for destroy-workspace:", sessionId, e?.message);
+                } catch (error) {
+                    console.error("[sessions] Failed to delete session folder for destroy-workspace:", sessionId, error?.message);
                 }
             }
             res.json({ ok: true, deletedCount });
-        } catch (e) {
-            console.error("[sessions] Failed to destroy workspace sessions:", targetPath, e?.message);
+        } catch (error) {
+            console.error("[sessions] Failed to destroy workspace sessions:", targetPath, error?.message);
             res.status(500).json({ error: "Failed to destroy workspace sessions" });
         }
     });
@@ -269,7 +287,7 @@ export function registerSessionsRoutes(app) {
     router.post("/:sessionId/input", (req, res) => {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
-        const session = getSession(sessionId);
+        const session = resolveSession(sessionId);
         if (!session) return res.status(404).json({ error: "Session not found" });
 
         session.processManager.handleInput(req.body);
@@ -280,7 +298,7 @@ export function registerSessionsRoutes(app) {
     router.post("/:sessionId/terminate", (req, res) => {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
-        const session = getSession(sessionId);
+        const session = resolveSession(sessionId);
         if (!session) return res.status(404).json({ error: "Session not found" });
 
         session.processManager.handleTerminate({ resetSession: req.body.resetSession });
@@ -323,8 +341,8 @@ export function registerSessionsRoutes(app) {
                 sseConnected,
                 cwd: cwd || getWorkspaceCwd(),
             });
-        } catch (e) {
-            console.error("[sessions] Failed to load messages:", e?.message);
+        } catch (error) {
+            console.error("[sessions] Failed to load messages:", error?.message);
             res.status(500).json({ error: "Failed to load session" });
         }
     });
@@ -333,19 +351,20 @@ export function registerSessionsRoutes(app) {
     router.delete("/:sessionId", (req, res) => {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
-        const sessionDir = getSessionDir(sessionId);
-        if (!fs.existsSync(sessionDir)) {
+        const resolvedSessionId = resolveSession(sessionId)?.id ?? sessionId;
+        const resolvedSessionDir = getSessionDir(resolvedSessionId);
+        if (!fs.existsSync(resolvedSessionDir)) {
             return res.status(404).json({ error: "Session not found" });
         }
         try {
-            const activeSession = resolveSession(sessionId);
+            const activeSession = resolveSession(resolvedSessionId);
             if (activeSession) {
                 removeSession(activeSession.id);
             }
-            fs.rmSync(sessionDir, { recursive: true });
+            fs.rmSync(resolvedSessionDir, { recursive: true });
             res.json({ ok: true });
-        } catch (e) {
-            console.error("[sessions] Failed to delete session folder:", sessionDir, e?.message);
+        } catch (error) {
+            console.error("[sessions] Failed to delete session folder:", resolvedSessionDir, error?.message);
             res.status(500).json({ error: "Failed to delete session" });
         }
     });

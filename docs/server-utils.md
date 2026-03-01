@@ -49,7 +49,6 @@ Shared utility functions used across the server: preview/overlay resolution, wor
 | `killProcess(pid)` | Sends SIGTERM to a process |
 | `isProtectedPid(pid)` | Checks if PID is on a protected port |
 | `getLogFilesFromProcess(pid)` | Extracts log file paths from process fd via `lsof` |
-| `extractLogPathsFromCommand(cmd)` | Parses `>> file.log` redirects from command strings |
 | `getLogTail(absPath, workspacePath, lines)` | Reads last N lines of a log file |
 | `getLogTailByName(workspacePath, name, lines)` | Finds log by filename and returns tail |
 | `findLogFile(workspacePath, name)` | Searches workspace for a log file by name |

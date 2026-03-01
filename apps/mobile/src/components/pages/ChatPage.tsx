@@ -125,7 +125,6 @@ type ChatPageDocker = {
 
 type ChatPageModelPicker = {
   currentServerUrl: string;
-  surfaceColor: string;
   onModelProviderChange: (provider: BrandProvider) => void;
   onModelChange: (model: string) => void;
 };
@@ -200,7 +199,6 @@ export function ChatPage({
           <Box className="flex-1 bg-surface-base">
             {isFileViewerOpen ? (
               <FileViewerPage
-                isOpen
                 path={fileViewer.selectedFilePath!}
                 content={fileViewer.fileContent}
                 isImage={fileViewer.fileIsImage}
@@ -216,7 +214,6 @@ export function ChatPage({
                   runtime={runtime}
                   header={header}
                   conversation={conversation}
-                  fileViewer={fileViewer}
                   sidebar={sidebar}
                   inputDock={inputDock}
                   modalHandlers={modalHandlers}

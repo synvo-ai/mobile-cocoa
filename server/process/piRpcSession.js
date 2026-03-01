@@ -42,8 +42,8 @@ function isLoopbackHost(rawHost) {
 function toPiModel(clientModel, piProvider) {
   if (piProvider !== "anthropic" || !clientModel) return clientModel;
   try {
-    const cfg = loadModelsConfig();
-    const aliases = cfg.modelAliases ?? DEFAULT_PROVIDER_MODEL_ALIASES;
+    const modelsConfig = loadModelsConfig();
+    const aliases = modelsConfig.modelAliases ?? DEFAULT_PROVIDER_MODEL_ALIASES;
     return aliases[clientModel] ?? clientModel;
   } catch (_) {
     return DEFAULT_PROVIDER_MODEL_ALIASES[clientModel] ?? clientModel;
@@ -96,21 +96,36 @@ function getConnectionContext(socket) {
  *   - openai              → gpt-*, codex-*
  */
 function getPiProviderForModel(clientProvider, model) {
-  const cfg = loadPiConfig();
-  const routing = cfg.providerRouting ?? {};
+  const piConfig = loadPiConfig();
+  const routing = piConfig.providerRouting ?? {};
   const rules = routing.rules ?? [];
   const fallback = routing.fallback ?? {};
-  const providerMap = cfg.providerMapping ?? {};
+  const providerMap = piConfig.providerMapping ?? {};
+  const compileModelPattern = (pattern, context) => {
+    if (!pattern) return null;
+    try {
+      return new RegExp(pattern);
+    } catch (error) {
+      console.warn(`Skipping invalid ${context} regex "${pattern}" in pi config`, error);
+      return null;
+    }
+  };
 
   if (typeof model === "string") {
     // Evaluate routing rules in order; first match wins
     for (const rule of rules) {
-      if (!rule.modelPattern) continue;
-      const match = new RegExp(rule.modelPattern).test(model);
-      if (match) {
-        if (rule.excludePattern && new RegExp(rule.excludePattern).test(model)) continue;
-        return rule.provider;
+      const matchPattern = compileModelPattern(rule.modelPattern, "modelPattern");
+      if (!matchPattern || !matchPattern.test(model)) {
+        continue;
       }
+      const excludePattern = compileModelPattern(rule.excludePattern, "excludePattern");
+      if (excludePattern && excludePattern.test(model)) {
+        continue;
+      }
+      if (!rule.provider) {
+        continue;
+      }
+      return rule.provider;
     }
   }
 
@@ -145,9 +160,9 @@ function decideApprovalFromAnswers(answers, fallbackRaw) {
   const hasDeny = normalized.some((s) => /deny|decline|reject|cancel|block/.test(s));
   if (hasAccept && !hasDeny) return true;
   if (hasDeny && !hasAccept) return false;
-  const raw = typeof fallbackRaw === "string" ? fallbackRaw.trim().toLowerCase() : "";
-  if (["y", "yes", "approve", "accept", "allow", "run"].includes(raw)) return true;
-  if (["n", "no", "deny", "decline", "reject", "cancel", "block"].includes(raw)) return false;
+  const fallbackText = typeof fallbackRaw === "string" ? fallbackRaw.trim().toLowerCase() : "";
+  if (["y", "yes", "approve", "accept", "allow", "run"].includes(fallbackText)) return true;
+  if (["n", "no", "deny", "decline", "reject", "cancel", "block"].includes(fallbackText)) return false;
   return false;
 }
 
@@ -212,26 +227,26 @@ export function createPiRpcSession({
   function emitOutputLine(line) {
     socket.emit("output", line);
     if (!piIoOutputPath) return;
-    const str = typeof line === "string" ? line : JSON.stringify(line);
-    const trimmed = str.trimEnd();
+    const lineText = typeof line === "string" ? line : JSON.stringify(line);
+    const trimmed = lineText.trimEnd();
     if (trimmed.startsWith('{"type":"message_update"')) {
       try {
         const parsed = JSON.parse(trimmed);
-        const ev = parsed.assistantMessageEvent ?? {};
+        const assistantMessageEvent = parsed.assistantMessageEvent ?? {};
         const slim = {
           type: "message_update",
           assistantMessageEvent: {
-            type: ev.type,
-            contentIndex: ev.contentIndex,
-            delta: ev.delta ?? ev.content,
+            type: assistantMessageEvent.type,
+            contentIndex: assistantMessageEvent.contentIndex,
+            delta: assistantMessageEvent.delta ?? assistantMessageEvent.content,
           },
         };
         appendToSessionLog(JSON.stringify(slim) + "\n");
       } catch {
-        appendToSessionLog(str + (str.endsWith("\n") ? "" : "\n"));
+        appendToSessionLog(lineText + (lineText.endsWith("\n") ? "" : "\n"));
       }
     } else {
-      appendToSessionLog(str + (str.endsWith("\n") ? "" : "\n"));
+      appendToSessionLog(lineText + (lineText.endsWith("\n") ? "" : "\n"));
     }
   }
 
@@ -265,15 +280,38 @@ export function createPiRpcSession({
     piProcess.stdin.write(line);
   }
 
+  function terminateProcessTree(processHandle) {
+    if (!processHandle) return;
+    const pid = processHandle.pid;
+
+    try {
+      processHandle.stdin?.end();
+    } catch (_) { }
+    try {
+      processHandle.kill("SIGTERM");
+    } catch (_) { }
+    if (!Number.isInteger(pid)) return;
+
+    if (process.platform !== "win32") {
+      try {
+        process.kill(-pid, "SIGTERM");
+      } catch (_) { }
+      try {
+        processHandle.kill("SIGKILL");
+      } catch (_) { }
+      try {
+        process.kill(-pid, "SIGKILL");
+      } catch (_) { }
+    }
+  }
+
   function close() {
     closeIoOutputStream();
     pendingExtensionUiRequest = null;
     turnCompleted = true;
     if (!piProcess) return;
     globalSpawnChildren.delete(piProcess);
-    try {
-      piProcess.kill();
-    } catch (_) { }
+    terminateProcessTree(piProcess);
     piProcess = null;
     turnRunning = false;
   }
@@ -306,14 +344,14 @@ export function createPiRpcSession({
     // message_update: client only needs assistantMessageEvent.type, contentIndex, delta/content.
     // Pi can send full accumulated content; slimming prevents unbounded xhr.responseText growth.
     if (type === "message_update") {
-      const ev = parsed.assistantMessageEvent ?? {};
+      const assistantMessageEvent = parsed.assistantMessageEvent ?? {};
       return {
         type: "message_update",
         assistantMessageEvent: {
-          type: ev.type,
-          contentIndex: ev.contentIndex,
-          delta: ev.delta ?? ev.content,
-          ...(ev.toolCall != null ? { toolCall: ev.toolCall } : {}),
+          type: assistantMessageEvent.type,
+          contentIndex: assistantMessageEvent.contentIndex,
+          delta: assistantMessageEvent.delta ?? assistantMessageEvent.content,
+          ...(assistantMessageEvent.toolCall != null ? { toolCall: assistantMessageEvent.toolCall } : {}),
         },
       };
     }

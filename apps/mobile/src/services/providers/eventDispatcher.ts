@@ -8,7 +8,7 @@
 import type { PendingAskUserQuestion, PermissionDenial } from "@/core/types";
 import { isAskUserQuestionPayload } from "@/services/providers/stream";
 import type { EventContext, EventHandler } from "@/services/providers/types";
-import { appendSnapshotTextDelta, appendToolUseDisplayLine, formatToolUseForDisplay } from "@/services/providers/types";
+import { appendToolUseDisplayLine, formatToolUseForDisplay } from "@/services/providers/types";
 
 const READ_FILE_TOOL_NAMES = new Set(["read_file", "readfile", "read"]);
 const BASH_TOOL_NAMES = new Set([
@@ -154,8 +154,8 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
   registry.set("turn_end", (_data) => {
     // Intentionally a no-op. All assistant content is already captured
     // incrementally via message_update text_delta events. The turn_end
-    // snapshot contains the same text and appendSnapshotTextDelta's dedup
-    // logic fails when <think> blocks (from tool output) exist in the
+    // snapshot contains the same text; replaying it can duplicate content
+    // when <think> blocks (from tool output) exist in the
     // streamed draft but not in the snapshot, causing the entire text to
     // be appended again — resulting in duplicate messages.
   });

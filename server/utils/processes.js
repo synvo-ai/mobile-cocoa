@@ -21,6 +21,11 @@ const PROTECTED_PORTS = new Set([Number(PORT), Number(TUNNEL_PROXY_PORT)]);
 /** Set of PIDs currently known to be on protected ports. Updated on each scan. */
 let protectedPids = new Set();
 
+function isInsideRoot(rootDir, targetPath) {
+  const rel = path.relative(rootDir, targetPath);
+  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
 /** Check whether a PID belongs to a protected process. */
 export function isProtectedPid(pid) {
   return protectedPids.has(Number(pid));
@@ -37,53 +42,53 @@ function getLogFilesFromProcess(pid) {
   if (!Number.isInteger(pid) || pid <= 0 || process.platform === "win32") return [];
   const paths = new Set();
   try {
-    const out = execSync(`lsof -p ${pid} -a -d 1,2 2>/dev/null || true`, {
+    const lsofOutput = execSync(`lsof -p ${pid} -a -d 1,2 2>/dev/null || true`, {
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"],
       maxBuffer: 64 * 1024,
     });
-    const lines = out.trim().split("\n").slice(1);
+    const lines = lsofOutput.trim().split("\n").slice(1);
     for (const line of lines) {
-      const idx = line.indexOf("/");
-      if (idx < 0) continue;
-      const name = line.slice(idx).trim();
-      if (!name || name.startsWith("/dev/")) continue;
-      if (name.includes("/") && name.length > 1) paths.add(name);
+      const pathStartIndex = line.indexOf("/");
+      if (pathStartIndex < 0) continue;
+      const filePath = line.slice(pathStartIndex).trim();
+      if (!filePath || filePath.startsWith("/dev/")) continue;
+      if (filePath.includes("/") && filePath.length > 1) paths.add(filePath);
     }
   } catch (_) { }
   if (paths.size > 0) return [...paths];
   try {
     for (let depth = 0; depth < 3; depth++) {
-      const ppidOut = execSync(`ps -p ${pid} -o ppid= 2>/dev/null || true`, { encoding: "utf8" }).trim();
-      const ppid = ppidOut ? parseInt(ppidOut, 10) : 0;
-      if (!ppid || ppid <= 0) break;
-      let pcmd = "";
+      const parentPidOutput = execSync(`ps -p ${pid} -o ppid= 2>/dev/null || true`, { encoding: "utf8" }).trim();
+      const parentPid = parentPidOutput ? parseInt(parentPidOutput, 10) : 0;
+      if (!parentPid || parentPid <= 0) break;
+      let parentCommand = "";
       try {
-        pcmd = execSync(`ps -p ${ppid} -o args= 2>/dev/null || ps -p ${ppid} -o command= 2>/dev/null || echo ""`, {
+        parentCommand = execSync(`ps -p ${parentPid} -o args= 2>/dev/null || ps -p ${parentPid} -o command= 2>/dev/null || echo ""`, {
           encoding: "utf8",
           stdio: ["pipe", "pipe", "pipe"],
           maxBuffer: 32 * 1024,
         }).trim();
       } catch (_) { }
-      const fromCmd = extractLogPathsFromCommand(pcmd);
-      if (fromCmd.length > 0) return fromCmd;
-      const fromLsof = (() => {
+      const logPathsFromParentCommand = extractLogPathsFromCommand(parentCommand);
+      if (logPathsFromParentCommand.length > 0) return logPathsFromParentCommand;
+      const logPathsFromParentLsof = (() => {
         try {
-          const out = execSync(`lsof -p ${ppid} -a -d 1,2 2>/dev/null || true`, { encoding: "utf8" });
+          const parentLsofOutput = execSync(`lsof -p ${parentPid} -a -d 1,2 2>/dev/null || true`, { encoding: "utf8" });
           const found = new Set();
-          for (const line of out.trim().split("\n").slice(1)) {
-            const idx = line.indexOf("/");
-            if (idx < 0) continue;
-            const name = line.slice(idx).trim();
-            if (name && !name.startsWith("/dev/")) found.add(name);
+          for (const line of parentLsofOutput.trim().split("\n").slice(1)) {
+            const pathStartIndex = line.indexOf("/");
+            if (pathStartIndex < 0) continue;
+            const filePath = line.slice(pathStartIndex).trim();
+            if (filePath && !filePath.startsWith("/dev/")) found.add(filePath);
           }
           return [...found];
         } catch (_) {
           return [];
         }
       })();
-      if (fromLsof.length > 0) return fromLsof;
-      pid = ppid;
+      if (logPathsFromParentLsof.length > 0) return logPathsFromParentLsof;
+      pid = parentPid;
     }
   } catch (_) { }
   return [];
@@ -97,14 +102,14 @@ function getLogFilesFromProcess(pid) {
  * @param {string} cmd - Full command string
  * @returns {string[]} Unique log filenames (e.g. ["backend.log", "frontend.log"])
  */
-export function extractLogPathsFromCommand(cmd) {
+function extractLogPathsFromCommand(cmd) {
   if (!cmd || typeof cmd !== "string") return [];
   const matches = new Set();
-  const re = /(?:>>|(?<![0-9])>)\s+([a-zA-Z0-9_.\-/]+\.(?:log|out|err))/gi;
-  let m;
-  while ((m = re.exec(cmd)) !== null) {
-    const p = m[1]?.trim();
-    if (p) matches.add(p);
+  const logRedirectionPattern = /(?:>>|(?<![0-9])>)\s+([a-zA-Z0-9_.\-/]+\.(?:log|out|err))/gi;
+  let match;
+  while ((match = logRedirectionPattern.exec(cmd)) !== null) {
+    const logPath = match[1]?.trim();
+    if (logPath) matches.add(logPath);
   }
   return [...matches];
 }
@@ -158,13 +163,13 @@ export function listProcessesOnPorts(workspacePath) {
         if (logPaths.length > 0 && workspacePath) {
           const workspaceNorm = path.resolve(workspacePath).replace(/\/$/, "") + path.sep;
           logPaths = [...new Set(logPaths)]
-            .map((p) => {
-              if (!p.startsWith("/")) return p;
-              const resolved = path.resolve(p);
+            .map((logPath) => {
+              if (!logPath.startsWith("/")) return logPath;
+              const resolved = path.resolve(logPath);
               if (resolved.startsWith(workspaceNorm)) {
                 return path.relative(workspaceNorm.slice(0, -1), resolved);
               }
-              return p;
+              return logPath;
             })
             .filter(Boolean);
         }
@@ -189,18 +194,18 @@ export function listProcessesOnPorts(workspacePath) {
  * @returns {{ ok: boolean; error?: string }}
  */
 export function killProcess(pid) {
-  const p = parseInt(pid, 10);
-  if (!Number.isInteger(p) || p <= 0) {
+  const pidNumber = parseInt(pid, 10);
+  if (!Number.isInteger(pidNumber) || pidNumber <= 0) {
     return { ok: false, error: "Invalid PID" };
   }
-  if (isProtectedPid(p)) {
+  if (isProtectedPid(pidNumber)) {
     return { ok: false, error: "Cannot kill a protected system process" };
   }
   try {
     if (process.platform === "win32") {
-      execSync(`taskkill /PID ${p} /F`, { stdio: "ignore" });
+      execSync(`taskkill /PID ${pidNumber} /F`, { stdio: "ignore" });
     } else {
-      execSync(`kill -15 ${p} 2>/dev/null || kill -9 ${p} 2>/dev/null`, {
+      execSync(`kill -15 ${pidNumber} 2>/dev/null || kill -9 ${pidNumber} 2>/dev/null`, {
         stdio: "ignore",
       });
     }
@@ -225,19 +230,19 @@ const FIND_LOG_MAX_DEPTH = 5;
  */
 function findLogFile(workspacePath, name) {
   if (!workspacePath || !name || typeof name !== "string") return null;
-  const safe = path.basename(name);
-  if (!safe || safe.includes("..")) return null;
-  const atRoot = path.join(workspacePath, safe);
-  if (fs.existsSync(atRoot) && fs.statSync(atRoot).isFile()) return atRoot;
+  const safeFileName = path.basename(name);
+  if (!safeFileName || safeFileName.includes("..")) return null;
+  const candidateAtRoot = path.join(workspacePath, safeFileName);
+  if (fs.existsSync(candidateAtRoot) && fs.statSync(candidateAtRoot).isFile()) return candidateAtRoot;
   try {
     function search(dir, depth) {
       if (depth <= 0) return null;
       const entries = fs.readdirSync(dir, { withFileTypes: true });
-      for (const e of entries) {
-        if (!e.isDirectory() || e.name.startsWith(".")) continue;
-        const sub = path.join(dir, e.name, safe);
-        if (fs.existsSync(sub) && fs.statSync(sub).isFile()) return sub;
-        const found = search(path.join(dir, e.name), depth - 1);
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+        const subPath = path.join(dir, entry.name, safeFileName);
+        if (fs.existsSync(subPath) && fs.statSync(subPath).isFile()) return subPath;
+        const found = search(path.join(dir, entry.name), depth - 1);
         if (found) return found;
       }
       return null;
@@ -258,8 +263,8 @@ function findLogFile(workspacePath, name) {
 export function getLogTail(absPath, workspacePath, lines = TAIL_LINES, allowOutside = false) {
   const resolved = path.resolve(absPath);
   if (!allowOutside) {
-    const workspaceNorm = path.resolve(workspacePath).replace(/\/$/, "") + path.sep;
-    if (!resolved.startsWith(workspaceNorm)) {
+    const workspaceRoot = path.resolve(workspacePath);
+    if (!isInsideRoot(workspaceRoot, resolved)) {
       return { ok: false, error: "Path outside workspace" };
     }
   }

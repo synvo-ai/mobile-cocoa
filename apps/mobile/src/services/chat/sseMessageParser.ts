@@ -11,7 +11,7 @@
  */
 import { isProviderStream, isProviderSystemNoise, stripAnsi } from "@/services/providers/stream";
 
-export type ParsedLineAction =
+type ParsedLineAction =
   | { kind: "skip" }
   | { kind: "providerEvent"; data: Record<string, unknown> }
   | { kind: "agentEnd" }

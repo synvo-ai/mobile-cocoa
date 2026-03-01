@@ -28,7 +28,6 @@ interface ModelPickerSheetProps {
   provider: Provider;
   model: string;
   themeMode: "light" | "dark";
-  surfaceColor: string;
   providerModelOptions: Record<Provider, ModelOption[]>;
   onProviderChange: (provider: Provider) => void;
   onModelChange: (model: string) => void;
@@ -40,7 +39,6 @@ export function ModelPickerSheet({
   provider,
   model,
   themeMode,
-  surfaceColor,
   providerModelOptions,
   onProviderChange,
   onModelChange,

@@ -106,7 +106,6 @@ type PreviewWebViewAddressBarProps = {
   onChangeText: (next: string) => void;
   onSubmit: () => void;
   onReload: () => void;
-  onFullscreen: () => void;
   resolvedUrl: string;
   loading: boolean;
   theme: DesignTheme;
@@ -118,7 +117,6 @@ export function PreviewWebViewAddressBar({
   onChangeText,
   onSubmit,
   onReload,
-  onFullscreen,
   resolvedUrl,
   loading,
   theme,
@@ -131,10 +129,6 @@ export function PreviewWebViewAddressBar({
         overflowX: "auto" as const,
       }
       : {};
-
-  const focusInput = () => {
-    // Optional focus trigger
-  };
 
   return (
     <Box

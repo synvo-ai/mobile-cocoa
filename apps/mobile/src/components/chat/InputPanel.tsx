@@ -22,7 +22,7 @@ import { Text } from "@/components/ui/text";
 import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { VStack } from "@/components/ui/vstack";
 import { Popover, PopoverBackdrop, PopoverContent } from "@/components/ui/popover";
-import { Menu, MenuItem, MenuItemLabel } from "@/components/ui/menu";
+import { Menu, MenuItem } from "@/components/ui/menu";
 import { type Provider } from "@/core/modelOptions";
 import { EntranceAnimation, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
@@ -123,7 +123,6 @@ export function InputPanel({
   sessionRunning,
   waitingForUserInput,
   permissionMode,
-  onPermissionModeChange,
   onSubmit,
   pendingCodeRefs = [],
   onRemoveCodeRef,
@@ -133,9 +132,6 @@ export function InputPanel({
   provider = "codex",
   model = "gpt-5.1-codex-mini",
   modelOptions = [],
-  providerModelOptions,
-  onProviderChange,
-  onModelChange,
   onOpenModelPicker,
   onOpenSkillsConfig,
   onOpenDocker,
@@ -148,7 +144,6 @@ export function InputPanel({
   const [skillMenuVisible, setSkillMenuVisible] = useState(false);
   const [enabledSkills, setEnabledSkills] = useState<{ id: string; name: string; category?: string }[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>("");
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [skillsLoading, setSkillsLoading] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<{ id: string; name: string; category?: string }[]>([]);
 
@@ -163,16 +158,10 @@ export function InputPanel({
   }, [categories, selectedCategory]);
   const [inputHeight, setInputHeight] = useState(DEFAULT_INPUT_HEIGHT);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
-  const { bottom } = useSafeAreaInsets();
+  useSafeAreaInsets();
   const triggerLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const skillTriggerLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-
-  const [skillCategoryHeights, setSkillCategoryHeights] = useState<Record<string, number>>({});
-  const maxSkillCategoryHeight = useMemo(() => {
-    const heights = Object.values(skillCategoryHeights);
-    if (heights.length === 0) return 180; // Default height while measuring
-    return Math.max(...heights);
-  }, [skillCategoryHeights]);
+  const maxSkillCategoryHeight = 180;
 
   const fetchEnabledSkills = useCallback(() => {
     if (!serverBaseUrl) return;

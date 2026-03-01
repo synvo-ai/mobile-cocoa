@@ -68,7 +68,7 @@ export const WorkspaceFileController = memo(function WorkspaceFileController({
   const fetchWorkspacePath = useCallback(() => {
     setWorkspacePathLoading(true);
     fetch(`${serverConfig.getBaseUrl()}/api/workspace-path`)
-      .then((res) => res.json())
+      .then((response) => response.json())
       .then((data) => setWorkspacePath(data?.path ?? null))
       .catch(() => setWorkspacePath(null))
       .finally(() => setWorkspacePathLoading(false));

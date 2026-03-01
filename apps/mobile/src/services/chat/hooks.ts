@@ -21,9 +21,8 @@ import { useChatActions } from "./useChatActions";
 import { useChatExternalCallbacks } from "./useChatExternalCallbacks";
 import { useChatStreamingLifecycle } from "./useChatStreamingLifecycle";
 
-// Re-export hook types for consumers.
-export type { Message, CodeReference, PermissionDenial, PendingAskUserQuestion, LastRunOptions };
-export type { UseChatOptions, SessionRuntimeState };
+// Re-export commonly consumed chat types for UI layers.
+export type { Message, PermissionDenial, PendingAskUserQuestion };
 
 export function useChat(options: UseChatOptions = {}) {
   const serverConfig = options.serverConfig ?? getDefaultServerConfig();
@@ -221,12 +220,13 @@ export function useChat(options: UseChatOptions = {}) {
     storeSessionId,
     sessionStatuses,
     sessionCache,
+    skipReplayForSessionRef,
     nextIdRef,
     liveMessagesRef: sessionCache.liveMessagesRef,
     outputBufferRef: sessionCache.outputBufferRef,
-    syncSessionToReact,
     setConnected,
     setSessionId,
+    setLiveSessionMessages,
     setSessionState,
     setWaitingForUserInput,
     setPendingAskQuestion,

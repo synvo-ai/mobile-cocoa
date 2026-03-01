@@ -4,9 +4,6 @@ import React from 'react';
 import type { StyleProp, ViewProps, ViewStyle } from 'react-native';
 import { View } from 'react-native';
 
-
-type StackSpace = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
-
 type IHStackProps = ViewProps &
   VariantProps<typeof hstackStyle> & {
     className?: string; // hstackStyle variant props includes space and reversed

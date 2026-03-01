@@ -33,12 +33,12 @@ function execGitCmd(cwd, ...args) {
         }
 
         return (result.stdout || "").trim();
-    } catch (err) {
-        if (err.stdout != null || err.stderr != null) {
-            console.error(`Git Command Failed: ${err.message}\nSTDOUT: ${err.stdout}\nSTDERR: ${err.stderr}`);
-            throw new Error((err.stderr || err.stdout || err.message).trim());
+    } catch (error) {
+        if (error.stdout != null || error.stderr != null) {
+            console.error(`Git Command Failed: ${error.message}\nSTDOUT: ${error.stdout}\nSTDERR: ${error.stderr}`);
+            throw new Error((error.stderr || error.stdout || error.message).trim());
         }
-        throw new Error(err?.message || String(err));
+        throw new Error(error?.message || String(error));
     }
 }
 
@@ -73,12 +73,12 @@ export function getGitCommits(cwd, limit = 50) {
                 message: parts.slice(3).join("|||"), // In case message had our delimiter
             };
         }).filter(Boolean);
-    } catch (err) {
+    } catch (error) {
         // Repo might not have any commits yet
-        if (err.message.includes("does not have any commits yet")) {
+        if (error.message.includes("does not have any commits yet")) {
             return [];
         }
-        throw err;
+        throw error;
     }
 }
 
@@ -152,10 +152,10 @@ export function getGitStatus(cwd) {
     if (!output) return { staged, unstaged, untracked };
 
     const lines = output.split("\n");
-    const isDir = (p) => {
+    const isDirectoryPath = (filePath) => {
         try {
-            const full = path.join(cwd, p);
-            return fs.existsSync(full) && fs.statSync(full).isDirectory();
+            const fullPath = path.join(cwd, filePath);
+            return fs.existsSync(fullPath) && fs.statSync(fullPath).isDirectory();
         } catch {
             return false;
         }
@@ -171,14 +171,14 @@ export function getGitStatus(cwd) {
         const y = xy[1];
 
         if (xy === "??") {
-            untracked.push({ file, isDirectory: isDir(file) });
+            untracked.push({ file, isDirectory: isDirectoryPath(file) });
             continue;
         }
         if (x !== " " && x !== "?") {
-            staged.push({ file, status: x, isDirectory: isDir(file) });
+            staged.push({ file, status: x, isDirectory: isDirectoryPath(file) });
         }
         if (y !== " " && y !== "?") {
-            unstaged.push({ file, status: y, isDirectory: isDir(file) });
+            unstaged.push({ file, status: y, isDirectory: isDirectoryPath(file) });
         }
     }
 
@@ -195,9 +195,9 @@ export function gitAdd(cwd, files) {
     if (fileArray.length === 0) return { success: true };
 
     const safeFiles = fileArray
-        .filter((f) => typeof f === "string")
-        .map((f) => f.trim())
-        .filter((f) => f.length > 0);
+        .filter((file) => typeof file === "string")
+        .map((file) => file.trim())
+        .filter((file) => file.length > 0);
     if (safeFiles.length === 0) return { success: true };
 
     execGitCmd(cwd, "add", ...safeFiles);
@@ -235,7 +235,7 @@ export function gitInit(cwd) {
     try {
         execGitCmd(cwd, "init");
         return { success: true };
-    } catch (err) {
-        throw new Error(err.message || String(err));
+    } catch (error) {
+        throw new Error(error.message || String(error));
     }
 }

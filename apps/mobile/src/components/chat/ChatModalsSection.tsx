@@ -105,7 +105,6 @@ export function ChatModalsSection({
         provider={context.provider}
         model={context.model}
         themeMode={context.themeMode}
-        surfaceColor={modals.modelPicker.surfaceColor}
         providerModelOptions={context.providerModelOptions}
         onProviderChange={handleModelProviderChange}
         onModelChange={handleModelChange}

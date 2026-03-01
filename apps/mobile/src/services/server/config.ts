@@ -5,7 +5,6 @@ import {
   DEFAULT_ANDROID_EMULATOR_HOST,
   DEFAULT_LOCALHOST_HOSTS,
   DEFAULT_SERVER_BASE_URL,
-  DEFAULT_TUNNEL_PROXY_PORT,
 } from "./config.defaults";
 
 /**
@@ -22,17 +21,6 @@ function getConnectionMode(): ConnectionMode {
     return mode as ConnectionMode;
   }
   return "direct";
-}
-
-/**
- * Get the tunnel proxy port (used for X-Target-Port / _targetPort routing).
- */
-function getTunnelProxyPort(): number {
-  const port =
-    typeof process !== "undefined"
-      ? (process.env?.EXPO_PUBLIC_TUNNEL_PROXY_PORT ?? "").trim()
-      : "";
-  return port ? parseInt(port, 10) || DEFAULT_TUNNEL_PROXY_PORT : DEFAULT_TUNNEL_PROXY_PORT;
 }
 
 function parseEnvHost(value: string): string | null {

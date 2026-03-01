@@ -17,7 +17,6 @@ import { buildChatPageProps } from "@/components/pages/buildChatPageProps";
 import { ChatPage } from "@/components/pages/ChatPage";
 import type { IServerConfig } from "@/core/types";
 import { useThemeAssets } from "@/hooks/useThemeAssets";
-import { useSessionManagementStore } from "@/state/sessionManagementStore";
 
 const AppBackground = memo(function AppBackground() {
   const assets = useThemeAssets();
@@ -41,7 +40,6 @@ const AppInner = memo(function AppInner({
   workspaceState,
   chatActionState,
   sidebarState,
-  sessionRunningFromStore,
   serverConfig,
 }: {
   themeState: ThemeSessionStateState;
@@ -49,7 +47,6 @@ const AppInner = memo(function AppInner({
   workspaceState: WorkspaceFileControllerState;
   chatActionState: ChatActionControllerState;
   sidebarState: SidebarState;
-  sessionRunningFromStore: boolean;
   serverConfig: Pick<IServerConfig, "getBaseUrl" | "resolvePreviewUrl">;
 }) {
   const onChatFileSelect = useCallback((path: string) => {
@@ -67,7 +64,6 @@ const AppInner = memo(function AppInner({
       buildChatPageProps({
         themeState,
         sseState,
-        sessionRunningFromStore,
         workspaceState,
         chatActionState,
         sidebarVisible: sidebarState.sidebarVisible,
@@ -82,7 +78,6 @@ const AppInner = memo(function AppInner({
     [
       themeState,
       sseState,
-      sessionRunningFromStore,
       workspaceState,
       chatActionState,
       sidebarState.sidebarVisible,
@@ -134,11 +129,6 @@ export default function App() {
       sidebarState.setSidebarActiveTab,
     ]
   );
-  const sessionRunningFromStore = useSessionManagementStore(
-    (state) =>
-      state.sessionStatuses.some((session) => session.id === state.sessionId && session.status === "running")
-  );
-
   const renderChatAction = useCallback(
     (
       themeState: ThemeSessionStateState,
@@ -152,11 +142,10 @@ export default function App() {
         workspaceState={workspaceState}
         chatActionState={chatActionState}
         sidebarState={memoizedSidebarState}
-        sessionRunningFromStore={sessionRunningFromStore}
         serverConfig={serverConfig}
       />
     ),
-    [serverConfig, sessionRunningFromStore, memoizedSidebarState]
+    [serverConfig, memoizedSidebarState]
   );
 
   const renderSse = useCallback(

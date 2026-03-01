@@ -1,7 +1,5 @@
 import React from "react";
 
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import type { SidebarTab } from "@/components/hooks/useSidebarState";
 import { TabBarPills } from "@/components/reusable/TabBarPills";
 import { Box } from "@/components/ui/box";
@@ -17,7 +15,6 @@ type SidebarHeaderProps = {
 
 export function SidebarHeader({ activeTab, onTabChange, onClose }: SidebarHeaderProps) {
   const theme = useTheme();
-  const insets = useSafeAreaInsets();
 
   return (
     <Box
@@ -30,7 +27,7 @@ export function SidebarHeader({ activeTab, onTabChange, onClose }: SidebarHeader
         backgroundColor: theme.mode === "dark" ? "rgba(8, 12, 22, 0.4)" : "transparent",
       }}
     >
-      <Box className="w-[48px]" />
+      <Box className="w-12" />
       <Box className="flex-1 flex-row items-center">
         <TabBarPills
           tabs={[
@@ -44,7 +41,7 @@ export function SidebarHeader({ activeTab, onTabChange, onClose }: SidebarHeader
           variant="segment"
         />
       </Box>
-      <Box className="w-[48px] flex-row items-center justify-end">
+      <Box className="w-12 flex-row items-center justify-end">
         <Pressable
           className="w-10 h-10 rounded-xl items-center justify-center border"
           style={({ pressed }) => ({

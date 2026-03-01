@@ -3,7 +3,7 @@ import { stripAnsi, stripTrailingIncompleteTag } from "@/services/providers/stre
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { SessionLiveState, SessionRuntimeState } from "./hooksTypes";
 
-export interface SessionMessageHandlers {
+interface SessionMessageHandlers {
   addMessageForSession: (role: Message["role"], content: string, codeReferences?: CodeReference[]) => string;
   appendAssistantTextForSession: (chunk: string) => void;
   finalizeAssistantMessageForSession: () => void;

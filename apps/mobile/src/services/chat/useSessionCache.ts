@@ -1,6 +1,6 @@
 import type { PermissionDenial, Message } from "@/core/types";
 import { useCallback, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { deduplicateDenials, deduplicateMessageIds as deduplicateMessageIdsUtil, getMaxMessageId } from "./hooksUtils";
+import { deduplicateDenials as deduplicateDenialsUtil, deduplicateMessageIds as deduplicateMessageIdsUtil, getMaxMessageId } from "./hooksUtils";
 import type { SseEventHandlers } from "./sseConnection";
 import type { EventSourceLike, SessionLiveState, SessionRuntimeState } from "./hooksTypes";
 import {
@@ -95,7 +95,9 @@ export function useSessionCache({
   const recordToolUseRef = useRef<(id: string, data: SessionToolUse) => void>(() => {});
   const getAndClearToolUseRef = useRef<(id: string) => SessionToolUse | null>((_) => null);
   const addPermissionDenialRef = useRef<(denial: PermissionDenial) => void>((_) => {});
-  const deduplicateDenialsRef = useRef<(denials: PermissionDenial[]) => PermissionDenial[]>((denials) => deduplicateDenials(denials));
+  const deduplicateDenialsRef = useRef<(denials: PermissionDenial[]) => PermissionDenial[]>((denials) =>
+    deduplicateDenialsUtil(denials)
+  );
 
   const getOrCreateSessionState = useCallback((sessionId: string): SessionLiveState => {
     return getOrCreateSessionStateFromCache(sessionStatesRef.current, sessionId);

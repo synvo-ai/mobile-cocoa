@@ -309,19 +309,19 @@ export function useChatActions(params: UseChatActionsParams) {
             sessionId,
           })
         );
-        const res = await fetch(`${serverUrl}/api/sessions`, {
+        const response = await fetch(`${serverUrl}/api/sessions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: requestBody,
         });
-        const data = await res.json();
+        const data = await response.json();
         if (data.ok && data.sessionId) {
-          const sid = data.sessionId;
-          const s = getOrCreateSessionState(sid);
-          s.sessionState = "running";
-          setSessionId(sid);
-          setSessionStateForSession(sid, "running");
-          setConnectionIntent(sid, true);
+          const nextSessionId = data.sessionId;
+          const nextState = getOrCreateSessionState(nextSessionId);
+          nextState.sessionState = "running";
+          setSessionId(nextSessionId);
+          setSessionStateForSession(nextSessionId, "running");
+          setConnectionIntent(nextSessionId, true);
         }
       } catch (err) {
         console.error("Failed to retry after permission", err);

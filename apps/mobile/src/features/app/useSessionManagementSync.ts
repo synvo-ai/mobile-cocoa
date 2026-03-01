@@ -70,19 +70,29 @@ export function useSessionManagementSync({
         const isNoInput = s.title === "(no input)";
         const isOld = now - s.lastAccess >= EMPTY_SESSION_CLEANUP_MS;
         const isCurrentPage = s.id === currentPageId;
-        if (isNoInput && isOld && !isCurrentPage) {
-          try {
-            await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(s.id)}`, { method: "DELETE" });
-          } catch (_) {
-            /* ignore */
-          }
+        if (
+          !isNoInput ||
+          !isOld ||
+          isCurrentPage ||
+          s.status === "running" ||
+          (connected && isCurrentPage)
+        ) {
+          continue;
+        }
+        if (connected && s.id === storeSessionId) {
+          continue;
+        }
+        try {
+          await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(s.id)}`, { method: "DELETE" });
+        } catch (_) {
+          /* ignore */
         }
       }
     };
     const interval = setInterval(cleanup, SESSION_CLEANUP_INTERVAL_MS);
     void cleanup();
     return () => clearInterval(interval);
-  }, [serverConfig, sessionId, sessionStatuses]);
+  }, [connected, serverConfig, sessionId, sessionStatuses, storeSessionId]);
 
   useEffect(() => {
     const baseUrl = serverConfig.getBaseUrl();

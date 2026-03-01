@@ -28,5 +28,3 @@ export type SessionRuntimeState = "idle" | "running";
 export type SessionLiveState = {
   sessionState: SessionRuntimeState;
 };
-
-export type { Message, CodeReference, PermissionDenial, PendingAskUserQuestion, LastRunOptions };

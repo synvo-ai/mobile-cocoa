@@ -7,6 +7,7 @@ import { getWorkspaceCwd, WORKSPACE_ALLOWED_ROOT } from "../config/index.js";
 import {
   buildWorkspaceTree, getMimeForFile, IMAGE_EXT,
   MAX_TEXT_FILE_BYTES,
+  normalizeRelativePath,
   resolveWithinRoot
 } from "../utils/index.js";
 
@@ -21,6 +22,17 @@ const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
 function isInsideRoot(rootDir, targetPath) {
   const rel = path.relative(rootDir, targetPath);
   return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
+function isDisallowedPreviewPath(fullPath, baseDir) {
+  const relative = path.relative(baseDir, fullPath);
+  if (relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) {
+    return true;
+  }
+  return relative
+    .split(path.sep)
+    .filter(Boolean)
+    .some((segment) => segment === ".pi" || segment.startsWith("."));
 }
 
 export function registerWorkspaceRoutes(app) {
@@ -54,9 +66,16 @@ function resolveWorkspaceContext(baseParam, rootParam, parentParam) {
   }
 
   let parent = typeof parentParam === "string"
-    ? parentParam.replace(/^\/+/, "").replace(/\\/g, "/")
+    ? (() => {
+      try {
+        return normalizeRelativePath(parentParam);
+      } catch (err) {
+        throw { status: 400, error: err instanceof Error ? err.message : "Invalid path" };
+      }
+    })()
     : "";
-  if (parent.includes("..")) {
+
+  if (typeof parent !== "string") {
     throw { status: 400, error: "Invalid path" };
   }
 
@@ -102,6 +121,7 @@ export function createServeWorkspaceFileMiddleware() {
     const cwd = getWorkspaceCwd();
     const { ok, fullPath } = resolveWithinRoot(cwd, rawPath);
     if (!ok || !fullPath) return next();
+    if (isDisallowedPreviewPath(fullPath, cwd)) return next();
 
     try {
       const stat = fs.statSync(fullPath);
@@ -118,7 +138,7 @@ export function createServeWorkspaceFileMiddleware() {
 
 function handleWorkspaceAllowedChildren(req, res) {
   try {
-    const { resolvedDir } = resolveWorkspaceContext(req.query.base, req.query.root, req.query.parent);
+    const { resolvedDir, rootDir } = resolveWorkspaceContext(req.query.base, req.query.root, req.query.parent);
 
     if (!fs.existsSync(resolvedDir)) {
       return res.status(404).json({ error: "Path not found on server", children: [] });
@@ -129,11 +149,11 @@ function handleWorkspaceAllowedChildren(req, res) {
 
     const entries = fs.readdirSync(resolvedDir, { withFileTypes: true });
     const children = entries
-      .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-      .map((e) => {
-        const childPath = path.join(resolvedDir, e.name);
-        const relativePath = path.relative(WORKSPACE_ALLOWED_ROOT, childPath).replace(/\\/g, "/");
-        return { name: e.name, path: relativePath };
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
+      .map((entry) => {
+        const childPath = path.join(resolvedDir, entry.name);
+        const relativePath = path.relative(rootDir, childPath).replace(/\\/g, "/");
+        return { name: entry.name, path: relativePath };
       });
     res.json({ children });
   } catch (err) {

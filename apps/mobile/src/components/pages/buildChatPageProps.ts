@@ -10,7 +10,6 @@ import { basename } from "@/utils/path";
 export type BuildChatPagePropsInput = {
   themeState: ThemeSessionStateState;
   sseState: SseSessionControllerState;
-  sessionRunningFromStore: boolean;
   workspaceState: WorkspaceFileControllerState;
   chatActionState: ChatActionControllerState;
   sidebarVisible: boolean;
@@ -26,7 +25,6 @@ export type BuildChatPagePropsInput = {
 export function buildChatPageProps({
   themeState,
   sseState,
-  sessionRunningFromStore,
   workspaceState,
   chatActionState,
   sidebarVisible,
@@ -56,7 +54,7 @@ export function buildChatPageProps({
       permissionDenials: sseState.permissionDenials ?? [],
       lastSessionTerminated: sseState.lastSessionTerminated,
       tailBoxMaxHeight: sseState.tailBoxMaxHeight,
-      sessionRunning: sessionRunningFromStore,
+      sessionRunning: sseState.sessionRunning,
       waitingForUserInput: sseState.waitingForUserInput,
     },
     header: {
@@ -130,7 +128,6 @@ export function buildChatPageProps({
       },
       modelPicker: {
         currentServerUrl: serverConfig.getBaseUrl(),
-        surfaceColor: themeState.theme.colors.surface,
         onModelProviderChange: sseState.handleProviderChange,
         onModelChange: sseState.handleModelChange,
       },
@@ -146,7 +143,7 @@ export function buildChatPageProps({
         onNewSession: sseState.handleNewSession,
         currentSessionId: sseState.sessionId,
         workspaceLoading: workspaceState.workspacePathLoading,
-        sessionRunning: sessionRunningFromStore,
+        sessionRunning: sseState.sessionRunning,
         onSelectActiveChat: sseState.handleSelectActiveChat,
         showActiveChat: false,
       },

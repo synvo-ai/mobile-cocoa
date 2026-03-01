@@ -5,7 +5,6 @@ import React from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 type FileViewerPageProps = {
-  isOpen: boolean;
   path: string;
   content: string | null;
   isImage: boolean;
@@ -16,7 +15,6 @@ type FileViewerPageProps = {
 };
 
 export function FileViewerPage({
-  isOpen,
   path,
   content,
   isImage,

@@ -15,7 +15,6 @@ import { Image, StyleSheet } from "react-native";
 
 interface AppHeaderBarProps {
   visible: boolean;
-  iconColor: string;
   onOpenExplorer: () => void;
   onOpenSessionManagement: () => void;
 }
@@ -60,7 +59,7 @@ function HeaderButton({ icon, onPress, accessibilityLabel, delay = 0, plain = fa
   );
 }
 
-function HeaderLogo({ isDark }: { isDark: boolean }) {
+function HeaderLogo() {
   const assets = useThemeAssets();
 
   return (
@@ -74,7 +73,6 @@ function HeaderLogo({ isDark }: { isDark: boolean }) {
 
 export function AppHeaderBar({
   visible,
-  iconColor,
   onOpenExplorer,
   onOpenSessionManagement,
 }: AppHeaderBarProps) {
@@ -97,7 +95,7 @@ export function AppHeaderBar({
       {isDark && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
       <HStack className="relative h-20 flex-row items-center justify-between px-0 -mt-2" pointerEvents="box-none">
         <HeaderButton
-          icon={<Box style={{ marginLeft: -10 }}><HeaderLogo isDark={isDark} /></Box>}
+          icon={<Box style={{ marginLeft: -10 }}><HeaderLogo /></Box>}
           onPress={onOpenExplorer}
           accessibilityLabel="Open Explorer"
           delay={100}

@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import { useColorScheme } from "react-native";
 
 import { createAppStyles } from "@/components/styles/appStyles";
@@ -25,7 +25,7 @@ export type ThemeSessionStateState = {
   providerModelOptions: Record<string, ModelOption[]>;
   permissionModeUI: PermissionModeUI;
   provider: BrandProvider;
-  setProvider: (p: BrandProvider) => void;
+  setProvider: (provider: BrandProvider) => void;
 };
 
 export const ThemeSessionState = memo(function ThemeSessionState({ children }: ThemeSessionStateProps) {
@@ -33,6 +33,7 @@ export const ThemeSessionState = memo(function ThemeSessionState({ children }: T
 
   // ── Dynamic model config from server (/api/models) ──
   const { modelsForProvider, defaultModelForProvider } = useModelsConfig();
+  const providerDefaultModel = useMemo(() => defaultModelForProvider(provider), [defaultModelForProvider, provider]);
 
   const [model, setModel] = useState<string>(() => defaultModelForProvider(provider));
 
@@ -46,11 +47,24 @@ export const ThemeSessionState = memo(function ThemeSessionState({ children }: T
 
   const providerModelOptions = useMemo(() => {
     const out: Record<string, ModelOption[]> = {};
-    for (const p of ["claude", "gemini", "codex"]) {
-      out[p] = modelsForProvider(p);
+    for (const providerId of ["claude", "gemini", "codex"]) {
+      out[providerId] = modelsForProvider(providerId);
     }
     return out;
   }, [modelsForProvider]);
+
+  useEffect(() => {
+    const options = modelsForProvider(provider);
+    const isCurrentModelValid = options.some((option) => option.value === model);
+    const isDefaultModelValid = providerDefaultModel
+      ? options.some((option) => option.value === providerDefaultModel)
+      : false;
+    const fallbackModel = isDefaultModelValid ? providerDefaultModel : options[0]?.value;
+
+    if (!isCurrentModelValid && fallbackModel && fallbackModel !== model) {
+      setModel(fallbackModel);
+    }
+  }, [provider, model, modelsForProvider, providerDefaultModel]);
 
   const permissionModeUI = useMemo(() => getDefaultPermissionModeUI(), []);
 

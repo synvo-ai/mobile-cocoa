@@ -116,14 +116,25 @@ export const SseSessionController = memo(function SseSessionController({
     sessionStore
       .loadLastUsedProviderModel()
       .then((lastUsed) => {
-        if (lastUsed) {
-          setModel(lastUsed.model);
+        if (typeof lastUsed === "string") {
+          setModel(lastUsed);
+          return;
+        }
+        if (!lastUsed || typeof lastUsed !== "object") {
+          return;
+        }
+        const hydrated = lastUsed as Partial<{ provider: Provider; model: string }>;
+        if (typeof hydrated.provider === "string" && hydrated.provider.length > 0) {
+          setProvider(hydrated.provider);
+        }
+        if (typeof hydrated.model === "string" && hydrated.model.length > 0) {
+          setModel(hydrated.model);
         }
       })
       .catch(() => {
         // Ignore restore failures.
       });
-  }, [setModel]);
+  }, [setModel, setProvider]);
 
   useEffect(() => {
     sessionStore.setLastUsedProviderModel(provider, model);
@@ -215,9 +226,9 @@ export const SseSessionController = memo(function SseSessionController({
         if (sessionMessages.length === 0 && session.id) {
           try {
             const baseUrl = serverConfig.getBaseUrl();
-            const res = await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(session.id)}/messages`);
-            if (res.ok) {
-              const data = await res.json();
+            const response = await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(session.id)}/messages`);
+            if (response.ok) {
+              const data = await response.json();
               if (typeof data?.activeSessionId === "string" && data.activeSessionId.trim().length > 0) {
                 sessionIdToLoad = data.activeSessionId.trim();
               }

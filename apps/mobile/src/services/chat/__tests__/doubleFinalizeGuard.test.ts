@@ -21,7 +21,7 @@ function createMockDeps(sessionId = "test-session") {
   const liveMessagesRef = { current: liveMessages };
   const displayedSessionIdRef = { current: sessionId as string | null };
   const nextIdRef = { current: 0 };
-  const sidRef = { current: sessionId };
+  const sessionIdRef = { current: sessionId };
 
   const setLiveSessionMessages = jest.fn((msgs: Message[] | ((prev: Message[]) => Message[])) => {
     if (typeof msgs === "function") {
@@ -31,7 +31,7 @@ function createMockDeps(sessionId = "test-session") {
     }
   });
   const setSessionStateForSession = jest.fn(
-    (_sid: string | null, _next: SessionRuntimeState) => {}
+    (_sessionId: string | null, _next: SessionRuntimeState) => {}
   );
 
   const getOrCreateSessionState = (sid: string): SessionLiveState => {
@@ -57,7 +57,7 @@ function createMockDeps(sessionId = "test-session") {
 
   return {
     deps: {
-      sidRef,
+      sessionIdRef,
       getOrCreateSessionState,
       getOrCreateSessionMessages,
       setSessionMessages,

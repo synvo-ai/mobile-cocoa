@@ -54,11 +54,6 @@ export interface LoadedSession {
   cwd?: string | null;
 }
 
-/** Insert break opportunities after path separators so wrapping avoids mid-segment breaks. */
-function formatPathForWrap(path: string): string {
-  return path.split("/").join("/\u200B");
-}
-
 const uiMonoFontFamily = Platform.select({
   ios: "Menlo",
   android: "monospace",
@@ -155,7 +150,6 @@ export function SessionManagementModal({
   currentSessionId,
   workspacePath,
   serverBaseUrl,
-  workspaceLoading,
   onOpenWorkspacePicker,
   onSelectSession,
   onNewSession,
@@ -178,12 +172,10 @@ export function SessionManagementModal({
   const sessions = useSessionManagementStore((state) => state.sessionStatuses);
   const removeSessionStatus = useSessionManagementStore((state) => state.removeSessionStatus);
   const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
   const [allowedRoot, setAllowedRoot] = useState<string | null>(null);
   const [selectError, setSelectError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
-  const [showAllSessions, setShowAllSessions] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [refreshPressed, setRefreshPressed] = useState(false);
   const [closePressed, setClosePressed] = useState(false);
@@ -203,7 +195,6 @@ export function SessionManagementModal({
       }
       setSelectError(null);
       setListError(null);
-      setShowAllSessions(false);
       setCollapsedGroups({});
     }
   }, [isOpen]);
@@ -219,18 +210,6 @@ export function SessionManagementModal({
 
   const currentRelativePath =
     allowedRoot && workspacePath ? getRelativePath(workspacePath, allowedRoot) : "";
-  const workspaceDisplayPath = useMemo(
-    () => (
-      allowedRoot && workspacePath
-        ? (currentRelativePath || "(root)")
-        : (workspacePath ?? "—")
-    ),
-    [allowedRoot, workspacePath, currentRelativePath]
-  );
-
-  const workspacePreviewPrefix = useMemo(() => {
-    return `system@vibe:~/`;
-  }, []);
 
   const groupedSessions = useMemo(() => {
     const byWorkspace = new Map<string, ApiSession[]>();
@@ -276,7 +255,7 @@ export function SessionManagementModal({
   const refresh = useCallback(async (isPullRefresh = false, showLoadingIndicator = true) => {
     if (showLoadingIndicator) {
       if (isPullRefresh) {
-        setRefreshing(true);
+        // No pull-to-refresh spinner in this modal UI.
       } else {
         setLoading(true);
       }
@@ -286,7 +265,6 @@ export function SessionManagementModal({
     if (!serverBaseUrl) {
       if (showLoadingIndicator) {
         setLoading(false);
-        setRefreshing(false);
       }
       return;
     }
@@ -303,7 +281,6 @@ export function SessionManagementModal({
     } finally {
       if (showLoadingIndicator) {
         setLoading(false);
-        setRefreshing(false);
       }
     }
   }, [serverBaseUrl]);
@@ -316,7 +293,6 @@ export function SessionManagementModal({
       void refresh(false, currentSessionsCount === 0);
     } else {
       setLoading(false);
-      setRefreshing(false);
     }
   }, [isOpen, refresh]);
 

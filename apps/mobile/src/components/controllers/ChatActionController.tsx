@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
 import type { Provider as BrandProvider } from "@/core/modelOptions";
@@ -56,10 +56,7 @@ export const ChatActionController = memo(function ChatActionController({
   const [pendingCodeRefs, setPendingCodeRefs] = useState<CodeRefPayload[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const messagesRef = useRef(messages);
-
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+  messagesRef.current = messages;
 
   const onSubmitPrompt = useCallback(
     (prompt: string) => {
@@ -111,7 +108,7 @@ export const ChatActionController = memo(function ChatActionController({
 
   const onRetryPermission = useCallback(() => {
     const { backend } = getSubmitPermissionConfig(permissionModeUI, provider);
-    const lastUserMessage = [...messagesRef.current].reverse().find((msg) => msg.role === "user");
+    const lastUserMessage = [...messagesRef.current].reverse().find((message) => message.role === "user");
     retryAfterPermission(backend.permissionMode, backend.approvalMode, lastUserMessage?.content);
   }, [permissionModeUI, provider, retryAfterPermission]);
 

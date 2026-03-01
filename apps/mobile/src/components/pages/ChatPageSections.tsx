@@ -3,19 +3,16 @@ import { ChatInputDock } from "@/components/chat/ChatInputDock";
 import { ChatMessageList } from "@/components/chat/ChatMessageList";
 import type { ChatPageContext, ChatPageConversation, ChatPageInputDock, ChatPageRuntime } from "@/components/pages/ChatPage";
 import { Box } from "@/components/ui/box";
-import type { getTheme } from "@/theme/index";
 import React from "react";
 import { ActivityIndicator, type LayoutChangeEvent } from "react-native";
 
 export type ChatHeaderSectionProps = {
-  theme: ReturnType<typeof getTheme>;
   onOpenExplorer: () => void;
   onOpenSessionManagement: () => void;
   sidebarVisible: boolean;
 };
 
 export function ChatHeaderSection({
-  theme,
   onOpenExplorer,
   onOpenSessionManagement,
   sidebarVisible,
@@ -23,7 +20,6 @@ export function ChatHeaderSection({
   return (
     <AppHeaderBar
       visible={!sidebarVisible}
-      iconColor={theme.colors.textPrimary}
       onOpenExplorer={onOpenExplorer}
       onOpenSessionManagement={onOpenSessionManagement}
     />

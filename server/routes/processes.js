@@ -20,11 +20,11 @@ function handleListProcesses(_, res) {
   try {
     const cwd = getWorkspaceCwd();
     const processes = listProcessesOnPorts(cwd);
-    const withLogPaths = processes.map((p) => ({ ...p, logPaths: p.logPaths ?? [] }));
+    const withLogPaths = processes.map((processInfo) => ({ ...processInfo, logPaths: processInfo.logPaths ?? [] }));
     res.json({ processes: withLogPaths });
-  } catch (err) {
-    console.error("[api/processes]", err?.message ?? err);
-    res.json({ processes: [], warning: err?.message ?? "Port scan failed" });
+  } catch (error) {
+    console.error("[api/processes]", error?.message ?? error);
+    res.json({ processes: [], warning: error?.message ?? "Port scan failed" });
   }
 }
 
@@ -59,8 +59,8 @@ function handleLogTail(req, res) {
       return res.status(404).json({ error: result.error });
     }
     res.json({ content: result.content, path: result.path });
-  } catch (err) {
-    res.status(500).json({ error: err?.message ?? "Failed to read log" });
+  } catch (error) {
+    res.status(500).json({ error: error?.message ?? "Failed to read log" });
   }
 }
 

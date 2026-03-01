@@ -24,8 +24,8 @@ function handleGitCommits(req, res) {
     const limit = req.query.limit ? parseInt(req.query.limit, 10) : 50;
     const commits = getGitCommits(cwd, limit);
     res.json({ commits });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to get git commits" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to get git commits" });
   }
 }
 
@@ -36,8 +36,8 @@ function handleGitTree(req, res) {
     const normalized = normalizeRelativePath(relPath);
     const tree = getGitTree(cwd, normalized);
     res.json({ tree });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to get git tree" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to get git tree" });
   }
 }
 
@@ -46,8 +46,8 @@ function handleGitStatus(_, res) {
     const cwd = getWorkspaceCwd();
     const status = getGitStatus(cwd);
     res.json({ status });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to get git status" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to get git status" });
   }
 }
 
@@ -76,8 +76,8 @@ async function handleGitDiff(req, res) {
     }
 
     res.json({ diff: result.stdout });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to get git diff" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to get git diff" });
   }
 }
 
@@ -106,7 +106,7 @@ function handleGitAction(req, res) {
     }
 
     res.status(400).json({ error: "Invalid action" });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to execute git action" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to execute git action" });
   }
 }

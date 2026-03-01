@@ -32,7 +32,11 @@ httpServer.listen(PORT, SERVER_LISTEN_HOST, () => {
   const overlay = getActiveOverlay();
   const previewHost = getPreviewHost();
   const hostForLog = process.env.HOST || DEFAULT_SERVER_HOST;
-  const baseUrl = `http://${hostForLog}:${PORT}`;
+  const addressInfo = httpServer.address();
+  const boundPort = (addressInfo && typeof addressInfo === "object" && "port" in addressInfo)
+    ? addressInfo.port
+    : PORT;
+  const baseUrl = `http://${hostForLog}:${boundPort}`;
 
   console.log(`Terminal server at ${baseUrl}`);
   console.log(`Health check page: ${baseUrl}/health`);

@@ -99,8 +99,6 @@ export type ChatPageInputDock = {
   onRemoveCodeRef: (index: number) => void;
   onTerminateAgent: () => void;
   onOpenWebPreview: () => void;
-  onProviderChange: (provider: BrandProvider) => void;
-  onModelChange: (model: string) => void;
 };
 
 export type ChatPageAskQuestion = {
@@ -141,7 +139,6 @@ type ChatPageSessionManagement = {
   onSelectSession: (session: ModalSessionItem | null) => Promise<void> | void;
   onNewSession: () => void;
   currentSessionId: string | null;
-  workspaceLoading: boolean;
   sessionRunning: boolean;
   onSelectActiveChat: () => void;
   showActiveChat: boolean;

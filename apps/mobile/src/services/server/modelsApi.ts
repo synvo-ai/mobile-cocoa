@@ -62,10 +62,10 @@ export function getFallbackDefaultModelForProvider(provider: Provider): string {
 export async function fetchModelsConfig(): Promise<ModelsConfig> {
   if (modelsConfigCache) return modelsConfigCache;
   try {
-    const base = getDefaultServerConfig().getBaseUrl();
-    const res = await fetch(`${base}/api/models`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data: ModelsConfig = await res.json();
+    const baseUrl = getDefaultServerConfig().getBaseUrl();
+    const response = await fetch(`${baseUrl}/api/models`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data: ModelsConfig = await response.json();
     if (!data?.providers || typeof data.providers !== "object") {
       throw new Error("Invalid models config response");
     }

@@ -50,11 +50,11 @@ describe("touchSession", () => {
     // Set limit to 1 — should evict s2 and s3 (oldest), keep s1 (most recent)
     // We need to add enough sessions to trigger eviction
     for (let i = 4; i <= MAX_CACHED_SESSIONS + 2; i++) {
-      const sid = `s${i}`;
-      touchSession(sid);
-      states.set(sid, { sessionState: "idle" });
-      messages.set(sid, []);
-      drafts.set(sid, "");
+      const sessionId = `s${i}`;
+      touchSession(sessionId);
+      states.set(sessionId, { sessionState: "idle" });
+      messages.set(sessionId, []);
+      drafts.set(sessionId, "");
     }
     evictOldestSessions(states, messages, drafts);
     // s2 and s3 should be evicted (they were oldest after s1 was re-touched)
@@ -72,11 +72,11 @@ describe("evictOldestSessions", () => {
     const drafts = new Map<string, string>();
 
     for (let i = 1; i <= 5; i++) {
-      const sid = `session-${i}`;
-      touchSession(sid);
-      states.set(sid, { sessionState: "idle" });
-      messages.set(sid, [{ id: `msg-${i}`, role: "user", content: `Hello ${i}` }]);
-      drafts.set(sid, "");
+      const sessionId = `session-${i}`;
+      touchSession(sessionId);
+      states.set(sessionId, { sessionState: "idle" });
+      messages.set(sessionId, [{ id: `msg-${i}`, role: "user", content: `Hello ${i}` }]);
+      drafts.set(sessionId, "");
     }
 
     evictOldestSessions(states, messages, drafts);
@@ -91,11 +91,11 @@ describe("evictOldestSessions", () => {
 
     const totalSessions = MAX_CACHED_SESSIONS + 5;
     for (let i = 1; i <= totalSessions; i++) {
-      const sid = `session-${i}`;
-      touchSession(sid);
-      states.set(sid, { sessionState: "idle" });
-      messages.set(sid, [{ id: `msg-${i}`, role: "user", content: `Hello ${i}` }]);
-      drafts.set(sid, `draft-${i}`);
+      const sessionId = `session-${i}`;
+      touchSession(sessionId);
+      states.set(sessionId, { sessionState: "idle" });
+      messages.set(sessionId, [{ id: `msg-${i}`, role: "user", content: `Hello ${i}` }]);
+      drafts.set(sessionId, `draft-${i}`);
     }
 
     evictOldestSessions(states, messages, drafts);
@@ -129,10 +129,10 @@ describe("evictOldestSessions", () => {
 
     // Add enough sessions to exceed the limit
     for (let i = 1; i <= MAX_CACHED_SESSIONS + 3; i++) {
-      const sid = `session-${i}`;
-      touchSession(sid);
-      states.set(sid, { sessionState: "idle" });
-      messages.set(sid, []);
+      const sessionId = `session-${i}`;
+      touchSession(sessionId);
+      states.set(sessionId, { sessionState: "idle" });
+      messages.set(sessionId, []);
     }
 
     evictOldestSessions(states, messages, drafts, activeSid);

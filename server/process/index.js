@@ -15,6 +15,11 @@ import {
 import { createPiRpcSession } from "./piRpcSession.js";
 
 const globalSpawnChildren = new Set();
+const SSE_END_EVENTS = new Set(["exit"]);
+
+function normalizeTrimmedString(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
 
 export function shutdown() {
   for (const child of globalSpawnChildren) {
@@ -32,10 +37,30 @@ export function shutdown() {
 }
 
 function resolveProvider(fromPayload) {
-  if (typeof fromPayload === "string" && VALID_PROVIDERS.includes(fromPayload)) {
-    return fromPayload;
+  const provider = normalizeTrimmedString(fromPayload);
+  if (VALID_PROVIDERS.includes(provider)) {
+    return provider;
   }
   return DEFAULT_PROVIDER;
+}
+
+function shouldResetSessionMetadata(sessionManagement, provider, model) {
+  return sessionManagement && (sessionManagement.provider !== provider || sessionManagement.model !== model);
+}
+
+function applySessionManagementConfig(sessionManagement, provider, model, hasCompletedFirstRunRef) {
+  if (!sessionManagement) return;
+  const resetMetadata = shouldResetSessionMetadata(sessionManagement, provider, model);
+  if (resetMetadata) {
+    sessionManagement.sessionId = null;
+    sessionManagement.sessionLogTimestamp = null;
+    hasCompletedFirstRunRef.value = false;
+  }
+  if (!sessionManagement.sessionLogTimestamp) {
+    sessionManagement.sessionLogTimestamp = formatSessionLogTimestamp();
+  }
+  sessionManagement.provider = provider;
+  sessionManagement.model = model;
 }
 
 /**
@@ -88,7 +113,7 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, sessionM
   }
 
   function handleSubmitPrompt(payload) {
-    const prompt = typeof payload?.prompt === "string" ? payload.prompt.trim() : "";
+    const prompt = normalizeTrimmedString(payload?.prompt);
 
     if (!prompt) {
       emitError(socket, "Prompt cannot be empty.");
@@ -96,32 +121,13 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, sessionM
     }
 
     const provider = resolveProvider(payload?.provider);
+    const requestedModel = normalizeTrimmedString(payload?.model);
 
     const defaultModel = getDefaultModelForProvider(provider);
     const model =
-      typeof payload?.model === "string" && payload.model.trim()
-        ? payload.model.trim()
-        : defaultModel;
+      requestedModel ? requestedModel : defaultModel;
 
-    if (
-      sessionManagement &&
-      (sessionManagement.provider !== provider || sessionManagement.model !== model)
-    ) {
-      sessionManagement.sessionId = null;
-      sessionManagement.sessionLogTimestamp = null;
-      sessionManagement.provider = provider;
-      sessionManagement.model = model;
-      hasCompletedFirstRunRef.value = false;
-    }
-
-    if (sessionManagement && !sessionManagement.sessionLogTimestamp) {
-      sessionManagement.sessionLogTimestamp = formatSessionLogTimestamp();
-    }
-
-    if (sessionManagement) {
-      sessionManagement.provider = provider;
-      sessionManagement.model = model;
-    }
+    applySessionManagementConfig(sessionManagement, provider, model, hasCompletedFirstRunRef);
 
     piRpcSession.startTurn({ prompt, clientProvider: provider, model }).catch((err) => {
       emitError(socket, err?.message || "Failed to start Pi RPC.");
@@ -175,7 +181,7 @@ function createSseSocketAdapter(sessionId, session, host = DEFAULT_SSE_HOST) {
       const line = typeof data === "string" ? data : JSON.stringify(data);
       const sseData = line.replace(/\r?\n/g, "\ndata: ");
       const payload = `data: ${sseData}\n\n`;
-      const endPayload = event === "exit"
+      const endPayload = SSE_END_EVENTS.has(event)
         ? `event: end\ndata: ${JSON.stringify(data ?? {})}\n\n`
         : null;
       for (const response of subscribers) {

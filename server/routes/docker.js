@@ -39,8 +39,8 @@ export async function registerDockerRoutes(app) {
     try {
       const result = await actionFn(req, res);
       res.json(result ?? { ok: true });
-    } catch (err) {
-      res.status(dockerUnavailableStatus(err)).json({ error: err?.message || defaultError });
+    } catch (error) {
+      res.status(dockerUnavailableStatus(error)).json({ error: error?.message || defaultError });
     }
   };
 

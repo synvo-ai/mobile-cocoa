@@ -5,7 +5,7 @@
  * Uses native Pi RPC protocol; extension_ui_request is transformed to AskUserQuestion
  * for compatibility with the client's approval modal.
  */
-import { spawn } from "child_process";
+import { execSync, spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
@@ -291,6 +291,13 @@ export function createPiRpcSession({
       processHandle.kill("SIGTERM");
     } catch (_) { }
     if (!Number.isInteger(pid)) return;
+
+    if (process.platform === "win32") {
+      try {
+        execSync(`taskkill /PID ${pid} /T /F`, { stdio: "ignore" });
+      } catch (_) { }
+      return;
+    }
 
     if (process.platform !== "win32") {
       try {

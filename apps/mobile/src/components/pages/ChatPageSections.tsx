@@ -115,9 +115,6 @@ export function ChatInputDockSection({
         provider={context.provider}
         model={context.model}
         modelOptions={context.modelOptions}
-        providerModelOptions={context.providerModelOptions}
-        onProviderChange={input.onProviderChange}
-        onModelChange={input.onModelChange}
         onOpenModelPicker={onOpenModelPicker}
         onOpenSkillsConfig={onOpenSkillsConfig}
         onOpenDocker={onOpenDocker}

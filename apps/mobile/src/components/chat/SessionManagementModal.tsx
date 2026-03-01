@@ -76,16 +76,6 @@ const SOFT_LAYOUT_ANIMATION = {
   },
 };
 
-/** Get relative path from root to fullPath. */
-function getRelativePath(fullPath: string, root: string): string {
-  const rootNorm = root.replace(/\/$/, "");
-  if (fullPath === rootNorm || fullPath === root) return "";
-  if (fullPath.startsWith(rootNorm + "/")) {
-    return fullPath.slice(rootNorm.length + 1);
-  }
-  return fullPath;
-}
-
 function displayWorkspace(cwd: string | null | undefined, fallbackWorkspace?: string | null): string {
   const raw = (typeof cwd === "string" && cwd.trim())
     ? cwd.trim()
@@ -173,7 +163,6 @@ export function SessionManagementModal({
   const removeSessionStatus = useSessionManagementStore((state) => state.removeSessionStatus);
   const [loading, setLoading] = useState(false);
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null);
-  const [allowedRoot, setAllowedRoot] = useState<string | null>(null);
   const [selectError, setSelectError] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
@@ -198,18 +187,6 @@ export function SessionManagementModal({
       setCollapsedGroups({});
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen && serverBaseUrl) {
-      fetch(`${serverBaseUrl}/api/workspace-path`)
-        .then((res) => res.json())
-        .then((data) => setAllowedRoot(data?.allowedRoot ?? null))
-        .catch(() => setAllowedRoot(null));
-    }
-  }, [isOpen, serverBaseUrl]);
-
-  const currentRelativePath =
-    allowedRoot && workspacePath ? getRelativePath(workspacePath, allowedRoot) : "";
 
   const groupedSessions = useMemo(() => {
     const byWorkspace = new Map<string, ApiSession[]>();

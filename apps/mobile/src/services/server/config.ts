@@ -202,10 +202,10 @@ export function resolvePreviewUrlForMode(
       console.log(`[PreviewURL] resolvePreviewUrl: keep as-is | incoming=${previewUrl}`);
     }
     return previewUrl;
-  } catch (e) {
+  } catch (error) {
     if (__DEV__) {
       console.log(
-        `[PreviewURL] resolvePreviewUrl: parse error, using as-is | incoming=${previewUrl} | error=${String(e)}`
+        `[PreviewURL] resolvePreviewUrl: parse error, using as-is | incoming=${previewUrl} | error=${String(error)}`
       );
     }
     return previewUrl;

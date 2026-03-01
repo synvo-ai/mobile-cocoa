@@ -24,8 +24,8 @@ export function getPreviewHost() {
   const fromEnv = (process.env.PREVIEW_HOST || "").trim();
   if (fromEnv) {
     try {
-      const u = fromEnv.startsWith("http") ? fromEnv : `http://${fromEnv}`;
-      cachedPreviewHost = new URL(u).hostname;
+      const normalizedPreviewUrl = fromEnv.startsWith("http") ? fromEnv : `http://${fromEnv}`;
+      cachedPreviewHost = new URL(normalizedPreviewUrl).hostname;
       return cachedPreviewHost;
     } catch {
       cachedPreviewHost = fromEnv;

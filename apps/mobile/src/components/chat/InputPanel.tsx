@@ -32,7 +32,6 @@ import { CATEGORY_COLORS, CATEGORY_COLORS_LIGHT, type Category } from "@/utils/s
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AccessibilityInfo, Animated, Dimensions, Keyboard, Modal, Platform, ScrollView, StyleSheet, TouchableWithoutFeedback, View as RNView } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Polygon } from "react-native-svg";
 
 function InputWrapper({ width, height, isDark, theme }: { width: number; height: number; isDark: boolean; theme: any }) {
@@ -99,7 +98,6 @@ export interface InputPanelProps {
   sessionRunning: boolean;
   waitingForUserInput: boolean;
   permissionMode: string | null;
-  onPermissionModeChange: (mode: string) => void;
   onSubmit: (prompt: string, permissionMode?: string) => void;
   pendingCodeRefs?: PendingCodeRef[];
   onRemoveCodeRef?: (index: number) => void;
@@ -109,9 +107,6 @@ export interface InputPanelProps {
   provider?: Provider;
   model?: string;
   modelOptions?: { value: string; label: string }[];
-  providerModelOptions?: Record<Provider, { value: string; label: string }[]>;
-  onProviderChange?: (provider: Provider) => void;
-  onModelChange?: (model: string) => void;
   onOpenModelPicker?: () => void;
   onOpenSkillsConfig?: () => void;
   onOpenDocker?: () => void;
@@ -158,7 +153,6 @@ export function InputPanel({
   }, [categories, selectedCategory]);
   const [inputHeight, setInputHeight] = useState(DEFAULT_INPUT_HEIGHT);
   const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
-  useSafeAreaInsets();
   const triggerLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const skillTriggerLayout = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const maxSkillCategoryHeight = 180;

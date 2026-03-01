@@ -46,7 +46,11 @@ export function createStreamFlusher(
     pending = "";
     onFlush(chunk);
     if (onDebugFlush) {
-      onDebugFlush(chunk);
+      try {
+        onDebugFlush(chunk);
+      } catch (_) {
+        /* debug callback must not block flush path */
+      }
     }
   };
 

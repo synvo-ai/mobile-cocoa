@@ -59,7 +59,7 @@ function requireValidSessionIdParam(req, res) {
 }
 
 function appendUserPromptToSessionFile(filePath, prompt) {
-    if (!filePath || !prompt) return;
+    if (!filePath || !prompt) return false;
     try {
         const messageId = crypto.randomUUID();
         const userMsgLine = JSON.stringify({
@@ -70,10 +70,18 @@ function appendUserPromptToSessionFile(filePath, prompt) {
                 id: messageId,
                 role: "user",
                 content: [{ type: "text", text: prompt }],
+                metadata: {
+                    source: "client_prewrite",
+                    sourceId: messageId,
+                },
             },
         }) + "\n";
         fs.appendFileSync(filePath, userMsgLine, "utf-8");
-    } catch (_) { /* non-fatal */ }
+        return true;
+    } catch (error) {
+        console.error("[sessions] Failed to persist pre-written prompt:", error?.message);
+    }
+    return false;
 }
 
 /**
@@ -99,7 +107,12 @@ function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
         if (!sessionId) sessionId = crypto.randomUUID();
 
         existingPath = resolveSessionFilePath(sessionId);
-        if (!existingPath) existingPath = createNewSessionFile(sessionId, sessionCwd);
+        if (!existingPath) {
+            existingPath = createNewSessionFile(sessionId, sessionCwd);
+        }
+        if (!existingPath) {
+            throw new Error("Failed to create session file path");
+        }
 
         session = createSession(sessionId, provider, model, {
             existingSessionPath: existingPath,
@@ -114,13 +127,19 @@ function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
             : resolveSessionFilePath(sessionId);
         if (!existingPath) {
             existingPath = createNewSessionFile(sessionId, sessionCwd);
+            if (!existingPath) {
+                throw new Error("Failed to create session file path");
+            }
             session.existingSessionPath = existingPath;
         }
     }
 
     // Pre-write the user prompt to JSONL for all submit paths so /messages
     // can surface the latest user turn immediately during/after streaming.
-    appendUserPromptToSessionFile(existingPath, prompt);
+    const didAppendPrompt = appendUserPromptToSessionFile(existingPath, prompt);
+    if (!didAppendPrompt) {
+        throw new Error("Failed to persist user prompt before streaming");
+    }
 
     return { session, sessionId };
 }
@@ -217,16 +236,18 @@ export function registerSessionsRoutes(app) {
         let sessionId;
         try {
             ({ session, sessionId } = findOrCreateSession(payload, provider, model, prompt, sessionCwd));
-        } catch (err) {
-            return res.status(400).json({ ok: false, error: err?.message || "Invalid sessionId" });
+        } catch (error) {
+            const errorMessage = error?.message || "Invalid sessionId";
+            const statusCode = errorMessage === "Invalid sessionId" ? 400 : 500;
+            return res.status(statusCode).json({ ok: false, error: errorMessage });
         }
 
         try {
             session.processManager.handleSubmitPrompt(payload, req.headers.host);
             res.status(200).json({ sessionId, ok: true });
-        } catch (err) {
+        } catch (error) {
             // Include sessionId so client can connect to stream even on error (process may have partially started)
-            res.status(500).json({ ok: false, error: err.message, sessionId });
+            res.status(500).json({ ok: false, error: error.message, sessionId });
         }
     });
 

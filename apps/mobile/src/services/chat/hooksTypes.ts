@@ -1,5 +1,5 @@
 import type { Provider } from "@/core/modelOptions";
-import type { CodeReference, IServerConfig, LastRunOptions, Message, PendingAskUserQuestion, PermissionDenial } from "@/core/types";
+import type { IServerConfig, Message, PendingAskUserQuestion, PermissionDenial } from "@/core/types";
 
 
 export interface UseChatOptions {
@@ -14,6 +14,8 @@ export interface UseChatOptions {
   onLastSessionTerminatedChange?: (lastSessionTerminated: boolean) => void;
   onMessagesChange?: (messages: Message[]) => void;
 }
+
+export type { CodeReference, IServerConfig, LastRunOptions, Message, PendingAskUserQuestion, PermissionDenial };
 
 export type EventSourceLike = {
   addEventListener: (event: string, handler: (...args: any[]) => void) => void;

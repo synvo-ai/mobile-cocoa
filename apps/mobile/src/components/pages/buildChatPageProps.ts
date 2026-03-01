@@ -106,8 +106,6 @@ export function buildChatPageProps({
       onRemoveCodeRef: chatActionState.onRemoveCodeRef,
       onTerminateAgent: sseState.terminateAgent,
       onOpenWebPreview: chatActionState.onOpenWebPreview,
-      onProviderChange: sseState.handleProviderChange,
-      onModelChange: sseState.handleModelChange,
     },
     modals: {
       askQuestion: {
@@ -142,7 +140,6 @@ export function buildChatPageProps({
         onSelectSession: sseState.handleSelectSession,
         onNewSession: sseState.handleNewSession,
         currentSessionId: sseState.sessionId,
-        workspaceLoading: workspaceState.workspacePathLoading,
         sessionRunning: sseState.sessionRunning,
         onSelectActiveChat: sseState.handleSelectActiveChat,
         showActiveChat: false,

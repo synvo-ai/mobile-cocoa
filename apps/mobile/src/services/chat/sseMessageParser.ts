@@ -28,11 +28,11 @@ function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
     const parsed = JSON.parse(clean);
 
     if (parsed.type === "session-started") {
-      const raw = parsed.session_id ?? parsed.sessionId;
-      const id = raw != null && raw !== "" ? String(raw) : null;
+      const sessionIdRaw = parsed.session_id ?? parsed.sessionId;
+      const sessionId = sessionIdRaw != null && sessionIdRaw !== "" ? String(sessionIdRaw) : null;
       return {
         kind: "sessionStarted",
-        sessionId: id && !id.startsWith("temp-") ? id : null,
+        sessionId: sessionId && !sessionId.startsWith("temp-") ? sessionId : null,
         permissionMode: (parsed.permissionMode as string | null) ?? null,
         allowedTools: (Array.isArray(parsed.allowedTools) ? parsed.allowedTools : []) as string[],
         useContinue: Boolean(parsed.useContinue),
@@ -59,8 +59,8 @@ function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
     }
 
     return actions.length === 1 ? actions[0] : actions;
-  } catch (outerErr) {
-    if (outerErr instanceof RangeError) {
+  } catch (error) {
+    if (error instanceof RangeError) {
       return { kind: "skip" };
     }
 

@@ -39,7 +39,7 @@ function isValidPort(port) {
 const server = http.createServer((req, res) => {
   const targetPortHeader = req.headers["x-target-port"];
   let targetPort = DEFAULT_TARGET_PORT;
-  let reqUrl = req.url;
+  let requestUrl = req.url;
 
   if (targetPortHeader) {
     const parsed = parseInt(String(targetPortHeader), 10);
@@ -52,14 +52,14 @@ const server = http.createServer((req, res) => {
     }
   } else {
     try {
-      const urlObj = new URL(reqUrl, `http://${PROXY_LOOPBACK_HOST}:${PROXY_PORT}`);
-      const qPort = urlObj.searchParams.get("_targetPort");
-      if (qPort) {
-        const parsed = parseInt(qPort, 10);
+      const parsedUrl = new URL(requestUrl, `http://${PROXY_LOOPBACK_HOST}:${PROXY_PORT}`);
+      const queryTargetPort = parsedUrl.searchParams.get("_targetPort");
+      if (queryTargetPort) {
+        const parsed = parseInt(queryTargetPort, 10);
         if (isValidPort(parsed)) {
           targetPort = parsed;
-          urlObj.searchParams.delete("_targetPort");
-          reqUrl = urlObj.pathname + urlObj.search + urlObj.hash;
+          parsedUrl.searchParams.delete("_targetPort");
+          requestUrl = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
         }
       }
     } catch {
@@ -67,19 +67,19 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  const options = {
+  const proxyOptions = {
     hostname: PROXY_LOOPBACK_HOST,
     port: targetPort,
-    path: reqUrl,
+    path: requestUrl,
     method: req.method,
     headers: { ...req.headers },
   };
 
-  delete options.headers["x-target-port"];
-  options.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
-  options.headers["x-tunnel-proxy"] = "1";
+  delete proxyOptions.headers["x-target-port"];
+  proxyOptions.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
+  proxyOptions.headers["x-tunnel-proxy"] = "1";
 
-  const proxyReq = http.request(options, (proxyRes) => {
+  const proxyReq = http.request(proxyOptions, (proxyRes) => {
     res.writeHead(proxyRes.statusCode, {
       ...proxyRes.headers,
       "x-proxied-port": String(targetPort),
@@ -107,6 +107,7 @@ const server = http.createServer((req, res) => {
 server.on("upgrade", (req, socket, head) => {
   const targetPortHeader = req.headers["x-target-port"];
   let targetPort = DEFAULT_TARGET_PORT;
+  let requestUrl = req.url;
 
   if (targetPortHeader) {
     const parsed = parseInt(String(targetPortHeader), 10);
@@ -116,20 +117,35 @@ server.on("upgrade", (req, socket, head) => {
       socket.destroy();
       return;
     }
+  } else {
+    try {
+      const parsedUrl = new URL(requestUrl, `http://${PROXY_LOOPBACK_HOST}:${PROXY_PORT}`);
+      const queryTargetPort = parsedUrl.searchParams.get("_targetPort");
+      if (queryTargetPort) {
+        const parsed = parseInt(queryTargetPort, 10);
+        if (isValidPort(parsed)) {
+          targetPort = parsed;
+          parsedUrl.searchParams.delete("_targetPort");
+          requestUrl = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+        }
+      }
+    } catch {
+      // Malformed URL; use defaults
+    }
   }
 
-  const options = {
+  const proxyOptions = {
     hostname: PROXY_LOOPBACK_HOST,
     port: targetPort,
-    path: req.url,
+    path: requestUrl,
     method: req.method,
     headers: { ...req.headers },
   };
-  delete options.headers["x-target-port"];
-  options.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
-  options.headers["x-tunnel-proxy"] = "1";
+  delete proxyOptions.headers["x-target-port"];
+  proxyOptions.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
+  proxyOptions.headers["x-tunnel-proxy"] = "1";
 
-  const proxyReq = http.request(options);
+  const proxyReq = http.request(proxyOptions);
   proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
     socket.write(
       `HTTP/1.1 101 Switching Protocols\r\n` +

@@ -20,7 +20,7 @@ import { Text } from "@/components/ui/text";
 import { getDefaultServerConfig } from "@/core";
 import { EntranceAnimation, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
-import { basename, dirname } from "@/utils/path";
+import { basename } from "@/utils/path";
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -117,19 +117,6 @@ interface WorkspaceSidebarProps {
 
 const SIDE_MARGIN = 12;
 const IGNORED_FILES = new Set([".gitignore", ".env", ".env.example", ".env.local"]);
-const PATH_MAX_CHARS = 42;
-
-/** Deprecated: using ellipsizeMode="middle" instead */
-function truncatePathMiddle(path: string, maxChars: number = PATH_MAX_CHARS): string {
-  if (path.length <= maxChars) return path;
-  const file = basename(path);
-  const dir = dirname(path);
-  if (!dir || dir === ".") return `...${path.slice(-(maxChars - 3))}`;
-  const ellipsis = ".../";
-  const startChars = Math.max(4, maxChars - file.length - ellipsis.length);
-  const start = dir.slice(0, startChars);
-  return `${start}${ellipsis}${file}`;
-}
 
 export function WorkspaceSidebar({ isOpen, embedded, onClose, onFileSelect, onCommitByAI, onActiveTabChange }: WorkspaceSidebarProps) {
   const theme = useTheme();

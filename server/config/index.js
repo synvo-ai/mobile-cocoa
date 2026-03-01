@@ -51,32 +51,20 @@ function asStringSafe(value, fallback = "") {
   return typeof value === "string" && value.trim() ? value.trim() : fallback;
 }
 
-function asRequiredString(value, label, fallback = "") {
+function asRequiredString(value, label) {
   const str = asStringSafe(value, "");
-  if (!str) {
-    console.warn(`[config] Missing required config string: ${label}; using fallback "${fallback}"`);
-    return fallback;
-  }
+  if (!str) throw new Error(`[config] Missing required config string: ${label}`);
   return str;
 }
 
-function asRequiredNumber(value, label, fallback = 0) {
+function asRequiredNumber(value, label) {
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed)) {
-    console.warn(`[config] Missing required config number: ${label}; using fallback "${fallback}"`);
-    return Number.parseInt(fallback, 10);
-  }
-  return parsed;
+  if (Number.isInteger(parsed)) return parsed;
+  throw new Error(`[config] Missing required config number: ${label}`);
 }
 
-function asRequiredStringList(value, label, fallback = []) {
-  if (!Array.isArray(value)) {
-    const safeFallback = Array.isArray(fallback) ? fallback : [];
-    if (safeFallback.length > 0) {
-      console.warn(`[config] Missing/invalid config string list: ${label}; using fallback ${safeFallback.join(",")}`);
-    }
-    return safeFallback.map((entry) => asStringSafe(entry, ""));
-  }
+function asRequiredStringList(value, label) {
+  if (!Array.isArray(value)) throw new Error(`[config] Missing/invalid config string list: ${label}`);
   return value.map((entry) => String(entry ?? "").trim()).filter(Boolean);
 }
 

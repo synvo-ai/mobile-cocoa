@@ -262,9 +262,13 @@ export function parseMessagesFromJsonl(filePath) {
     const messages = [];
     const seenUserMessageIds = new Set();
     const seenUserMessageContents = new Set();
+    const normalizeContent = (value) => value.replace(/\s+/g, " ").trim();
     let nextMessageIndex = 0;
     let pendingAssistantContent = [];
     let pendingDeltaText = "";
+    let lastUserContentForDedupe = "";
+    let lastUserSourceForDedupe = "";
+    let lastParsedRole = null;
 
     for (const line of lines) {
         try {
@@ -301,6 +305,10 @@ export function parseMessagesFromJsonl(filePath) {
 
             const contentStr = extractMessageContent(messagePayload.content).trim();
             if (!contentStr) continue;
+            const normalizedContent = normalizeContent(contentStr);
+            const messageSource = typeof messagePayload.metadata?.source === "string"
+                ? messagePayload.metadata.source.trim()
+                : "";
 
             if (role === "user") {
                 // Flush any accumulated delta text before the user message
@@ -308,6 +316,13 @@ export function parseMessagesFromJsonl(filePath) {
                     pendingAssistantContent.push(pendingDeltaText);
                     pendingDeltaText = "";
                 }
+                const isLikelyPrewriteDuplicate = Boolean(
+                    lastParsedRole === "user" &&
+                    lastUserContentForDedupe &&
+                    lastUserContentForDedupe === normalizedContent &&
+                    (messageSource === "client_prewrite" || lastUserSourceForDedupe === "client_prewrite")
+                );
+                if (isLikelyPrewriteDuplicate) continue;
                 // Prefer event message ID for dedupe; fallback to content only when no id is present.
                 const messageId = typeof messagePayload.id === "string" && messagePayload.id.trim().length > 0 ? messagePayload.id.trim() : "";
                 if (messageId) {
@@ -324,6 +339,9 @@ export function parseMessagesFromJsonl(filePath) {
                     pendingAssistantContent = [];
                 }
                 messages.push({ id: `msg-${++nextMessageIndex}`, role: "user", content: contentStr });
+                lastParsedRole = "user";
+                lastUserContentForDedupe = normalizedContent;
+                lastUserSourceForDedupe = messageSource;
             } else {
                 // role === 'assistant': flush delta text then accumulate
                 if (pendingDeltaText) {
@@ -331,6 +349,7 @@ export function parseMessagesFromJsonl(filePath) {
                     pendingDeltaText = "";
                 }
                 pendingAssistantContent.push(contentStr);
+                lastParsedRole = "assistant";
             }
         } catch (_) {
             /* skip malformed lines */

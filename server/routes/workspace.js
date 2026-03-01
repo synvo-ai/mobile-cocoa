@@ -29,10 +29,11 @@ function isDisallowedPreviewPath(fullPath, baseDir) {
   if (relative.startsWith(`..${path.sep}`) || relative === ".." || path.isAbsolute(relative)) {
     return true;
   }
+  const disallowedSegments = new Set([".git", ".pi"]);
   return relative
     .split(path.sep)
     .filter(Boolean)
-    .some((segment) => segment === ".pi" || segment.startsWith("."));
+    .some((segment) => disallowedSegments.has(segment));
 }
 
 export function registerWorkspaceRoutes(app) {
@@ -69,8 +70,8 @@ function resolveWorkspaceContext(baseParam, rootParam, parentParam) {
     ? (() => {
       try {
         return normalizeRelativePath(parentParam);
-      } catch (err) {
-        throw { status: 400, error: err instanceof Error ? err.message : "Invalid path" };
+      } catch (error) {
+        throw { status: 400, error: error instanceof Error ? error.message : "Invalid path" };
       }
     })()
     : "";
@@ -107,11 +108,11 @@ function handleWorkspaceCreateFolder(req, res) {
 
     fs.mkdirSync(targetFolder, { recursive: true });
     res.json({ success: true, path: targetFolder });
-  } catch (err) {
-    if (err.status) {
-      return res.status(err.status).json({ error: err.error });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.error });
     }
-    res.status(500).json({ error: err.message || "Failed to create folder" });
+    res.status(500).json({ error: error.message || "Failed to create folder" });
   }
 }
 
@@ -129,9 +130,9 @@ export function createServeWorkspaceFileMiddleware() {
 
       res.setHeader("Content-Type", getMimeForFile(fullPath));
       res.sendFile(fullPath);
-    } catch (err) {
-      if (err.code === "ENOENT") return next();
-      res.status(500).send(err.message || "Failed to serve file");
+    } catch (error) {
+      if (error.code === "ENOENT") return next();
+      res.status(500).send(error.message || "Failed to serve file");
     }
   };
 }
@@ -156,11 +157,11 @@ function handleWorkspaceAllowedChildren(req, res) {
         return { name: entry.name, path: relativePath };
       });
     res.json({ children });
-  } catch (err) {
-    if (err.status) {
-      return res.status(err.status).json({ error: err.error, children: [] });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ error: error.error, children: [] });
     }
-    res.status(500).json({ error: err.message || "Failed to list directories" });
+    res.status(500).json({ error: error.message || "Failed to list directories" });
   }
 }
 
@@ -169,8 +170,8 @@ function handleWorkspaceTree(_, res) {
     const cwd = getWorkspaceCwd();
     const tree = buildWorkspaceTree(cwd);
     res.json({ root: path.basename(cwd), tree });
-  } catch (err) {
-    res.status(500).json({ error: err.message || "Failed to read workspace" });
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Failed to read workspace" });
   }
 }
 
@@ -191,9 +192,9 @@ function handlePreviewRaw(req, res) {
 
     res.setHeader("Content-Type", getMimeForFile(fullPath));
     res.sendFile(fullPath);
-  } catch (err) {
-    if (err.code === "ENOENT") return res.status(404).send("File not found");
-    res.status(500).send(err.message || "Failed to serve file");
+  } catch (error) {
+    if (error.code === "ENOENT") return res.status(404).send("File not found");
+    res.status(500).send(error.message || "Failed to serve file");
   }
 }
 
@@ -231,8 +232,8 @@ function handleWorkspaceFile(req, res) {
       const content = fs.readFileSync(fullPath, "utf8");
       res.json({ path: relPathForResponse, content });
     }
-  } catch (err) {
-    if (err.code === "ENOENT") return res.status(404).json({ error: "File not found" });
-    res.status(500).json({ error: err.message || "Failed to read file" });
+  } catch (error) {
+    if (error.code === "ENOENT") return res.status(404).json({ error: "File not found" });
+    res.status(500).json({ error: error.message || "Failed to read file" });
   }
 }

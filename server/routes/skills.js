@@ -18,8 +18,8 @@ export function registerSkillsRoutes(app) {
     try {
       const data = discoverSkills(getSkillsDir());
       res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message || "Failed to list skills" });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Failed to list skills" });
     }
   });
 
@@ -35,8 +35,8 @@ export function registerSkillsRoutes(app) {
         return res.status(404).json({ error: "Path not found" });
       }
       res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message || "Failed to load children" });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Failed to load children" });
     }
   });
 
@@ -51,8 +51,8 @@ export function registerSkillsRoutes(app) {
         return res.status(404).json({ error: "Skill not found" });
       }
       res.json(data);
-    } catch (err) {
-      res.status(500).json({ error: err.message || "Failed to load skill" });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Failed to load skill" });
     }
   });
 
@@ -60,8 +60,8 @@ export function registerSkillsRoutes(app) {
     try {
       const enabledIds = getEnabledIds();
       res.json({ enabledIds });
-    } catch (err) {
-      res.status(500).json({ error: err.message || "Failed to get enabled skills" });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Failed to get enabled skills" });
     }
   });
 
@@ -74,8 +74,8 @@ export function registerSkillsRoutes(app) {
       } else {
         res.status(400).json({ error: result.error });
       }
-    } catch (err) {
-      res.status(500).json({ error: err.message || "Failed to update enabled skills" });
+    } catch (error) {
+      res.status(500).json({ error: error.message || "Failed to update enabled skills" });
     }
   });
 }

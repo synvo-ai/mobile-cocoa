@@ -1,5 +1,7 @@
 import { createSessionProcessManager } from "./process/index.js";
 
+const SESSION_ID_MIGRATION_PREFIX = "_";
+
 /**
  * Global registry mapping sessionId -> session state
  *
@@ -15,6 +17,37 @@ import { createSessionProcessManager } from "./process/index.js";
  */
 const registry = new Map();
 
+/** Create a stable session record with consistent defaults for optional fields. */
+function createSessionRecord(sessionId, provider, model, options = {}) {
+  const sessionLogTimestamp = options.sessionLogTimestamp ?? null;
+  const existingSessionPath = options.existingSessionPath ?? null;
+
+  return {
+    id: sessionId,
+    subscribers: new Set(),
+    provider,
+    model,
+    sessionLogTimestamp,
+    /** File path for replay; survives migrateSessionId (file stays at original path). */
+    existingSessionPath,
+  };
+}
+
+function matchesSessionId(sessionId, key, session) {
+  if (key === sessionId) return true;
+  if (key.endsWith(`${SESSION_ID_MIGRATION_PREFIX}${sessionId}`)) return true;
+  return session.id === sessionId;
+}
+
+function closeSessionSubscribers(session) {
+  for (const res of session.subscribers) {
+    try {
+      res.end();
+    } catch (_) {}
+  }
+  session.subscribers.clear();
+}
+
 /**
  * @param {string} sessionId
  * @param {string} provider
@@ -26,21 +59,17 @@ export function createSession(sessionId, provider, model, options = {}) {
     return registry.get(sessionId);
   }
 
-  const session = {
-    id: sessionId,
-    subscribers: new Set(),
-    provider,
-    model,
-    sessionLogTimestamp: options.sessionLogTimestamp ?? null,
-    /** File path for replay; survives migrateSessionId (file stays at original path). */
-    existingSessionPath: options.existingSessionPath ?? null,
-  };
-
+  const session = createSessionRecord(sessionId, provider, model, options);
   const onPiSessionId = (piId) => migrateSessionId(sessionId, piId);
+
+  const {
+    existingSessionPath,
+    sessionLogTimestamp,
+  } = session;
   session.processManager = createSessionProcessManager(sessionId, session, {
     onPiSessionId,
-    existingSessionPath: options.existingSessionPath,
-    sessionLogTimestamp: options.sessionLogTimestamp,
+    existingSessionPath,
+    sessionLogTimestamp,
   });
 
   registry.set(sessionId, session);
@@ -59,7 +88,7 @@ export function resolveSession(sessionId) {
   const s = registry.get(sessionId);
   if (s) return s;
   for (const [key, session] of registry) {
-    if (key === sessionId || key.endsWith(`_${sessionId}`) || session.id === sessionId) return session;
+    if (matchesSessionId(sessionId, key, session)) return session;
   }
   return null;
 }
@@ -79,12 +108,7 @@ export function removeSession(sessionId) {
   const session = registry.get(sessionId);
   if (session) {
     session.processManager?.cleanup();
-    session.subscribers.forEach((res) => {
-      try {
-        res.end();
-      } catch (_) {}
-    });
-    session.subscribers.clear();
+    closeSessionSubscribers(session);
     registry.delete(sessionId);
   }
 }

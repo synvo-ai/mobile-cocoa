@@ -116,13 +116,15 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
   // sessionStatuses array changes identity every 3s poll, but this boolean
   // only changes when the session *actually* transitions — avoiding unnecessary
   // effect re-runs.
+  const selectedSessionRuntime = selectedSessionRuntimeRef.current;
+  const hasRuntimeRecordForTarget = selectedSessionRuntime?.id === storeSessionId;
   const isTargetSessionRunningFromStore = Boolean(
-    storeSessionId && sessionStatuses.find((s) => s.id === storeSessionId)?.status === "running"
+    storeSessionId && sessionStatuses.find((sessionStatus) => sessionStatus.id === storeSessionId)?.status === "running"
   );
-  const isTargetSessionRunningFromRuntime = Boolean(
-    selectedSessionRuntimeRef.current?.id === storeSessionId && selectedSessionRuntimeRef.current?.running
-  );
-  const isTargetSessionRunning = isTargetSessionRunningFromRuntime || isTargetSessionRunningFromStore;
+  const isTargetSessionRunningFromRuntime = Boolean(hasRuntimeRecordForTarget && selectedSessionRuntime?.running);
+  const isTargetSessionRunning = hasRuntimeRecordForTarget
+    ? isTargetSessionRunningFromRuntime
+    : isTargetSessionRunningFromStore;
   const streamFlushPerfRef = useRef({
     flushCount: 0,
     totalChars: 0,
@@ -165,9 +167,9 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
           setWaitingForUserInput(false);
           outputBufferRef.current = "";
         }
-      } catch (err) {
+      } catch (error) {
         if (__DEV__) {
-          console.warn("[sse] refresh session from disk failed", { sessionId: sessionIdToRefresh, error: String(err) });
+          console.warn("[sse] refresh session from disk failed", { sessionId: sessionIdToRefresh, error: String(error) });
         }
       }
     },
@@ -326,13 +328,13 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     // ── Event dispatcher ────────────────────────────────────────────────────
 
     const dispatchProviderEvent = createEventDispatcher({
-      setPermissionDenials: (d) => setPermissionDenials(d ? deduplicateDenialsRef.current(d) : null),
-      setWaitingForUserInput: (v) => {
+      setPermissionDenials: (denials) => setPermissionDenials(denials ? deduplicateDenialsRef.current(denials) : null),
+      setWaitingForUserInput: (waiting) => {
         if (displayedSessionIdRef.current === connectionSessionIdRef.current) {
           if (!sawAgentEndRef.current) {
             setSessionStateForSession(connectionSessionIdRef.current, "running");
           }
-          setWaitingForUserInput(v);
+          setWaitingForUserInput(waiting);
         }
       },
       setPendingAskQuestion,
@@ -353,7 +355,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         const last = messages.length ? messages[messages.length - 1] : null;
         return (last?.content as string) ?? "";
       },
-      deduplicateDenials: (d) => deduplicateDenialsRef.current(d),
+      deduplicateDenials: (denials) => deduplicateDenialsRef.current(denials),
       recordToolUse: (id, data) => recordToolUseRef.current(id, data),
       getAndClearToolUse: (id) => getAndClearToolUseRef.current(id),
       addPermissionDenial: (denial) => addPermissionDenialRef.current(denial),
@@ -367,8 +369,8 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
 
     const openHandler = () => {
       hasStreamEndedRef.current = false;
-      const currentSid = connectionSessionIdRef.current;
-      messageCountAtSseOpen = currentSid ? getOrCreateSessionMessages(currentSid).length : 0;
+      const currentSessionId = connectionSessionIdRef.current;
+      messageCountAtSseOpen = currentSessionId ? getOrCreateSessionMessages(currentSessionId).length : 0;
       retryCountRef.current = 0;
       clearRetryTimeout();
       if (__DEV__) console.log("[sse] connected", { sessionId: connectionSessionIdRef.current });
@@ -464,8 +466,8 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         const actions = (() => {
           try {
             return processRawSseLine(trimmed);
-          } catch (err) {
-            if (__DEV__) console.error("[sse][DIAG] processRawSseLine threw unexpectedly", { err });
+          } catch (error) {
+            if (__DEV__) console.error("[sse][DIAG] processRawSseLine threw unexpectedly", { error });
             return null;
           }
         })();
@@ -578,13 +580,13 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
 
       // If no new messages were produced, refresh from disk to pick up any
       // messages completed since the last REST load.
-      const endedSid = connectionSessionIdRef.current;
-      if (endedSid && exitCode === 0) {
-        const currentMessages = getOrCreateSessionMessages(endedSid);
-        const currentDraft = getSessionDraft(endedSid);
+      const endedSessionId = connectionSessionIdRef.current;
+      if (endedSessionId && exitCode === 0) {
+        const currentMessages = getOrCreateSessionMessages(endedSessionId);
+        const currentDraft = getSessionDraft(endedSessionId);
         const hasNewContent = currentMessages.length > messageCountAtSseOpen || (currentDraft && currentDraft.length > 0);
         if (!hasNewContent) {
-          void refreshCurrentSessionFromDisk(endedSid);
+          void refreshCurrentSessionFromDisk(endedSessionId);
         }
       }
     };

@@ -25,8 +25,6 @@ import {
 
 type TextTone = "primary" | "secondary" | "tertiary" | "muted";
 export type TypographyTone = "primary" | "secondary" | "muted" | "accent" | "success" | "danger" | "warning" | "info" | "inverse";
-type TextAlign = "left" | "center" | "right" | "justify";
-type TextTransform = "none" | "capitalize" | "uppercase" | "lowercase";
 
 export interface TypographyProps {
   children: React.ReactNode;
@@ -850,6 +848,7 @@ export function Chip({
             borderColor: selected ? colors.accent : colors.borderSubtle,
             opacity: disabled ? 0.5 : 1,
           },
+          style,
         ]}
         accessibilityLabel={label}
         accessibilityRole="button"
@@ -907,7 +906,7 @@ export function ListItem({
   haptic = "selection",
 }: ListItemProps) {
   const theme = useTheme();
-  const colors = theme.colors;
+  void theme;
 
   const content = (
     <>

@@ -33,7 +33,6 @@ const TEXT_WHITE = "#ffffff";
 const TEXT_TINT = "#a5f5f5";
 const BG_SURFACE = "rgba(10, 15, 30, 0.6)";
 const BG_SURFACE_ALT = "rgba(0, 20, 35, 0.4)";
-const ORANGE = "#ff5e00";
 const MONO_FONT = Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" });
 
 // ── Clean White palette (light mode) ────────────────────────────
@@ -80,7 +79,6 @@ export function WorkspacePickerModal({
   const folderColor = isDark ? CYAN_75 : LIGHT_500;
   const chevronColor = isDark ? CYAN : LIGHT_600;
   const spinnerColor = isDark ? CYAN : LIGHT_600;
-  const secondaryTextColor = isDark ? CYAN_50 : LIGHT_400;
 
   const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
   const [allowedRoot, setAllowedRoot] = useState<string | null>(null);

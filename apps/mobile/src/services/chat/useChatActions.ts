@@ -201,31 +201,31 @@ export function useChatActions(params: UseChatActionsParams) {
           console.log("[sse] submit prompt body length", requestBody.length);
         }
         submitStage = "fetch";
-        const res = await fetch(`${serverUrl}/api/sessions`, {
+        const response = await fetch(`${serverUrl}/api/sessions`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: requestBody,
         });
         submitStage = "parse-json";
-        const data = await res.json();
+        const data = await response.json();
         submitStage = "apply-result";
         if (data.ok && data.sessionId) {
           applySubmitSuccess(data);
         } else {
           applySubmitError(data);
         }
-      } catch (err) {
+      } catch (error) {
         const errStage = submitStage;
-        const errStatus = err && typeof err === "object" && "status" in err ? (err as { status?: number }).status : undefined;
+        const errStatus = error && typeof error === "object" && "status" in error ? (error as { status?: number }).status : undefined;
         if (__DEV__) {
           console.error("Failed to submit prompt", {
             stage: errStage ?? "request",
-            message: err instanceof Error ? err.message : String(err),
-            stack: err instanceof Error ? err.stack : undefined,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
             status: errStatus,
           });
         } else {
-          console.error("Failed to submit prompt", err);
+          console.error("Failed to submit prompt", error);
         }
         setConnectionIntent(sessionId, false);
         resetRunningState();
@@ -270,8 +270,8 @@ export function useChatActions(params: UseChatActionsParams) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: { content: [{ type: "tool_result", content: JSON.stringify(answers) }] } }),
         });
-      } catch (err) {
-        console.error("Failed to submit question answer", err);
+      } catch (error) {
+        console.error("Failed to submit question answer", error);
       }
 
       setPendingAskQuestion(null);
@@ -323,8 +323,8 @@ export function useChatActions(params: UseChatActionsParams) {
           setSessionStateForSession(nextSessionId, "running");
           setConnectionIntent(nextSessionId, true);
         }
-      } catch (err) {
-        console.error("Failed to retry after permission", err);
+      } catch (error) {
+        console.error("Failed to retry after permission", error);
         setConnectionIntent(sessionId, false);
       }
 
@@ -360,8 +360,8 @@ export function useChatActions(params: UseChatActionsParams) {
         body: JSON.stringify({}),
       });
       setConnectionIntent(sessionId, false);
-    } catch (err) {
-      console.error("Failed to terminate agent", err);
+    } catch (error) {
+      console.error("Failed to terminate agent", error);
     }
   }, [sessionId, serverUrl, setConnectionIntent, setLastSessionTerminated]);
 
@@ -373,8 +373,8 @@ export function useChatActions(params: UseChatActionsParams) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ resetSession: true }),
         });
-      } catch (err) {
-        console.error("Failed to reset session", err);
+      } catch (error) {
+        console.error("Failed to reset session", error);
       }
       if (__DEV__) console.log("[sse] disconnected (reset)", { sessionId });
       closeActiveSse("reset");

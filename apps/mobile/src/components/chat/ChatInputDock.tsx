@@ -24,9 +24,6 @@ type ChatInputDockProps = {
   provider: BrandProvider;
   model: string;
   modelOptions: ModelOption[];
-  providerModelOptions: Record<BrandProvider, ModelOption[]>;
-  onProviderChange: (provider: BrandProvider) => void;
-  onModelChange: (model: string) => void;
   onOpenModelPicker: () => void;
   onOpenSkillsConfig: () => void;
   onOpenDocker: () => void;
@@ -47,9 +44,6 @@ export function ChatInputDock({
   provider,
   model,
   modelOptions,
-  providerModelOptions,
-  onProviderChange,
-  onModelChange,
   onOpenModelPicker,
   onOpenSkillsConfig,
   onOpenDocker,
@@ -63,7 +57,6 @@ export function ChatInputDock({
       sessionRunning={sessionRunning}
       waitingForUserInput={waitingForUserInput}
       permissionMode={permissionMode.permissionMode ?? permissionMode.approvalMode ?? null}
-      onPermissionModeChange={() => { }}
       onSubmit={onSubmit}
       pendingCodeRefs={pendingCodeRefs}
       onRemoveCodeRef={onRemoveCodeRef}
@@ -73,9 +66,6 @@ export function ChatInputDock({
       provider={provider}
       model={model}
       modelOptions={modelOptions}
-      providerModelOptions={providerModelOptions}
-      onProviderChange={onProviderChange}
-      onModelChange={onModelChange}
       onOpenModelPicker={onOpenModelPicker}
       onOpenSkillsConfig={onOpenSkillsConfig}
       onOpenDocker={onOpenDocker}

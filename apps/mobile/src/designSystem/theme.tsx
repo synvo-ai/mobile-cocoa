@@ -508,7 +508,7 @@ export interface ModernThemeProviderProps {
 
 export function ModernThemeProvider({
   mode: initialMode = "system",
-  onModeChange,
+  onModeChange: _onModeChange,
   children,
 }: ModernThemeProviderProps) {
   const systemColorScheme = useColorScheme();

@@ -66,7 +66,6 @@ export function ChatModalsSection({
           currentSessionId={modals.sessionManagement.currentSessionId}
           workspacePath={modals.sessionManagement.workspacePathForSessionManagement}
           serverBaseUrl={modals.sessionManagement.serverBaseUrl}
-          workspaceLoading={modals.sessionManagement.workspaceLoading}
           onOpenWorkspacePicker={handleWorkspacePickerFromSession}
           onSelectSession={handleSessionSelect}
           onNewSession={handleNewSession}

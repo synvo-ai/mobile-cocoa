@@ -23,6 +23,7 @@ import { useChatStreamingLifecycle } from "./useChatStreamingLifecycle";
 
 // Re-export commonly consumed chat types for UI layers.
 export type { Message, PermissionDenial, PendingAskUserQuestion };
+export type { CodeReference, LastRunOptions } from "./hooksTypes";
 
 export function useChat(options: UseChatOptions = {}) {
   const serverConfig = options.serverConfig ?? getDefaultServerConfig();

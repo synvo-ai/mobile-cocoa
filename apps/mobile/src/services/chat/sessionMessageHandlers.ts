@@ -61,23 +61,6 @@ export const createSessionMessageHandlers = (deps: SessionMessageHandlerDeps): S
     const currentMessages = getOrCreateSessionMessages(sid);
     const currentDraft = getSessionDraft(sid);
     const nextDraft = currentDraft ? currentDraft + sanitized : sanitized;
-
-    // DIAG: Trace the session ID gate
-    if (__DEV__) {
-      const displayedSid = displayedSessionIdRef.current;
-      const sidsMatch = displayedSid === sid;
-      if (!sidsMatch || nextDraft.length <= 50) {
-        console.log("[appendAssistantText][DIAG]", {
-          sid,
-          displayedSid,
-          sidsMatch,
-          chunkLen: sanitized.length,
-          nextDraftLen: nextDraft.length,
-          willRender: sidsMatch,
-        });
-      }
-    }
-
     setSessionDraft(sid, nextDraft);
     const last = currentMessages[currentMessages.length - 1];
     if (last?.role === "assistant") {
@@ -113,20 +96,6 @@ export const createSessionMessageHandlers = (deps: SessionMessageHandlerDeps): S
     const currentMessages = getOrCreateSessionMessages(sid);
     const raw = getSessionDraft(sid);
     const cleaned = stripTrailingIncompleteTag(raw ?? "");
-
-    if (__DEV__) {
-      const last = currentMessages[currentMessages.length - 1];
-      console.log("[finalize] assistant message check", {
-        draftLen: (raw ?? "").length,
-        cleanedLen: cleaned.length,
-        lastRole: last?.role ?? "(none)",
-        lastContentLen: ((last?.content as string) ?? "").length,
-        contentMatchesDraft: last?.role === "assistant" ? (last.content === cleaned) : "N/A",
-        msgCount: currentMessages.length,
-        draftPreview: (raw ?? "").slice(0, 100),
-        contentPreview: ((last?.content as string) ?? "").slice(0, 100),
-      });
-    }
 
     // Always sync the last assistant message with the full cleaned draft.
     // This ensures content is correct even if a mid-stream non-assistant message

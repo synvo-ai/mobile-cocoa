@@ -9,6 +9,19 @@ import { createSession, getSession, removeSession, resolveSession, subscribeToSe
 export function registerSessionsRoutes(app) {
     const router = Router();
 
+    /** Extract content from Pi message content array. Thinking uses c.thinking, text uses c.text. */
+    function extractMessageContent(contentArr) {
+        if (!Array.isArray(contentArr)) return "";
+        return contentArr
+            .filter((c) => c && (c.type === "text" || c.type === "thinking"))
+            .map((c) => {
+                if (c.type === "thinking" && typeof c.thinking === "string") return `<think>\n${c.thinking}\n</think>\n\n`;
+                if (c.type === "text" && typeof c.text === "string") return c.text;
+                return "";
+            })
+            .filter(Boolean)
+            .join("");
+    }
     /** Extract canonical session UUID from filename stem (e.g. 2026-02-22T..._9176cf21-... -> 9176cf21-...) */
     function uuidFromFileStem(stem) {
         const idx = stem.lastIndexOf("_");
@@ -121,6 +134,16 @@ export function registerSessionsRoutes(app) {
     /** Staleness threshold (ms): sessions not modified within this window are considered idling. */
     const STALE_SESSION_MS = 60_000; // 1 minute
 
+    /**
+     * Returns the effective running status of a session record,
+     * treating stale sessions (no agent_end, file untouched > 1 min) as idling.
+     */
+    function resolveSessionRunning(record, now) {
+        const running = record.activeSession?.processManager?.processRunning?.() ?? false;
+        if (running && (now - record.mtimeMs) > STALE_SESSION_MS) return false;
+        return running;
+    }
+
     // GET /api/sessions/status - Session status list for client UI
     router.get("/status", (_, res) => {
         const discovered = [];
@@ -132,12 +155,7 @@ export function registerSessionsRoutes(app) {
 
             const now = Date.now();
             for (const record of records) {
-                let running = record.activeSession?.processManager?.processRunning?.() ?? false;
-                // Sessions without agent_end (e.g. connection server drop) may appear running.
-                // If the session file hasn't been modified in over 1 minute, force idling.
-                if (running && (now - record.mtimeMs) > STALE_SESSION_MS) {
-                    running = false;
-                }
+                const running = resolveSessionRunning(record, now);
                 discovered.push({
                     id: record.id,
                     cwd: (typeof record.cwd === "string" && record.cwd.trim()) ? record.cwd : null,
@@ -215,12 +233,7 @@ export function registerSessionsRoutes(app) {
             const now = Date.now();
             for (const record of records) {
                 const sseConnected = record.activeSession ? record.activeSession.subscribers?.size > 0 : false;
-                let running = record.activeSession?.processManager?.processRunning?.() ?? false;
-                // Sessions without agent_end (e.g. connection server drop) may appear running.
-                // If the session file hasn't been modified in over 1 minute, force idling.
-                if (running && (now - record.mtimeMs) > STALE_SESSION_MS) {
-                    running = false;
-                }
+                const running = resolveSessionRunning(record, now);
                 const resolvedCwd = (typeof record.cwd === "string" && record.cwd.trim())
                     ? record.cwd
                     : (deriveCwdFromFilePath(record.filePath) || getWorkspaceCwd());
@@ -394,20 +407,6 @@ export function registerSessionsRoutes(app) {
         try {
             const raw = fs.readFileSync(filePath, "utf-8");
             const lines = raw.split("\n").filter((l) => l.trim());
-
-            /** Extract content from Pi message content array. Thinking uses c.thinking, text uses c.text. */
-            function extractMessageContent(contentArr) {
-                if (!Array.isArray(contentArr)) return "";
-                return contentArr
-                    .filter((c) => c && (c.type === "text" || c.type === "thinking"))
-                    .map((c) => {
-                        if (c.type === "thinking" && typeof c.thinking === "string") return `<think>\n${c.thinking}\n</think>\n\n`;
-                        if (c.type === "text" && typeof c.text === "string") return c.text;
-                        return "";
-                    })
-                    .filter(Boolean)
-                    .join("");
-            }
 
             const messages = [];
             let idx = 0;

@@ -121,7 +121,7 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
   registry.set("tool_execution_start", (data) => {
     const toolName = data.toolName as string | undefined;
     const args = data.args as Record<string, unknown> | undefined;
-      if (toolName) {
+    if (toolName) {
       ctx.setCurrentActivity(formatToolUseForDisplay(toolName, args ?? {}));
     }
   });
@@ -161,7 +161,7 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
   });
   registry.set("turn_start", () => {});
   registry.set("agent_start", () => {});
-  // agent_end is stream-only lifecycle metadata; completion is driven by mobile SSE "end"/"done" events.
+  // agent_end completion is driven by mobile SSE "end"/"done" events, not this event.
   registry.set("agent_end", () => {});
   registry.set("message_start", () => {});
   registry.set("message_end", () => {});

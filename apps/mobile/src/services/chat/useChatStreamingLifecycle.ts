@@ -219,10 +219,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       ? (targetSessionIntent ?? isTargetSessionRunning)
       : false;
     const prevSessionRuntime = selectedSessionRuntimeRef.current;
-    if (prevSessionRuntime?.id === targetSessionId && prevSessionRuntime.running && !targetSessionRunning) {
-      // Intentionally do not refetch the data from disk and reload after SSE streaming finishes.
-      // void refreshCurrentSessionFromDisk(targetSessionId);
-    }
     if (!targetSessionId || !targetSessionRunning) {
       closeActiveSse("inactive");
       selectedSessionRuntimeRef.current = {
@@ -397,12 +393,8 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         }
       },
       setPendingAskQuestion,
-      setCurrentActivity: () => {
-        // Activity is currently not surfaced in mobile chat UI and intentionally ignored.
-      },
-      setModelName: () => {
-        // Model name is currently not surfaced in mobile chat UI and intentionally ignored.
-      },
+      setCurrentActivity: () => { /* not surfaced in mobile UI */ },
+      setModelName: () => { /* not surfaced in mobile UI */ },
       addMessage: (role, content, codeRefs) => handlers.addMessageForSession(role, content, codeRefs),
       appendAssistantText: (chunk) => queueAssistantText(chunk),
       getCurrentAssistantContent: () => {
@@ -533,19 +525,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         return;
       }
 
-      // DIAGNOSTIC: Catch the exact operation that triggers RangeError
-      try {
-        outputBufferRef.current += dataStr + "\n";
-      } catch (bufferErr) {
-        console.error("[sse][DIAG] RangeError on outputBuffer concat", {
-          bufferLen: outputBufferRef.current.length,
-          dataStrLen,
-          error: String(bufferErr),
-        });
-        // Reset buffer to prevent cascading failures
-        outputBufferRef.current = "";
-        return;
-      }
+      outputBufferRef.current += dataStr + "\n";
 
       let lines: string[];
       try {
@@ -571,19 +551,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
 
         try {
           const parsed = JSON.parse(clean);
-
-          // DIAG: Log every parsed SSE event to trace what's arriving
-          if (__DEV__) {
-            const parsedType = typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>).type : "(non-object)";
-            const isProv = isProviderStream(parsed);
-            console.log("[sse][DIAG] parsed event", {
-              type: parsedType,
-              isProviderStream: isProv,
-              displayedSid: displayedSessionIdRef.current,
-              connectionSid: connectionSessionIdRef.current,
-              sidsMatch: displayedSessionIdRef.current === connectionSessionIdRef.current,
-            });
-          }
 
           if (parsed.type === "session-started") {
             if (__DEV__) console.log("[sse][DIAG] session-started matched", { displayedSid: displayedSessionIdRef.current, connSid: connectionSessionIdRef.current });
@@ -658,9 +625,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
             try {
               const parsed = JSON.parse(clean.slice(jsonStart));
               if (parsed?.type === "agent_end") {
-                if (__DEV__) {
-                  console.log("[stream fallback] agent_end event received");
-                }
                 markAgentEnd();
               }
               if (isProviderStream(parsed)) {

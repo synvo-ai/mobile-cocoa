@@ -178,9 +178,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
     piRpcSession.handleInput(data);
   }
 
-  function handleResize() {
-    // Pi RPC does not support terminal resize; no-op for API compatibility
-  }
 
   function handleTerminate(payload) {
     const resetSession = !!payload?.resetSession;
@@ -193,9 +190,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
     socket.emit("exit", { exitCode: 0 });
   }
 
-  function handleDebug(payload) {
-    console.log("[claude-debug]", safeStringify(payload, 2));
-  }
 
   function cleanup() {
     piRpcSession.close();
@@ -203,12 +197,9 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
 
   return {
     processRunning,
-    claudeProcessRunning: processRunning,
     handleSubmitPrompt,
     handleInput,
-    handleResize,
     handleTerminate,
-    handleDebug,
     cleanup,
     getTurnCounter: () => turnCounter,
   };

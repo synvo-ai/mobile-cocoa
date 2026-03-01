@@ -60,19 +60,6 @@ export function stripAnsi(str) {
   return str.replace(ANSI_REGEX, "");
 }
 
-/** Kill any process listening on the given port (e.g. leftover from Claude verification). No-op if port invalid or none bound. */
-export function killProcessOnPort(port) {
-  const p = parseInt(port, 10);
-  if (!Number.isInteger(p) || p <= 0 || p > 65535) return;
-  try {
-    const pidList = execSync(`lsof -ti :${p}`, { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
-    if (pidList) {
-      execSync(`kill -9 ${pidList.split(/\s+/).join(" ")}`, { stdio: "ignore" });
-    }
-  } catch (_) {
-    // No process on port or lsof/kill not available
-  }
-}
 
 const SKIP_DIRS = new Set([
   "node_modules", ".git", ".idea", ".vscode", "dist", "build", "out",

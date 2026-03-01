@@ -7,6 +7,7 @@
  * - AI output logging paths
  */
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -156,7 +157,7 @@ function resolveWorkspaceCwd() {
 export const PORT = process.env.PORT || 3456;
 
 // Allowed workspace root for runtime switching (only paths under this are allowed)
-export const WORKSPACE_ALLOWED_ROOT = path.resolve("/Users/yifanxu");
+export const WORKSPACE_ALLOWED_ROOT = path.resolve(os.homedir());
 
 // Mutable workspace directory (can be changed via POST /api/workspace-path)
 let currentWorkspaceCwd = resolveWorkspaceCwd();
@@ -190,8 +191,6 @@ export function setWorkspaceCwd(newPath) {
   return { ok: true };
 }
 
-// Workspace directory where Claude operates and files are served from (initial value; use getWorkspaceCwd() for current)
-export const WORKSPACE_CWD = currentWorkspaceCwd;
 
 // File tree refresh interval for sidebar (milliseconds)
 export const SIDEBAR_REFRESH_INTERVAL_MS = parseInt(process.env.SIDEBAR_REFRESH_INTERVAL_MS || "3000", 10) || 3000;
@@ -271,10 +270,6 @@ export function getLlmCliIoTurnPaths(provider, sessionId, turnId) {
   };
 }
 
-/**
- * DEPRECATED: Skills are now loaded from the workspace's ./skills directory.
- * See server/routes/skills.js and server/process/piRpcSession.js.
- */
 
 /** Path to pi CLI binary. Defaults to "pi" (must be on PATH). */
 export const PI_CLI_PATH = process.env.PI_CLI_PATH || "pi";

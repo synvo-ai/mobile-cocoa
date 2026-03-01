@@ -507,7 +507,6 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         (typeof e?.message === "string" && e.message.toLowerCase().includes("connection abort"));
       if (isExpectedServerClose) {
         if (__DEV__) console.log("[sse] stream ended (server closed)", { sessionId: connectionSessionIdRef.current });
-        // Expected close — flush any remaining content and finalize the stream.
         handleStreamEnd({}, 0);
         return;
       }

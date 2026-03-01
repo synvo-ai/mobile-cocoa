@@ -19,7 +19,7 @@ import { parseTextWithUrlSegments, wrapBareUrlsInMarkdown } from "@/utils/markdo
 import { getFileName } from "@/utils/path";
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, Linking, Platform, StyleSheet, View as RNView } from "react-native";
+import { ActivityIndicator, Dimensions, Linking, Platform, StyleSheet, View as RNView } from "react-native";
 import type { MarkdownProps } from "react-native-markdown-display";
 import Svg, { Polygon } from "react-native-svg";
 
@@ -350,11 +350,13 @@ function CollapsibleThinkingBlock({
   theme,
   renderContent,
   initiallyExpanded = false,
+  isLoading = false,
 }: {
   content: string;
   theme: any;
   renderContent: (content: string) => React.ReactNode;
   initiallyExpanded?: boolean;
+  isLoading?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initiallyExpanded);
 
@@ -382,9 +384,12 @@ function CollapsibleThinkingBlock({
         accessibilityLabel={expanded ? "Hide reasoning" : "Show reasoning"}
         accessibilityState={{ expanded }}
       >
-        <Text size="xs" bold className="text-typography-500">
-          {expanded ? "Reasoning" : "Show reasoning"}
-        </Text>
+        <RNView style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          {isLoading && <ActivityIndicator size="small" color={theme.colors.accent} />}
+          <Text size="xs" bold className="text-typography-500">
+            {expanded ? "Reasoning" : "Show reasoning"}
+          </Text>
+        </RNView>
         <Box style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>
           <ChevronDownIcon size={14} color={theme.colors.textMuted} strokeWidth={2} />
         </Box>
@@ -1189,6 +1194,7 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, tailBox
                   theme={theme}
                   renderContent={renderRichContent}
                   initiallyExpanded={isLatestThinkingBlock(i) && !!isStreaming}
+                  isLoading={isLatestThinkingBlock(i) && !!isStreaming}
                 />
               ) : (
                 <Box key={`seg-${i}`}>

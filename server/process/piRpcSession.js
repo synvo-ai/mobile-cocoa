@@ -275,6 +275,7 @@ export function createPiRpcSession({
    * Events like message_end, turn_end, agent_end carry the full message content (60KB+)
    * but the mobile client treats them as no-ops. Sending slim versions prevents
    * xhr.responseText from growing unboundedly, which causes RangeError in Hermes.
+   * message_update events can carry full accumulated content; we only need type/delta.
    */
   function slimEventForSse(parsed) {
     const type = String(parsed.type ?? "");
@@ -293,6 +294,20 @@ export function createPiRpcSession({
       if (serialized.length > 2048) {
         return { type: "message", id: parsed.id, parentId: parsed.parentId, timestamp: parsed.timestamp, message: { role: "assistant", content: "[content stripped for SSE]" } };
       }
+    }
+    // message_update: client only needs assistantMessageEvent.type, contentIndex, delta/content.
+    // Pi can send full accumulated content; slimming prevents unbounded xhr.responseText growth.
+    if (type === "message_update") {
+      const ev = parsed.assistantMessageEvent ?? {};
+      return {
+        type: "message_update",
+        assistantMessageEvent: {
+          type: ev.type,
+          contentIndex: ev.contentIndex,
+          delta: ev.delta ?? ev.content,
+          ...(ev.toolCall != null ? { toolCall: ev.toolCall } : {}),
+        },
+      };
     }
     return parsed;
   }

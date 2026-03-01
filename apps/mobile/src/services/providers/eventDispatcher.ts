@@ -79,6 +79,7 @@ function processPermissionDenials(
  */
 function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
   const registry = new Map<string, EventHandler>();
+  const seenToolCallIndices = new Set<number>();
 
   // Pi RPC handlers: message_update, tool_execution_*, agent_*, turn_end, response, extension_error
   registry.set("message_update", (data) => {
@@ -86,6 +87,7 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
       type?: string;
       delta?: string;
       content?: string;
+      contentIndex?: number;
       toolCall?: { id?: string; name?: string; arguments?: Record<string, unknown> };
     } | undefined;
     if (!ev) return;
@@ -100,6 +102,17 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
     }
     if (ev.type === "thinking_end") {
       ctx.appendAssistantText("\n</think>\n\n");
+    }
+    if (ev.type === "toolcall_delta") {
+      const idx = ev.contentIndex ?? -1;
+      if (!seenToolCallIndices.has(idx)) {
+        seenToolCallIndices.add(idx);
+        const current = ctx.getCurrentAssistantContent();
+        if (current && !current.trimEnd().endsWith("</think>")) {
+          ctx.appendAssistantText("\n</think>\n\n");
+        }
+        ctx.appendAssistantText("\n\n<think>\n✏\uFE0F Generating code\u2026\n</think>\n\n");
+      }
     }
     if (ev.type === "toolcall_end" && ev.toolCall?.name) {
       appendToolUseDisplayLine(ctx, ev.toolCall.name, ev.toolCall.arguments ?? {});

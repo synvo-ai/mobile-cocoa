@@ -39,7 +39,7 @@ function resolveProvider(fromPayload) {
 function getDefaultModelForProvider(provider) {
   if (provider === "claude") return "sonnet4.5";
   if (provider === "codex") return "gpt-5.1-codex-mini";
-  return "gemini-3-flash";
+  return "gemini-3.1-flash";
 }
 
 function emitError(socket, message) {

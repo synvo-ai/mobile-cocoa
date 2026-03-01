@@ -22,12 +22,12 @@ const CLAUDE_MODELS = [
   { value: "opus", label: "Opus 4.5" },
 ];
 const ANTIGRAVITY_MODELS = [
-  { value: "gemini-3-pro-low", label: "Gemini 3 Pro Low" },
-  { value: "gemini-3-flash", label: "Gemini 3 Flash" },
-  { value: "gemini-3-pro-high", label: "Gemini 3 Pro High" },
+  { value: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro Low" },
+  { value: "gemini-3.1-flash", label: "Gemini 3.1 Flash" },
+  { value: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High" },
 ];
 const DEFAULT_CLAUDE_MODEL = "sonnet";
-const DEFAULT_ANTIGRAVITY_MODEL = "gemini-3-flash";
+const DEFAULT_ANTIGRAVITY_MODEL = "gemini-3.1-flash";
 
 function getModelsForProvider(provider) {
   return provider === "claude" ? CLAUDE_MODELS : ANTIGRAVITY_MODELS;

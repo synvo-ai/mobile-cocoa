@@ -1,11 +1,7 @@
 import { createEventDispatcher } from "@/services/providers/eventDispatcher";
-import {
-    isProviderStream,
-    isProviderSystemNoise, stripAnsi
-} from "@/services/providers/stream";
+import { stripAnsi } from "@/services/providers/stream";
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import EventSource from "react-native-sse";
 import { resolveStreamUrl } from "./chatHookHelpers";
 import type {
     EventSourceCtor, EventSourceLike, LastRunOptions, Message,
@@ -16,6 +12,19 @@ import type {
 } from "./hooks-types";
 import { moveSessionCacheData } from "./sessionCacheHelpers";
 import { createSessionMessageHandlers } from "./sessionMessageHandlers";
+import {
+    SSE_MAX_RETRIES,
+    attachSseHandlers,
+    computeRetryDelay,
+    detachSseHandlers,
+    resolveEventSourceCtor,
+    type SseEventHandlers,
+} from "./sseConnection";
+import {
+    createStreamFlusher,
+} from "./streamFlusher";
+import { processRawSseLine } from "./sseMessageParser";
+import { isProviderStream } from "@/services/providers/stream";
 
 type UseChatStreamingLifecycleParams = {
   serverUrl: string;
@@ -30,13 +39,7 @@ type UseChatStreamingLifecycleParams = {
   sessionMessagesRef: MutableRefObject<Map<string, Message[]>>;
   sessionDraftRef: MutableRefObject<Map<string, string>>;
   activeSseRef: MutableRefObject<{ id: string; source: EventSourceLike } | null>;
-  activeSseHandlersRef: MutableRefObject<{
-    open: (event: unknown) => void;
-    error: (event: unknown) => void;
-    message: (event: any) => void;
-    end: (event: any) => void;
-    done: (event: any) => void;
-  } | null>;
+  activeSseHandlersRef: MutableRefObject<SseEventHandlers | null>;
   suppressActiveSessionSwitchRef: MutableRefObject<boolean>;
   selectedSessionRuntimeRef: MutableRefObject<{ id: string | null; running: boolean } | null>;
   connectionIntentBySessionRef: MutableRefObject<Map<string, boolean>>;
@@ -72,22 +75,9 @@ type UseChatStreamingLifecycleParams = {
   lastRunOptionsRef: MutableRefObject<LastRunOptions>;
 };
 
-const STREAM_FLUSH_INTERVAL_MS = 50;
-const STREAM_FLUSH_INTERVAL_LARGE_MS = 95;
-const STREAM_FLUSH_DRAFT_THRESHOLD = 2400;
-const STREAM_BOUNDARY_MARKER = /[.!?;,\n]/;
-
-const SSE_MAX_RETRIES = 5;
-const SSE_RETRY_BASE_MS = 1000;
 /** Safety limit for outputBufferRef to prevent RangeError from unbounded string growth.
  *  5MB is well under Hermes' ~500MB limit but large enough for any legitimate partial line. */
 const OUTPUT_BUFFER_MAX_SIZE = 5 * 1024 * 1024;
-
-/** Resolve the EventSource constructor across CJS/ESM module shapes. */
-function resolveEventSourceCtor(): EventSourceCtor {
-  return ((EventSource as unknown as { default?: EventSourceCtor }).default ??
-    (EventSource as EventSourceCtor)) as EventSourceCtor;
-}
 
 export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParams) {
   const {
@@ -140,9 +130,9 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
   } = params;
 
   // Derive a primitive boolean for the target session's running status.
-  // This replaces the volatile `isSessionManagedRunning` callback in the dep array:
-  // sessionStatuses array changes identity every 3s poll (lastAccess/mtime), but
-  // this boolean only changes when the target session *actually* transitions.
+  // sessionStatuses array changes identity every 3s poll, but this boolean
+  // only changes when the session *actually* transitions — avoiding unnecessary
+  // effect re-runs.
   const isTargetSessionRunning = Boolean(
     storeSessionId && sessionStatuses.find((s) => s.id === storeSessionId)?.status === "running"
   );
@@ -152,12 +142,13 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     lastFlushAt: 0,
   });
 
+  // ── Refresh from disk ─────────────────────────────────────────────────────
+
   const refreshCurrentSessionFromDisk = useCallback(
     async (sid: string | null) => {
       if (!sid || sid.startsWith("temp-")) return;
-      // If there is an active draft for this session, streaming hasn't finalized yet.
-      // The in-memory data is more current than what's on disk — skip the refresh
-      // to avoid clobbering streamed content with a stale disk snapshot.
+      // If there is an active draft, streaming hasn't finalized yet — skip to
+      // avoid clobbering streamed content with a stale disk snapshot.
       const activeDraft = getSessionDraft(sid);
       if (activeDraft && activeDraft.length > 0) {
         if (__DEV__) {
@@ -212,13 +203,15 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     ]
   );
 
+  // ── Main SSE lifecycle effect ─────────────────────────────────────────────
+
   useEffect(() => {
     const targetSessionId = storeSessionId;
     const targetSessionIntent = getConnectionIntent(targetSessionId);
     const targetSessionRunning = targetSessionId
       ? (targetSessionIntent ?? isTargetSessionRunning)
       : false;
-    const prevSessionRuntime = selectedSessionRuntimeRef.current;
+
     if (!targetSessionId || !targetSessionRunning) {
       closeActiveSse("inactive");
       selectedSessionRuntimeRef.current = {
@@ -231,6 +224,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
 
     syncSessionToReact(targetSessionId);
 
+    // Handle session switch: close existing SSE if it's for a different session.
     if (activeSseRef.current && activeSseRef.current.id !== targetSessionId) {
       if (suppressActiveSessionSwitchRef.current) {
         suppressActiveSessionSwitchRef.current = false;
@@ -239,6 +233,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       }
     }
 
+    // Already connected to the right session — just mark as connected.
     if (activeSseRef.current) {
       if (activeSseRef.current.id === targetSessionId) {
         setConnected(true);
@@ -251,7 +246,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     const sid = targetSessionId;
     const connectionSessionIdRef = { current: sid };
 
-    const handlers = createSessionMessageHandlers({
+    const msgHandlers = createSessionMessageHandlers({
       sidRef: connectionSessionIdRef,
       getOrCreateSessionState,
       getOrCreateSessionMessages,
@@ -264,9 +259,9 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       liveMessagesRef,
       nextIdRef,
     });
+
     const hasStreamEndedRef = { current: false };
-    /** Guards against double finalization: set when handleStreamEnd finalizes,
-     *  checked in effect cleanup to skip redundant finalize. */
+    /** Guards against double finalization from effect cleanup + handleStreamEnd. */
     const hasFinalizedRef = { current: false };
     sawAgentEndRef.current = false;
     const retryCountRef = { current: 0 };
@@ -296,18 +291,19 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       skipReplayForSessionRef.current = null;
     }
     const sse = new (resolveEventSourceCtor())(streamUrl);
-    // Mutable ref so that scheduleRetry always cleans up the *current* SSE,
+    // Mutable ref so that scheduleRetry always cleans up the *current* SSE instance,
     // not the original one captured by closure (fixes zombie connection bug).
     const currentSseRef = { current: sse };
     activeSseRef.current = { id: sid, source: sse };
+
+    // ── Session ID rekey (temp-* → real ID) ────────────────────────────────
 
     const setSessionIdWithRekey = (newId: string | null) => {
       const currentSid = connectionSessionIdRef.current;
       if (newId && newId !== currentSid && !newId.startsWith("temp-")) {
         moveSessionCacheData(currentSid, newId, sessionStatesRef.current, sessionMessagesRef.current, sessionDraftRef.current);
         connectionSessionIdRef.current = newId;
-        // Sync displayed session ID so live messages continue to display
-        // during the rekey window (temp-* → real session ID)
+        // Sync displayed session ID during the rekey window (temp-* → real ID)
         if (displayedSessionIdRef.current === currentSid) {
           displayedSessionIdRef.current = newId;
         }
@@ -317,10 +313,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         }
         const selectedSessionRuntime = selectedSessionRuntimeRef.current;
         if (selectedSessionRuntime?.id === currentSid) {
-          selectedSessionRuntimeRef.current = {
-            ...selectedSessionRuntime,
-            id: newId,
-          };
+          selectedSessionRuntimeRef.current = { ...selectedSessionRuntime, id: newId };
         }
         const intent = connectionIntentBySessionRef.current.get(currentSid);
         if (intent !== undefined) {
@@ -331,56 +324,36 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       setSessionId(newId);
     };
 
-    let pendingAssistantText = "";
-    const flushAssistantText = () => {
-      if (!pendingAssistantText) return;
-      const chunk = pendingAssistantText;
-      pendingAssistantText = "";
+    // ── Stream flusher ──────────────────────────────────────────────────────
 
-      if (__DEV__) {
-        const perf = streamFlushPerfRef.current;
-        perf.flushCount += 1;
-        perf.totalChars += chunk.length;
-        const now = Date.now();
-        const sinceLast = perf.lastFlushAt ? now - perf.lastFlushAt : 0;
-        perf.lastFlushAt = now;
-        const start = now;
-        handlers.appendAssistantTextForSession(chunk);
-        if (perf.flushCount % 15 === 0) {
-          console.debug("[stream] assistant flush", {
-            flushCount: perf.flushCount,
-            totalChars: perf.totalChars,
-            sinceLastMs: sinceLast,
-            appendMs: Date.now() - start,
-            chunkLen: chunk.length,
-          });
-        }
-        return;
-      }
+    const flusher = createStreamFlusher(
+      (chunk) => msgHandlers.appendAssistantTextForSession(chunk),
+      () => getSessionDraft(connectionSessionIdRef.current),
+      streamFlushTimeoutRef,
+      __DEV__
+        ? (chunk) => {
+            const perf = streamFlushPerfRef.current;
+            perf.flushCount += 1;
+            perf.totalChars += chunk.length;
+            const now = Date.now();
+            const sinceLast = perf.lastFlushAt ? now - perf.lastFlushAt : 0;
+            perf.lastFlushAt = now;
+            const start = now;
+            msgHandlers.appendAssistantTextForSession(chunk);
+            if (perf.flushCount % 15 === 0) {
+              console.debug("[stream] assistant flush", {
+                flushCount: perf.flushCount,
+                totalChars: perf.totalChars,
+                sinceLastMs: sinceLast,
+                appendMs: Date.now() - start,
+                chunkLen: chunk.length,
+              });
+            }
+          }
+        : undefined,
+    );
 
-      handlers.appendAssistantTextForSession(chunk);
-    };
-    const queueAssistantText = (chunk: string) => {
-      pendingAssistantText += chunk;
-      if (STREAM_BOUNDARY_MARKER.test(chunk)) {
-        if (streamFlushTimeoutRef.current) {
-          clearTimeout(streamFlushTimeoutRef.current);
-          streamFlushTimeoutRef.current = null;
-        }
-        flushAssistantText();
-        return;
-      }
-      if (streamFlushTimeoutRef.current) return;
-      const currentDraft = getSessionDraft(connectionSessionIdRef.current);
-      const delay =
-        currentDraft.length + pendingAssistantText.length > STREAM_FLUSH_DRAFT_THRESHOLD
-          ? STREAM_FLUSH_INTERVAL_LARGE_MS
-          : STREAM_FLUSH_INTERVAL_MS;
-      streamFlushTimeoutRef.current = setTimeout(() => {
-        streamFlushTimeoutRef.current = null;
-        flushAssistantText();
-      }, delay);
-    };
+    // ── Event dispatcher ────────────────────────────────────────────────────
 
     const dispatchProviderEvent = createEventDispatcher({
       setPermissionDenials: (d) => setPermissionDenials(d ? deduplicateDenialsRef.current(d) : null),
@@ -395,14 +368,12 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       setPendingAskQuestion,
       setCurrentActivity: () => { /* not surfaced in mobile UI */ },
       setModelName: () => { /* not surfaced in mobile UI */ },
-      addMessage: (role, content, codeRefs) => handlers.addMessageForSession(role, content, codeRefs),
-      appendAssistantText: (chunk) => queueAssistantText(chunk),
+      addMessage: (role, content, codeRefs) => msgHandlers.addMessageForSession(role, content, codeRefs),
+      appendAssistantText: (chunk) => flusher.queue(chunk),
       getCurrentAssistantContent: () => {
-        // Include unflushed pendingAssistantText so callers (appendSnapshotTextDelta,
-        // appendOverlapTextDelta, result handler) see the true real-time content,
-        // not a stale snapshot missing text buffered between flush intervals.
+        // Include unflushed text so callers see the true real-time content.
         const draft = getSessionDraft(connectionSessionIdRef.current);
-        return pendingAssistantText ? draft + pendingAssistantText : draft;
+        return draft;
       },
       getLastMessageRole: () => {
         const m = getOrCreateSessionMessages(connectionSessionIdRef.current);
@@ -420,14 +391,15 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       setSessionId: setSessionIdWithRekey,
     });
 
-    /** Snapshot of message count when SSE opens. If unchanged at stream end,
-     *  no new content was produced during this connection → refresh from disk. */
+    // ── SSE event handlers ──────────────────────────────────────────────────
+
+    /** Snapshot of message count when SSE opens; used to detect empty streams. */
     let messageCountAtSseOpen = 0;
 
     const openHandler = () => {
       hasStreamEndedRef.current = false;
-      const sid = connectionSessionIdRef.current;
-      messageCountAtSseOpen = sid ? getOrCreateSessionMessages(sid).length : 0;
+      const currentSid = connectionSessionIdRef.current;
+      messageCountAtSseOpen = currentSid ? getOrCreateSessionMessages(currentSid).length : 0;
       retryCountRef.current = 0;
       clearRetryTimeout();
       if (__DEV__) console.log("[sse] connected", { sessionId: connectionSessionIdRef.current });
@@ -443,7 +415,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         }
         return;
       }
-      const delay = Math.min(SSE_RETRY_BASE_MS * Math.pow(2, retryCountRef.current), 30_000);
+      const delay = computeRetryDelay(retryCountRef.current);
       retryCountRef.current += 1;
       if (__DEV__)
         console.log("[sse] scheduling retry", {
@@ -451,43 +423,21 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
           delayMs: delay,
           sessionId: connectionSessionIdRef.current,
         });
+
       retryTimeoutRef.current = setTimeout(() => {
         retryTimeoutRef.current = null;
         if (isAborted) return;
-        // Close the *current* SSE source before reconnecting (via mutable ref
-        // so retries after retry #1 don't reference the original dead instance).
-        try {
-          const staleSse = currentSseRef.current;
-          staleSse.removeEventListener("open", openHandler);
-          staleSse.removeEventListener("error", errorHandler);
-          staleSse.removeEventListener("message", messageHandler);
-          // @ts-ignore
-          staleSse.removeEventListener("end", endHandler);
-          // @ts-ignore
-          staleSse.removeEventListener("done", doneHandler);
-          staleSse.close();
-        } catch {}
+
+        detachSseHandlers(currentSseRef.current, sseHandlers);
+        currentSseRef.current.close();
 
         const { url: retryUrl } = resolveStreamUrl(serverUrl, connectionSessionIdRef.current, null);
         const retrySse = new (resolveEventSourceCtor())(retryUrl);
         currentSseRef.current = retrySse;
         activeSseRef.current = { id: connectionSessionIdRef.current, source: retrySse };
 
-        retrySse.addEventListener("open", openHandler);
-        retrySse.addEventListener("error", errorHandler);
-        retrySse.addEventListener("message", messageHandler);
-        // @ts-ignore
-        retrySse.addEventListener("end", endHandler);
-        // @ts-ignore
-        retrySse.addEventListener("done", doneHandler);
-
-        activeSseHandlersRef.current = {
-          open: openHandler,
-          error: errorHandler,
-          message: messageHandler,
-          end: endHandler,
-          done: doneHandler,
-        };
+        attachSseHandlers(retrySse, sseHandlers);
+        activeSseHandlersRef.current = sseHandlers;
       }, delay);
     };
 
@@ -507,14 +457,12 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     };
 
     const messageHandler = (event: any) => {
-      // Accept any string (including empty ""), reject null/undefined.
       if (event.data == null) return;
 
       const dataStr = event.data;
       const dataStrLen = typeof dataStr === "string" ? dataStr.length : 0;
 
-      // Safety valve: if buffer + new data would exceed limit, reset buffer.
-      // This prevents the RangeError from occurring in the first place.
+      // Safety valve: prevent RangeError from unbounded buffer growth.
       if (outputBufferRef.current.length + dataStrLen + 1 > OUTPUT_BUFFER_MAX_SIZE) {
         console.warn("[sse] outputBuffer exceeded safety limit, resetting", {
           bufferLen: outputBufferRef.current.length,
@@ -544,104 +492,71 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         const trimmed = line.trim();
         if (!trimmed) continue;
 
-        const clean = stripAnsi(trimmed);
-        if (!clean) continue;
-
-        if (isProviderSystemNoise(clean)) continue;
-
-        try {
-          const parsed = JSON.parse(clean);
-
-          if (parsed.type === "session-started") {
-            if (__DEV__) console.log("[sse][DIAG] session-started matched", { displayedSid: displayedSessionIdRef.current, connSid: connectionSessionIdRef.current });
-            hasStreamEndedRef.current = false;
-            setLastSessionTerminated(false);
-            if (displayedSessionIdRef.current === connectionSessionIdRef.current) {
-              setSessionStateForSession(connectionSessionIdRef.current, "running");
-              setWaitingForUserInput(false);
-              setLastSessionTerminated(false);
-            }
-            const raw = parsed.session_id ?? parsed.sessionId;
-            const id = raw != null && raw !== "" ? String(raw) : null;
-            if (id && !id.startsWith("temp-")) {
-              setSessionIdWithRekey(id);
-            }
-            lastRunOptionsRef.current = {
-              permissionMode: (parsed.permissionMode as string | null) ?? null,
-              allowedTools: (Array.isArray(parsed.allowedTools) ? parsed.allowedTools : []) as string[],
-              useContinue: Boolean(parsed.useContinue),
-            };
-            continue;
-          }
-
-          if (parsed.type === "session" && typeof parsed.id === "string" && !parsed.id.startsWith("temp-")) {
-            if (__DEV__) console.log("[sse][DIAG] session rekey", { from: connectionSessionIdRef.current, to: parsed.id });
-            setSessionIdWithRekey(parsed.id);
-            continue;
-          }
-
-          if (parsed.type === "agent_end") {
-            if (__DEV__) {
-              console.log("[stream] agent_end event received");
-            }
-            markAgentEnd();
-          }
-
-          if (isProviderStream(parsed)) {
-            try {
-              dispatchProviderEvent(parsed as Record<string, unknown>);
-            } catch (dispatchErr) {
-              console.error("[sse][DIAG] RangeError in dispatchProviderEvent", {
-                type: parsed.type,
-                dataLen: clean.length,
-                error: String(dispatchErr),
-              });
-            }
-          } else if (typeof parsed === "object" && parsed != null && "type" in parsed) {
-            if (__DEV__) console.log("[sse][DIAG] typed event skipped (not provider stream)", { type: (parsed as Record<string, unknown>).type });
-            continue;
-          } else {
-            try {
-              queueAssistantText(clean + "\n");
-            } catch (queueErr) {
-              console.error("[sse][DIAG] RangeError in queueAssistantText (non-provider)", {
-                cleanLen: clean.length,
-                pendingLen: pendingAssistantText.length,
-                error: String(queueErr),
-              });
-            }
-          }
-        } catch (outerErr) {
-          // Check if this is a RangeError rather than a JSON parse error
-          if (outerErr instanceof RangeError) {
-            console.error("[sse][DIAG] RangeError in messageHandler processing", {
-              cleanLen: clean.length,
-              error: String(outerErr),
-            });
-            continue;
-          }
-          const jsonStart = clean.indexOf("{");
-          if (clean.startsWith("<u") && jsonStart > 0) {
-            try {
-              const parsed = JSON.parse(clean.slice(jsonStart));
-              if (parsed?.type === "agent_end") {
-                markAgentEnd();
-              }
-              if (isProviderStream(parsed)) {
-                dispatchProviderEvent(parsed as Record<string, unknown>);
-                continue;
-              }
-              if (typeof parsed === "object" && parsed != null && "type" in parsed) continue;
-            } catch {}
-          }
+        const actions = (() => {
           try {
-            queueAssistantText(clean + "\n");
-          } catch (queueErr2) {
-            console.error("[sse][DIAG] RangeError in queueAssistantText (fallback)", {
-              cleanLen: clean.length,
-              pendingLen: pendingAssistantText.length,
-              error: String(queueErr2),
-            });
+            return processRawSseLine(trimmed);
+          } catch (err) {
+            if (__DEV__) console.error("[sse][DIAG] processRawSseLine threw unexpectedly", { err });
+            return null;
+          }
+        })();
+
+        if (!actions) continue;
+
+        const actionList = Array.isArray(actions) ? actions : [actions];
+        for (const action of actionList) {
+          switch (action.kind) {
+            case "skip":
+              break;
+            case "agentEnd":
+              if (__DEV__) console.log("[stream] agent_end event received");
+              markAgentEnd();
+              break;
+            case "sessionStarted":
+              if (__DEV__) console.log("[sse][DIAG] session-started matched", {
+                displayedSid: displayedSessionIdRef.current,
+                connSid: connectionSessionIdRef.current,
+              });
+              hasStreamEndedRef.current = false;
+              setLastSessionTerminated(false);
+              if (displayedSessionIdRef.current === connectionSessionIdRef.current) {
+                setSessionStateForSession(connectionSessionIdRef.current, "running");
+                setWaitingForUserInput(false);
+                setLastSessionTerminated(false);
+              }
+              if (action.sessionId) {
+                setSessionIdWithRekey(action.sessionId);
+              }
+              lastRunOptionsRef.current = {
+                permissionMode: action.permissionMode,
+                allowedTools: action.allowedTools,
+                useContinue: action.useContinue,
+              };
+              break;
+            case "sessionRekey":
+              if (__DEV__) console.log("[sse][DIAG] session rekey", {
+                from: connectionSessionIdRef.current,
+                to: action.sessionId,
+              });
+              setSessionIdWithRekey(action.sessionId);
+              break;
+            case "providerEvent":
+              try {
+                dispatchProviderEvent(action.data);
+              } catch (dispatchErr) {
+                console.error("[sse][DIAG] RangeError in dispatchProviderEvent", {
+                  type: action.data.type,
+                  error: String(dispatchErr),
+                });
+              }
+              break;
+            case "assistantText":
+              try {
+                flusher.queue(action.text);
+              } catch (queueErr) {
+                console.error("[sse][DIAG] RangeError in flusher.queue", { error: String(queueErr) });
+              }
+              break;
           }
         }
       }
@@ -657,7 +572,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
           const parsed = JSON.parse(event.data);
           exitCode = parsed.exitCode ?? exitCodeDefault;
         }
-      } catch (e) {}
+      } catch {}
 
       if (displayedSessionIdRef.current === connectionSessionIdRef.current) {
         setLastSessionTerminated(exitCode !== 0);
@@ -665,14 +580,12 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         setWaitingForUserInput(false);
       }
 
-      // Flush any remaining partial line left in the output buffer.
-      // Without this, the last chunk of AI text is silently discarded
-      // when the final SSE payload doesn't end with a newline.
+      // Flush any remaining partial line in the output buffer (last chunk may not end with \n).
       const remainingBuffer = outputBufferRef.current.trim();
       if (remainingBuffer) {
         outputBufferRef.current = "";
         const clean = stripAnsi(remainingBuffer);
-        if (clean && !isProviderSystemNoise(clean)) {
+        if (clean) {
           try {
             const parsed = JSON.parse(clean);
             if (isProviderStream(parsed)) {
@@ -680,27 +593,22 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
             } else if (typeof parsed === "object" && parsed != null && "type" in parsed) {
               // Known typed event but not a provider stream — skip
             } else {
-              queueAssistantText(clean + "\n");
+              flusher.queue(clean + "\n");
             }
           } catch {
-            queueAssistantText(clean + "\n");
+            flusher.queue(clean + "\n");
           }
         }
       }
 
-      if (streamFlushTimeoutRef.current) {
-        clearTimeout(streamFlushTimeoutRef.current);
-        streamFlushTimeoutRef.current = null;
-      }
-      flushAssistantText();
+      flusher.cancel();
+      flusher.flush();
       hasFinalizedRef.current = true;
-      handlers.finalizeAssistantMessageForSession();
+      msgHandlers.finalizeAssistantMessageForSession();
       closeActiveSse("stream-end");
 
-      // If no new messages were produced and no draft is pending during this SSE
-      // connection (e.g. reconnecting after a server restart where the replayed
-      // JSONL events don't produce real content), refresh from disk so the UI
-      // picks up any messages completed since the last REST load.
+      // If no new messages were produced, refresh from disk to pick up any
+      // messages completed since the last REST load.
       const endedSid = connectionSessionIdRef.current;
       if (endedSid && exitCode === 0) {
         const currentMessages = getOrCreateSessionMessages(endedSid);
@@ -715,7 +623,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     const endHandler = (event: any) => handleStreamEnd(event, 0);
     const doneHandler = (event: any) => handleStreamEnd(event ?? {}, 0);
 
-    activeSseHandlersRef.current = {
+    const sseHandlers: SseEventHandlers = {
       open: openHandler,
       error: errorHandler,
       message: messageHandler,
@@ -723,33 +631,18 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       done: doneHandler,
     };
 
-    sse.addEventListener("open", openHandler);
-    sse.addEventListener("error", errorHandler);
-    sse.addEventListener("message", messageHandler);
-    // @ts-ignore - custom event type sent by our backend on terminate/agent_end
-    sse.addEventListener("end", endHandler);
-    // @ts-ignore - react-native-sse fires "done" when server closes connection
-    sse.addEventListener("done", doneHandler);
+    activeSseHandlersRef.current = sseHandlers;
+    attachSseHandlers(sse, sseHandlers);
 
     return () => {
       isAborted = true;
       clearRetryTimeout();
-      // Flush any pending assistant text before the closure is abandoned.
-      // Without this, text queued via queueAssistantText() but not yet
-      // flushed (waiting on the 50–95ms timer) would be silently lost
-      // when the effect re-runs (e.g. polling detects session ended →
-      // isTargetSessionRunning flips → closeActiveSse clears the timer).
-      if (streamFlushTimeoutRef.current) {
-        clearTimeout(streamFlushTimeoutRef.current);
-        streamFlushTimeoutRef.current = null;
-      }
-      flushAssistantText();
-      // Only finalize if handleStreamEnd hasn't already done so.
-      // Without this guard, the effect cleanup runs a second finalize
-      // (triggered by the state change from the first finalize) which
-      // sees an empty draft and can clear the completed message.
+      // Flush pending text before the effect is abandoned (queued text would be lost on re-run).
+      flusher.cancel();
+      flusher.flush();
+      // Only finalize if handleStreamEnd hasn't already done so to avoid double finalize.
       if (!hasFinalizedRef.current) {
-        handlers.finalizeAssistantMessageForSession();
+        msgHandlers.finalizeAssistantMessageForSession();
       }
     };
   }, [
@@ -791,7 +684,10 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     outputBufferRef,
     setLastSessionTerminated,
     activeSseHandlersRef,
+    streamFlushTimeoutRef,
   ]);
+
+  // ── Secondary effects ─────────────────────────────────────────────────────
 
   useEffect(() => {
     return () => closeActiveSse("unmount");

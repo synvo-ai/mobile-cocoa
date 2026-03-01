@@ -1,6 +1,12 @@
 import type { IServerConfig } from "@/core/types";
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import {
+  DEFAULT_ANDROID_EMULATOR_HOST,
+  DEFAULT_LOCALHOST_HOSTS,
+  DEFAULT_SERVER_BASE_URL,
+  DEFAULT_TUNNEL_PROXY_PORT,
+} from "./config.defaults";
 
 /**
  * Connection mode for the mobile app.
@@ -26,7 +32,7 @@ function getTunnelProxyPort(): number {
     typeof process !== "undefined"
       ? (process.env?.EXPO_PUBLIC_TUNNEL_PROXY_PORT ?? "").trim()
       : "";
-  return port ? parseInt(port, 10) || 9443 : 9443;
+  return port ? parseInt(port, 10) || DEFAULT_TUNNEL_PROXY_PORT : DEFAULT_TUNNEL_PROXY_PORT;
 }
 
 function parseEnvHost(value: string): string | null {
@@ -74,7 +80,7 @@ function getServerHostOverride(): string | null {
   if (explicitHost) return explicitHost;
   const runtimeHost = parseHostFromRuntimeMetadata();
   if (runtimeHost) return runtimeHost;
-  if (Platform.OS === "android") return "10.0.2.2";
+  if (Platform.OS === "android") return DEFAULT_ANDROID_EMULATOR_HOST;
   return null;
 }
 
@@ -84,7 +90,7 @@ function normalizeBaseUrl(rawUrl: string): string {
   try {
     const parsed = new URL(base);
     const host = parsed.hostname.toLowerCase();
-    if (host !== "localhost" && host !== "127.0.0.1") {
+    if (!DEFAULT_LOCALHOST_HOSTS.includes(host)) {
       return base.replace(/\/$/, "");
     }
 
@@ -123,7 +129,7 @@ function getBaseUrlFromEnv(): string {
   const url =
     typeof process !== "undefined" && process.env?.EXPO_PUBLIC_SERVER_URL
       ? process.env.EXPO_PUBLIC_SERVER_URL
-      : "http://localhost:3456";
+      : DEFAULT_SERVER_BASE_URL;
   return normalizeBaseUrl(url);
 }
 
@@ -142,8 +148,7 @@ export function createDefaultServerConfig(): IServerConfig {
         // The reverse proxy (e.g. behind Cloudflare Tunnel) uses X-Target-Port
         // to forward to the right port. For WebView we use query param _targetPort.
         if (connectionMode === "cloudflare") {
-          const isPreviewLocalhost =
-            parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+          const isPreviewLocalhost = DEFAULT_LOCALHOST_HOSTS.includes(parsed.hostname);
           const basePort = baseParsed.port || (baseParsed.protocol === "https:" ? "443" : "80");
           const previewPort = parsed.port || (parsed.protocol === "https:" ? "443" : "80");
 
@@ -183,8 +188,7 @@ export function createDefaultServerConfig(): IServerConfig {
         const basePort = baseParsed.port || (baseParsed.protocol === "https:" ? "443" : "80");
         const previewPort = parsed.port || (parsed.protocol === "https:" ? "443" : "80");
         const isSameHost =
-          parsed.hostname === "localhost" ||
-          parsed.hostname === "127.0.0.1" ||
+          DEFAULT_LOCALHOST_HOSTS.includes(parsed.hostname) ||
           parsed.hostname === baseParsed.hostname;
         const isSamePort = previewPort === basePort;
         if (isSameHost && isSamePort) {
@@ -197,9 +201,9 @@ export function createDefaultServerConfig(): IServerConfig {
         }
         // Different port: port-to-port — replace localhost with a host the device can reach.
         // When base is localhost, device cannot reach Mac; use EXPO_PUBLIC_PREVIEW_HOST if set.
-        const isPreviewLocalhost = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
+        const isPreviewLocalhost = DEFAULT_LOCALHOST_HOSTS.includes(parsed.hostname);
         if (isPreviewLocalhost && baseParsed.hostname) {
-          const baseIsLocal = baseParsed.hostname === "localhost" || baseParsed.hostname === "127.0.0.1";
+          const baseIsLocal = DEFAULT_LOCALHOST_HOSTS.includes(baseParsed.hostname);
           const previewHostRaw = typeof process !== "undefined" ? (process.env.EXPO_PUBLIC_PREVIEW_HOST ?? "").trim() : "";
           let portToPortHost = baseParsed.hostname;
           if (baseIsLocal && previewHostRaw) {

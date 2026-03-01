@@ -12,7 +12,6 @@ export interface ToolUseRecord {
 
 export interface EventContext {
   setPermissionDenials: (denials: PermissionDenial[] | null) => void;
-  setModelName: (name: string) => void;
   setWaitingForUserInput: (value: boolean) => void;
   setPendingAskQuestion: (value: PendingAskUserQuestion | null) => void;
   /** Set current tool/skill activity for UI display (null to clear). */
@@ -66,27 +65,6 @@ function fileActivityLink(label: string, filePath: string | null): string {
 /** Format one compact file activity line where only filename is clickable. */
 function fileActivityLine(prefix: string, file: string, filePath: string): string {
   return `${prefix} ${fileActivityLink(file, filePath)}`;
-}
-
-/** Shared formatter for session start metadata emitted by provider CLIs. */
-export function applySessionStartMetadata(
-  data: Record<string, unknown>,
-  ctx: EventContext
-): void {
-  const info: string[] = [];
-  if (data.session_id != null && data.session_id !== "") {
-    const id = String(data.session_id);
-    info.push(`Session ID: ${id}`);
-    ctx.setSessionId?.(id);
-  }
-  if (data.model) {
-    ctx.setModelName(String(data.model));
-    info.push(`Model: ${data.model}`);
-  }
-  if (data.cwd) info.push(`Working Directory: ${data.cwd}`);
-  if (info.length && __DEV__) {
-    console.log("[session]", info.join("\n"));
-  }
 }
 
 /** Append one tool-use display line in a consistent format. */
@@ -153,26 +131,6 @@ export function appendSnapshotTextDelta(ctx: EventContext, fullText: string): vo
   }
   // current is empty → fresh message, append everything
   ctx.appendAssistantText(fullText);
-}
-
-/**
- * Append assistant text while deduplicating overlap with existing content.
- * Useful for providers that stream partial chunks and later emit full item text.
- */
-export function appendOverlapTextDelta(ctx: EventContext, text: string): void {
-  if (!text) return;
-  const current = ctx.getCurrentAssistantContent();
-  if (current.endsWith(text)) return;
-  let overlap = 0;
-  const maxLen = Math.min(current.length, text.length);
-  for (let len = maxLen; len > 0; len--) {
-    if (current.endsWith(text.substring(0, len))) {
-      overlap = len;
-      break;
-    }
-  }
-  const delta = text.substring(overlap);
-  if (delta) ctx.appendAssistantText(delta);
 }
 
 /** Format one tool_use block as a short human-readable markdown line for the assistant bubble. */

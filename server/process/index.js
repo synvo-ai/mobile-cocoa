@@ -4,7 +4,10 @@
  */
 import {
   DEFAULT_PERMISSION_MODE,
-  DEFAULT_PROVIDER, getWorkspaceCwd,
+  DEFAULT_PROVIDER,
+  DEFAULT_PROVIDER_MODELS,
+  DEFAULT_SSE_HOST,
+  getWorkspaceCwd,
   loadModelsConfig,
   projectRoot
 } from "../config/index.js";
@@ -51,36 +54,11 @@ function getDefaultModelForProvider(provider) {
 }
 
 function _builtinDefaultModel(provider) {
-  if (provider === "claude") return "sonnet4.5";
-  if (provider === "codex") return "gpt-5.1-codex-mini";
-  return "gemini-3.1-pro-preview";
+  return DEFAULT_PROVIDER_MODELS?.[provider] || provider;
 }
 
 function emitError(socket, message) {
   socket.emit("output", `\r\n\x1b[31m[Error] ${message}\x1b[0m\r\n`);
-}
-
-function safeStringify(value, space = 0) {
-  try {
-    return JSON.stringify(value, null, space);
-  } catch (_) {
-    const seen = new WeakSet();
-    try {
-      return JSON.stringify(
-        value,
-        (_, nested) => {
-          if (typeof nested === "object" && nested !== null) {
-            if (seen.has(nested)) return "[Circular]";
-            seen.add(nested);
-          }
-          return nested;
-        },
-        space
-      );
-    } catch (_) {
-      return "[Unserializable payload]";
-    }
-  }
 }
 
 /** Format current time as yyyy-MM-dd_HH-mm-ss (24-hour) for log directory names. */
@@ -113,7 +91,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
   }
 
   function handleSubmitPrompt(payload) {
-    console.log("[submit-prompt] full input:", safeStringify(payload, 2));
     const prompt = typeof payload?.prompt === "string" ? payload.prompt.trim() : "";
 
     if (!prompt) {
@@ -122,7 +99,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
     }
 
     const provider = resolveProvider(payload?.provider);
-    console.log("[submit-prompt] chat input (user prompt):", prompt, "provider:", provider);
 
     const defaultModel = getDefaultModelForProvider(provider);
     const model =
@@ -171,10 +147,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
   }
 
   function handleInput(data) {
-    console.log(
-      "[input] chat input (user reply):",
-      typeof data === "string" ? data.replace(/\r$/, "") : JSON.stringify(data)
-    );
     piRpcSession.handleInput(data);
   }
 
@@ -207,7 +179,7 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
  * Creates a socket-like adapter that broadcasts to session.subscribers (SSE responses).
  * Used by the REST+SSE session flow instead of Socket.IO.
  */
-function createSseSocketAdapter(sessionId, session, host = "localhost:3456") {
+function createSseSocketAdapter(sessionId, session, host = DEFAULT_SSE_HOST) {
   const adapter = {
     id: sessionId,
     handshake: {
@@ -237,7 +209,7 @@ function createSseSocketAdapter(sessionId, session, host = "localhost:3456") {
       }
     },
     setHost(h) {
-      adapter.handshake.headers.host = h || "localhost:3456";
+      adapter.handshake.headers.host = h || DEFAULT_SSE_HOST;
     },
   };
   return adapter;

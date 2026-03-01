@@ -3,7 +3,7 @@
  * Uses material-icon-theme (folders) and vscode-icons (files) via better-icons.
  * Regenerate: node scripts/fetch-workspace-icons.mjs
  */
-import { getFileIconSvg, getFolderIconSvg } from "@/data/workspaceIcons";
+import { getFileIconSvg, getFolderIconSvg } from "@/utils/workspaceIcons";
 import React from "react";
 import Svg, { Circle, G, Path, SvgXml } from "react-native-svg";
 

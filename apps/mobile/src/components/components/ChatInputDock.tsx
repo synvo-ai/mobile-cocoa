@@ -1,6 +1,6 @@
 import { InputPanel } from "@/components/chat/InputPanel";
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
-import type { Provider as BrandProvider } from "@/constants/modelOptions";
+import type { Provider as BrandProvider } from "@/core/modelOptions";
 import type { PermissionModeUI } from "@/utils/permission";
 import { getBackendPermissionMode } from "@/utils/permission";
 import React from "react";

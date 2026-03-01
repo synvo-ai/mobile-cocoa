@@ -5,7 +5,7 @@ import { FileViewerPage } from "@/components/pages/FileViewerPage";
 import { WorkspaceSidebarPage } from "@/components/pages/WorkspaceSidebarPage";
 import type { createAppStyles } from "@/components/styles/appStyles";
 import { Box } from "@/components/ui/box";
-import type { Provider as BrandProvider } from "@/constants/modelOptions";
+import type { Provider as BrandProvider } from "@/core/modelOptions";
 import { EntranceAnimation } from "@/design-system";
 import type { Message, PendingAskUserQuestion, PermissionDenial } from "@/services/chat/hooks";
 import type { getTheme } from "@/theme/index";

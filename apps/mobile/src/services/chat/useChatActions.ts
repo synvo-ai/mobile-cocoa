@@ -1,5 +1,5 @@
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
-import type { Provider } from "@/constants/modelOptions";
+import type { Provider } from "@/core/modelOptions";
 import type {
     CodeReference, LastRunOptions,
     Message,

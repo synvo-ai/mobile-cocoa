@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, InteractionManager, ScrollView } from "react-native";
 
-import { type Provider } from "@/constants/modelOptions";
+import { type Provider } from "@/core/modelOptions";
 import { triggerHaptic } from "@/design-system";
 import { getModel, ModalSessionItem } from "@/features/app/appConfig";
 import { useChat, type Message, type PendingAskUserQuestion, type PermissionDenial } from "@/services/chat/hooks";

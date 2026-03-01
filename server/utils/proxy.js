@@ -10,7 +10,7 @@
  *   - No header/param → localhost:3456 (main server)
  *
  * Usage:
- *   node server/proxy.js
+ *   node server/utils/proxy.js
  *
  * Environment:
  *   PROXY_PORT              - Port this proxy listens on (default: 9443)
@@ -19,12 +19,15 @@
  */
 import http from "http";
 import { URL } from "url";
+import {
+  PROXY_BIND_HOST,
+  PROXY_DEFAULT_TARGET_PORT,
+  PROXY_LOOPBACK_HOST,
+  TUNNEL_PROXY_PORT,
+} from "./config/index.js";
 
-const PROXY_PORT = parseInt(process.env.PROXY_PORT || "9443", 10);
-const DEFAULT_TARGET_PORT = parseInt(
-  process.env.PROXY_DEFAULT_TARGET_PORT || process.env.PORT || "3456",
-  10
-);
+const PROXY_PORT = TUNNEL_PROXY_PORT;
+const DEFAULT_TARGET_PORT = PROXY_DEFAULT_TARGET_PORT;
 
 const MIN_PORT = 1024;
 const MAX_PORT = 65535;
@@ -49,7 +52,7 @@ const server = http.createServer((req, res) => {
     }
   } else {
     try {
-      const urlObj = new URL(reqUrl, `http://127.0.0.1:${PROXY_PORT}`);
+      const urlObj = new URL(reqUrl, `http://${PROXY_LOOPBACK_HOST}:${PROXY_PORT}`);
       const qPort = urlObj.searchParams.get("_targetPort");
       if (qPort) {
         const parsed = parseInt(qPort, 10);
@@ -65,7 +68,7 @@ const server = http.createServer((req, res) => {
   }
 
   const options = {
-    hostname: "127.0.0.1",
+    hostname: PROXY_LOOPBACK_HOST,
     port: targetPort,
     path: reqUrl,
     method: req.method,
@@ -73,7 +76,7 @@ const server = http.createServer((req, res) => {
   };
 
   delete options.headers["x-target-port"];
-  options.headers.host = `127.0.0.1:${targetPort}`;
+  options.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
   options.headers["x-tunnel-proxy"] = "1";
 
   const proxyReq = http.request(options, (proxyRes) => {
@@ -85,13 +88,13 @@ const server = http.createServer((req, res) => {
   });
 
   proxyReq.on("error", (err) => {
-    console.error(`[proxy] Error forwarding to localhost:${targetPort}:`, err.message);
+    console.error(`[proxy] Error forwarding to ${PROXY_LOOPBACK_HOST}:${targetPort}:`, err.message);
     if (!res.headersSent) {
       res.writeHead(502, { "Content-Type": "application/json" });
       res.end(
         JSON.stringify({
           error: "Bad Gateway",
-          message: `Cannot reach localhost:${targetPort}`,
+          message: `Cannot reach ${PROXY_LOOPBACK_HOST}:${targetPort}`,
           port: targetPort,
         })
       );
@@ -116,24 +119,24 @@ server.on("upgrade", (req, socket, head) => {
   }
 
   const options = {
-    hostname: "127.0.0.1",
+    hostname: PROXY_LOOPBACK_HOST,
     port: targetPort,
     path: req.url,
     method: req.method,
     headers: { ...req.headers },
   };
   delete options.headers["x-target-port"];
-  options.headers.host = `127.0.0.1:${targetPort}`;
+  options.headers.host = `${PROXY_LOOPBACK_HOST}:${targetPort}`;
   options.headers["x-tunnel-proxy"] = "1";
 
   const proxyReq = http.request(options);
   proxyReq.on("upgrade", (proxyRes, proxySocket, proxyHead) => {
     socket.write(
       `HTTP/1.1 101 Switching Protocols\r\n` +
-        Object.entries(proxyRes.headers)
-          .map(([k, v]) => `${k}: ${v}`)
-          .join("\r\n") +
-        "\r\n\r\n"
+      Object.entries(proxyRes.headers)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\r\n") +
+      "\r\n\r\n"
     );
     if (proxyHead.length) socket.write(proxyHead);
     proxySocket.pipe(socket);
@@ -141,18 +144,18 @@ server.on("upgrade", (req, socket, head) => {
   });
 
   proxyReq.on("error", (err) => {
-    console.error(`[proxy] WebSocket upgrade error to localhost:${targetPort}:`, err.message);
+    console.error(`[proxy] WebSocket upgrade error to ${PROXY_LOOPBACK_HOST}:${targetPort}:`, err.message);
     socket.destroy();
   });
 
   proxyReq.end();
 });
 
-const BIND_HOST = process.env.PROXY_BIND || "0.0.0.0";
+const BIND_HOST = PROXY_BIND_HOST;
 
 server.listen(PROXY_PORT, BIND_HOST, () => {
   console.log(`[proxy] Listening on ${BIND_HOST}:${PROXY_PORT}`);
-  console.log(`[proxy] Default target: localhost:${DEFAULT_TARGET_PORT}`);
+  console.log(`[proxy] Default target: ${PROXY_LOOPBACK_HOST}:${DEFAULT_TARGET_PORT}`);
   console.log(`[proxy] Use X-Target-Port or _targetPort query to route to other ports`);
 });
 

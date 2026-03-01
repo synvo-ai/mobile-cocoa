@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 
 import type { ChatModalOpenHandlers } from "@/components/types/chatModalTypes";
-import type { Provider as BrandProvider } from "@/constants/modelOptions";
+import type { Provider as BrandProvider } from "@/core/modelOptions";
 import type { Message } from "@/services/chat/hooks";
 
 type ModalController = {

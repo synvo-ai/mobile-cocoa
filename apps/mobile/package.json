@@ -8,19 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "test": "jest",
-    "test:watch": "jest --watchAll",
-    "verify:foundation": "node scripts/verify-foundation.mjs",
-    "inventory:components": "node scripts/generate-component-inventory.mjs",
-    "capture:ui-primitives-baseline": "node scripts/capture-ui-primitives-baseline.mjs",
-    "lint:ui-primitives": "node scripts/enforce-ui-primitives-baseline.mjs",
-    "phase2:check": "npm run verify:foundation && npm run lint:ui-primitives",
-    "lint:ui-primitives:strict": "node scripts/check-ui-primitives-strict.mjs",
-    "phase6:check": "npm run phase2:check && npm run lint:ui-primitives:strict",
-    "test:phase7:visual": "jest --runInBand src/components/chat/__tests__/InputPanel.visual.test.tsx",
-    "test:phase7:a11y": "jest --runInBand src/components/chat/__tests__/InputPanel.a11y.test.tsx",
-    "phase7:check": "npm run phase6:check && npm run test:phase7:visual && npm run test:phase7:a11y && npm run phase7:report",
-    "metrics:rollout": "node scripts/generate-rollout-metrics.mjs",
-    "phase7:report": "npm run metrics:rollout"
+    "test:watch": "jest --watchAll"
   },
   "dependencies": {
     "@expo/html-elements": "^0.12.5",

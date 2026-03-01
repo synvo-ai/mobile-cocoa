@@ -11,7 +11,7 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "dev:mobile": "EXPO_PUBLIC_SERVER_URL=http://localhost:3456 npm run -w mobile start",
-    "proxy": "node server/proxy.js",
+    "proxy": "node server/utils/proxy.js",
     "cloudflare:tunnel": "node scripts/start-cloudflare-tunnel.mjs",
     "cloudflare:tunnel:server": "CLOUDFLARE_TUNNEL_TARGET=http://localhost:3456 node scripts/start-cloudflare-tunnel.mjs",
     "dev:cloudflare": "node scripts/start-dev-cloudflare.mjs",

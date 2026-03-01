@@ -1,4 +1,4 @@
-import type { Provider } from "@/constants/modelOptions";
+import type { Provider } from "@/core/modelOptions";
 import type { CodeReference, IServerConfig, LastRunOptions, Message, PendingAskUserQuestion, PermissionDenial } from "@/core/types";
 
 

@@ -1,0 +1,209 @@
+{
+  "_comment": "Fallback/default values used across runtime when optional config fields are not provided.",
+  "server": {
+    "port": 3456,
+    "listenHost": "0.0.0.0",
+    "logHost": "localhost",
+    "sidebarRefreshIntervalMs": 3000,
+    "defaultPermissionMode": "bypassPermissions",
+    "defaultProvider": "codex",
+    "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
+    "sseHost": "localhost:3456",
+    "logsDirName": "logs",
+    "llmCliIoSubdir": "llm-cli-input-output",
+    "sessions": {
+      "agentDir": ".pi/agent"
+    },
+    "proxy": {
+      "port": 9443,
+      "bindHost": "0.0.0.0",
+      "defaultTargetPort": 3456,
+      "loopbackHost": "127.0.0.1",
+      "defaultTargetHost": "localhost"
+    },
+    "pi": {
+      "cliPath": "pi",
+      "fallbackModel": "gemini-3.1-pro-preview",
+      "providerFallback": "openai"
+    },
+    "fallback": {
+      "providerModels": {
+        "claude": "sonnet4.5",
+        "gemini": "gemini-3.1-pro-preview",
+        "codex": "gpt-5.1-codex-mini"
+      },
+      "providerModelAliases": {
+        "sonnet4.5": "claude-sonnet-4-5",
+        "opus4.5": "claude-opus-4-5"
+      }
+    },
+    "mobile": {
+      "defaultServerUrl": "http://localhost:3456",
+      "tunnelProxyPort": 9443,
+      "androidEmulatorHost": "10.0.2.2",
+      "localhostAliases": ["localhost", "127.0.0.1"]
+    },
+    "scripts": {
+      "smokeSessionSwitch": {
+        "serverUrl": "http://localhost:3456",
+        "promptTimeoutMs": 540000,
+        "switchDelayMs": 3000,
+        "numSessionsMin": 3,
+        "numSessionsMax": 5,
+        "numSessionsDefault": 4
+      },
+      "loadTestCodex": {
+        "serverUrl": "http://localhost:3456",
+        "timeoutMs": 600000,
+        "staggerMs": 1000
+      }
+    }
+  },
+  "models": {
+    "_comment": "Model configuration fallback — matches models.json structure.",
+    "providers": {
+      "claude": {
+        "label": "Claude",
+        "piProvider": "anthropic",
+        "defaultModel": "sonnet4.5",
+        "models": [
+          {
+            "value": "sonnet4.5",
+            "label": "Sonnet 4.5"
+          },
+          {
+            "value": "opus4.5",
+            "label": "Opus 4.5"
+          },
+          {
+            "value": "claude-haiku-4-5-20251001",
+            "label": "Haiku 4.5"
+          }
+        ]
+      },
+      "gemini": {
+        "label": "Gemini",
+        "piProvider": "google-gemini-cli",
+        "defaultModel": "gemini-3.1-pro-preview",
+        "models": [
+          {
+            "value": "gemini-2.5-flash",
+            "label": "2.5 Flash"
+          },
+          {
+            "value": "gemini-3-flash-preview",
+            "label": "3 Flash Preview"
+          },
+          {
+            "value": "gemini-3-pro-preview",
+            "label": "3 Pro Preview"
+          },
+          {
+            "value": "gemini-3.1-pro-preview",
+            "label": "3.1 Pro Preview"
+          }
+        ]
+      },
+      "codex": {
+        "label": "Codex",
+        "piProvider": "openai-codex",
+        "defaultModel": "gpt-5.1-codex-mini",
+        "models": [
+          {
+            "value": "gpt-5.1-codex-mini",
+            "label": "GPT-5.1 Codex Mini"
+          },
+          {
+            "value": "gpt-5.2-codex",
+            "label": "GPT-5.2 Codex"
+          },
+          {
+            "value": "gpt-5.3-codex",
+            "label": "GPT-5.3 Codex"
+          }
+        ]
+      }
+    },
+    "modelAliases": {
+      "sonnet4.5": "claude-sonnet-4-5",
+      "opus4.5": "claude-opus-4-5"
+    }
+  },
+  "pi": {
+    "_comment": "Pi CLI fallback/default configuration.",
+    "cliPath": "pi",
+    "autoApproveToolConfirm": false,
+    "defaultPermissionMode": "bypassPermissions",
+    "providerMapping": {
+      "claude": "anthropic",
+      "codex": "openai-codex"
+    },
+    "providerRouting": {
+      "_comment": "Regex-based routing for Gemini models. Evaluated in order; first match wins.",
+      "rules": [
+        {
+          "modelPattern": "^gemini-",
+          "provider": "google-gemini-cli"
+        },
+        {
+          "modelPattern": "codex",
+          "provider": "openai-codex"
+        },
+        {
+          "modelPattern": "^gpt-|^codex-",
+          "provider": "openai"
+        },
+        {
+          "modelPattern": "^claude-|^sonnet|^opus|^claude-haiku",
+          "provider": "anthropic"
+        }
+      ],
+      "fallback": {
+        "gemini": "google-gemini-cli",
+        "claude": "anthropic",
+        "codex": "openai"
+      }
+    },
+    "defaultModels": {
+      "anthropic": "claude-sonnet-4-5",
+      "openai": "gpt-4o",
+      "openai-codex": "gpt-4o",
+      "google-gemini-cli": "gemini-3.1-pro-preview",
+      "google-antigravity": "claude-sonnet-4-5"
+    },
+    "systemPrompts": {
+      "terminalRules": "When running terminal commands: (1) MANDATORY: use the Bash tool for every terminal command step — never use run_terminal_cmd, run_command, or alternatives; (2) use ad-hoc bash, not persistent shells; (3) when starting background servers, ALWAYS use nohup + disown: nohup bash -c 'cd dir && ... && python run.py' >> log 2>&1 & disown — Pi's Bash tool waits for children, so nohup+disown prevents the call from hanging;"
+    }
+  },
+  "skills": {
+    "_comment": "Skills configuration fallback — matches skills.json structure.",
+    "skillsLibraryDir": "server/skills-library",
+    "skillsEnabledFile": "server/skills-enabled.json",
+    "skillsEnabledDir": "server/skills_enabled",
+    "skillFileName": "SKILL.md",
+    "defaultCategory": "Development",
+    "categories": {
+      "fullstack-software-engineer": "Development",
+      "react-native-animations": "Development",
+      "refactor": "Development",
+      "test-driven-development": "Development",
+      "terminal-runner": "Development",
+      "ui-ux-pro-max": "UI/UX",
+      "enhance-prompt": "UI/UX",
+      "git-advanced-workflows": "DevOps",
+      "using-git-worktrees": "DevOps",
+      "finishing-a-development-branch": "DevOps",
+      "systematic-debugging": "Debug",
+      "receiving-code-review": "Debug",
+      "requesting-code-review": "Debug",
+      "verification-before-completion": "Debug",
+      "brainstorming": "Prompt",
+      "dispatching-parallel-agents": "Prompt",
+      "executing-plans": "Prompt",
+      "subagent-driven-development": "Prompt",
+      "using-superpowers": "Prompt",
+      "writing-plans": "Prompt",
+      "writing-skills": "Prompt"
+    }
+  }
+}

@@ -9,6 +9,7 @@
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import { TUNNEL_PROXY_PORT, PROXY_LOOPBACK_HOST } from "../server/config/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
@@ -48,7 +49,7 @@ function killAll() {
   for (const c of children) {
     try {
       c.kill("SIGTERM");
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -62,7 +63,7 @@ process.on("SIGTERM", () => {
 });
 
 // 1. Proxy (port 9443) — background
-run("proxy", "node", ["server/proxy.js"], { inherit: false });
+run("proxy", "node", ["server/utils/proxy.js"], { inherit: false });
 
 // 2. Dev server (port 3456) — background (OVERLAY_NETWORK=tunnel so server knows traffic goes via proxy)
 setTimeout(() => {
@@ -85,7 +86,7 @@ function printExpoCommand(url) {
 }
 
 setTimeout(() => {
-  const child = spawn("cloudflared", ["tunnel", "--url", "http://localhost:9443"], {
+  const child = spawn("cloudflared", ["tunnel", "--url", `http://${PROXY_LOOPBACK_HOST}:${TUNNEL_PROXY_PORT}`], {
     stdio: ["pipe", "pipe", "pipe"],
     cwd: ROOT,
     env: process.env,

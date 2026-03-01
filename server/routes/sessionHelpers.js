@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import crypto from "crypto";
 import { getWorkspaceCwd, SESSIONS_ROOT } from "../config/index.js";
 import { resolveSession } from "../sessionRegistry.js";
 

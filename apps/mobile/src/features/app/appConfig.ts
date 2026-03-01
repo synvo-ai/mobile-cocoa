@@ -1,4 +1,4 @@
-import type { ModelOption } from "@/constants/modelOptions";
+import type { ModelOption } from "@/core/modelOptions";
 import type { Message } from "@/core";
 import { getModelsConfigSync } from "@/services/server/modelsApi";
 import { ColorMode, ColorModePreference } from "@/theme";

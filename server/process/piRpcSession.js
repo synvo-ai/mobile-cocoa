@@ -9,11 +9,18 @@ import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 import {
+  DEFAULT_PROVIDER_MODEL_ALIASES,
+  DEFAULT_PROVIDER,
+  DEFAULT_SERVER_HOST,
+  LOOPBACK_HOSTS,
   PI_CLI_PATH, PORT,
   SESSIONS_ROOT,
+  PI_SYSTEM_PROMPTS,
   loadModelsConfig,
   loadPiConfig,
   loadSkillsConfig,
+  PI_FALLBACK_MODEL,
+  PI_PROVIDER_FALLBACK,
 } from "../config/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
 import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
@@ -21,10 +28,19 @@ import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
 /** Provider mapping: loaded from config/pi.json. */
 function getClientProviderToPi() {
   const cfg = loadPiConfig();
-  return cfg.providerMapping ?? {
-    claude: "anthropic",
-    codex: "openai-codex",
-  };
+  return cfg.providerMapping ?? {};
+}
+
+function isLoopbackHost(rawHost) {
+  const host = String(rawHost || "").toLowerCase();
+  if (!host) return false;
+  if (LOOPBACK_HOSTS.length === 0) {
+    return host === "localhost" || host.startsWith("localhost:");
+  }
+  return LOOPBACK_HOSTS.some(
+    (alias) =>
+      host === alias || host.startsWith(`${alias}:`) || host === `[${alias}]` || host.startsWith(`[${alias}]:`),
+  );
 }
 
 /** Map client short model names to Pi CLI model IDs, loaded from config/models.json. */
@@ -32,12 +48,10 @@ function toPiModel(clientModel, piProvider) {
   if (piProvider !== "anthropic" || !clientModel) return clientModel;
   try {
     const cfg = loadModelsConfig();
-    const aliases = cfg.modelAliases ?? {};
+    const aliases = cfg.modelAliases ?? DEFAULT_PROVIDER_MODEL_ALIASES;
     return aliases[clientModel] ?? clientModel;
   } catch (_) {
-    // fallback to built-in aliases
-    const BUILTIN = { "sonnet4.5": "claude-sonnet-4-5", "opus4.5": "claude-opus-4-5" };
-    return BUILTIN[clientModel] ?? clientModel;
+    return DEFAULT_PROVIDER_MODEL_ALIASES[clientModel] ?? clientModel;
   }
 }
 
@@ -51,8 +65,7 @@ function getRemoteHostFromSocket(socket) {
   const hostHeader = String(socket?.handshake?.headers?.host ?? "").trim();
   const host = hostHeader.split(":")[0]?.trim() ?? "";
   if (!host) return "";
-  if (/^127\.|^::1$|^localhost$/i.test(host)) return "localhost";
-  return host;
+  return isLoopbackHost(host) ? DEFAULT_SERVER_HOST : host;
 }
 
 /**
@@ -64,17 +77,17 @@ function getRemoteHostFromSocket(socket) {
 function getConnectionContext(socket) {
   const addr = String(socket?.handshake?.address ?? socket?.conn?.remoteAddress ?? "");
   const host = String((socket?.handshake?.headers?.host ?? "").split(":")[0] ?? "");
-  const raw = `${addr} ${host}`.toLowerCase();
+  const isLocal = isLoopbackHost(addr) || isLoopbackHost(host);
 
   const overlay = getActiveOverlay();
   if (overlay === "tunnel") {
     const tunnelHeader = socket?.handshake?.headers?.["x-tunnel-proxy"];
     if (tunnelHeader) return "tunnel remote host";
-    if (/^127\.|::1|localhost/i.test(raw)) return "localhost";
+    if (isLocal) return "localhost";
     return "tunnel remote host";
   }
 
-  if (/^127\.|::1|localhost/i.test(raw)) return "localhost";
+  if (isLocal) return "localhost";
   return "remote";
 }
 
@@ -109,7 +122,7 @@ function getPiProviderForModel(clientProvider, model) {
   // Fallback by client provider name
   if (fallback[clientProvider]) return fallback[clientProvider];
   if (providerMap[clientProvider]) return providerMap[clientProvider];
-  return "openai";
+  return PI_PROVIDER_FALLBACK;
 }
 
 function parseAskQuestionAnswersFromInput(raw) {
@@ -351,7 +364,6 @@ export function createPiRpcSession({
         model: sessionManagement?.model,
         turnRunning,
       };
-      console.log("[pi] agent_end received", JSON.stringify(context));
       // Emit slim agent_end (no messages array) to avoid bloating SSE responseText
       const slimmed = slimEventForSse(parsed);
       emitOutputLine(JSON.stringify(slimmed) + "\n");
@@ -382,20 +394,20 @@ export function createPiRpcSession({
   async function ensurePiProcess(options) {
     if (piProcess) return;
 
-    const piProvider = getPiProviderForModel(options.clientProvider ?? "claude", options.model);
+    const piProvider = getPiProviderForModel(options.clientProvider ?? DEFAULT_PROVIDER, options.model);
     const piCfg = loadPiConfig();
     const defaultModels = piCfg.defaultModels ?? {};
 
     // Validate that the requested model exists in the models config.
     // If the client sent a stale/cached model ID (e.g. deprecated "gemini-3-pro-high"),
     // fall back to the provider's default model.
-    let rawModel = options.model ?? (defaultModels[piProvider] || "gemini-3.1-pro-preview");
+    let rawModel = options.model ?? (defaultModels[piProvider] || PI_FALLBACK_MODEL);
     const modelsCfg = loadModelsConfig();
     const allKnownModels = Object.values(modelsCfg.providers ?? {}).flatMap(
       (p) => (p.models ?? []).map((m) => m.value)
     );
     if (rawModel && allKnownModels.length > 0 && !allKnownModels.includes(rawModel)) {
-      const fallbackModel = defaultModels[piProvider] || "gemini-3.1-pro-preview";
+      const fallbackModel = defaultModels[piProvider] || PI_FALLBACK_MODEL;
       console.warn(`[pi] Unknown model "${rawModel}" — falling back to "${fallbackModel}"`);
       rawModel = fallbackModel;
     }
@@ -411,9 +423,7 @@ export function createPiRpcSession({
       fs.mkdirSync(sessionDir, { recursive: true });
     } catch (_) { }
 
-    const terminalRules =
-      piCfg.systemPrompts?.terminalRules ||
-      "When running terminal commands: (1) MANDATORY: use the Bash tool for every terminal command step — never use run_terminal_cmd, run_command, or alternatives; (2) use ad-hoc bash, not persistent shells; (3) when starting background servers, ALWAYS use nohup + disown: nohup bash -c 'cd dir && ... && python run.py' >> log 2>&1 & disown — Pi's Bash tool waits for children, so nohup+disown prevents the call from hanging;";
+    const terminalRules = piCfg.systemPrompts?.terminalRules || PI_SYSTEM_PROMPTS.terminalRules || "";
     const connectionType = getConnectionContext(socket);
     const previewHost = getPreviewHost();
     const overlay = getActiveOverlay();
@@ -421,7 +431,7 @@ export function createPiRpcSession({
     // Build overlay-specific hint for preview URLs
     let overlayHint = "";
     if (overlay === "tunnel" && previewHost.startsWith("tunnel-proxy:")) {
-      overlayHint = " The user connects via tunnel (e.g. Cloudflare). Preview URLs should use localhost — the mobile app will route them through the proxy automatically.";
+      overlayHint = ` The user connects via tunnel (e.g. Cloudflare). Preview URLs should use ${DEFAULT_SERVER_HOST} — the mobile app will route them through the proxy automatically.`;
     } else if (previewHost && previewHost !== "(not set)") {
       overlayHint = ` Prefer hostname (${previewHost}) for preview URLs so the remote client can reach the server.`;
     }
@@ -430,8 +440,8 @@ export function createPiRpcSession({
       connectionType === "tunnel remote host"
         ? `The user is connecting via tunnel (e.g. Cloudflare Tunnel).${overlayHint}`
         : connectionType === "localhost"
-          ? "The user is connecting via localhost."
-          : `The user is connecting from a remote host (not localhost).${overlayHint}`;
+          ? `The user is connecting via ${DEFAULT_SERVER_HOST}.`
+          : `The user is connecting from a remote host (not ${DEFAULT_SERVER_HOST}).${overlayHint}`;
     const criticalPrompt = `CRITICAL: You are running within a process with PID ${process.pid}. The application that manages you is listening on port ${PORT}. You MUST NEVER kill this process (PID ${process.pid}) or occupy its port (${PORT}). If you kill this process, you will immediately terminate yourself.`;
     const connectionPrompt = `Connection context: ${connectionContext}`;
     const workspace = getWorkspaceCwd();
@@ -439,7 +449,7 @@ export function createPiRpcSession({
     const effectiveRemoteHost =
       hostFromSocket ||
       (previewHost && previewHost !== "(not set)" ? previewHost : null) ||
-      (connectionType === "localhost" ? "localhost" : null);
+      (connectionType === "localhost" ? DEFAULT_SERVER_HOST : null);
     const terminalRunnerContext =
       effectiveRemoteHost != null
         ? `When using the terminal-runner skill, REQUIRED parameters are pre-filled — use them and do NOT ask the user: workspace=${JSON.stringify(workspace)}, remote_host=${JSON.stringify(effectiveRemoteHost)}. Never prompt for workspace or remote_host.`
@@ -468,25 +478,15 @@ export function createPiRpcSession({
       "--append-system-prompt", skillTagPrompt,
     ];
 
-    console.log("[pi] system prompt injected:");
-    console.log("[pi]   1.", criticalPrompt);
-    console.log("[pi]   2.", terminalRules);
-    console.log("[pi]   3.", connectionPrompt);
-    console.log("[pi]   4. terminal-runner context:", terminalRunnerContext);
-    console.log("[pi]   5. skill-tag awareness:", skillTagPrompt);
-
     // Register enabled skills: sync symlinks from skills-library into skills_enabled
     const skillsCfg = loadSkillsConfig();
-    const skillsDir = path.join(projectRoot, skillsCfg.skillsLibraryDir || "server/skills-library");
+    const skillsDir = path.join(projectRoot, skillsCfg.skillsLibraryDir);
     const skillsAgentDir = resolveAgentDir(cwd, projectRoot);
-    const skillsEnabledDir = path.join(projectRoot, skillsCfg.skillsEnabledDir || "server/skills_enabled");
+    const skillsEnabledDir = path.join(projectRoot, skillsCfg.skillsEnabledDir);
     const skillPaths = syncEnabledSkillsFolder(skillsDir, skillsAgentDir, skillsEnabledDir);
     if (skillPaths.length > 0) {
       args.push("--skill", skillsEnabledDir);
     }
-
-    const commandStr = [PI_CLI_PATH, ...args].join(" ");
-    console.log("[pi] command:", commandStr);
 
     // Resolve agent dir: workspace .pi/agent first, then project root .pi/agent.
     // Auth in project root (.pi/agent/auth.json) is used when workspace has no auth.
@@ -564,7 +564,7 @@ export function createPiRpcSession({
     // and checks for parsed.type as well, so this format works for both transports.
     emitOutputLine(JSON.stringify({
       type: "session-started",
-      provider: options.clientProvider ?? sessionManagement?.provider ?? "claude",
+      provider: options.clientProvider ?? sessionManagement?.provider ?? DEFAULT_PROVIDER,
       session_id: null,
       permissionMode: null,
       allowedTools: [],

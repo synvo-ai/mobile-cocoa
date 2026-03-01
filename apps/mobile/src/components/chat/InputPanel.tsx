@@ -23,7 +23,7 @@ import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { VStack } from "@/components/ui/vstack";
 import { Popover, PopoverBackdrop, PopoverContent } from "@/components/ui/popover";
 import { Menu, MenuItem, MenuItemLabel } from "@/components/ui/menu";
-import { type Provider } from "@/constants/modelOptions";
+import { type Provider } from "@/core/modelOptions";
 import { EntranceAnimation, triggerHaptic } from "@/design-system";
 import { useTheme } from "@/theme/index";
 import { cn } from "@/utils/cn";

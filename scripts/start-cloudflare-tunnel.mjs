@@ -14,8 +14,9 @@
  * Requires: cloudflared installed (e.g. brew install cloudflared).
  */
 import { spawn } from "child_process";
+import { CLOUDFLARE_TUNNEL_TARGET_TEMPLATE, TUNNEL_PROXY_PORT } from "../server/config/index.js";
 
-const TARGET = process.env.CLOUDFLARE_TUNNEL_TARGET || "http://localhost:9443";
+const TARGET = process.env.CLOUDFLARE_TUNNEL_TARGET || CLOUDFLARE_TUNNEL_TARGET_TEMPLATE;
 
 const child = spawn("cloudflared", ["tunnel", "--url", TARGET], {
   stdio: ["pipe", "pipe", "pipe"],
@@ -35,7 +36,7 @@ child.stdout.on("data", (chunk) => {
     const url = match[0].replace(/[)\],'"\s]+$/, "").trim();
     console.error("\n---");
     console.error("Set in mobile app: EXPO_PUBLIC_SERVER_URL=" + url);
-    if (TARGET.includes("9443")) {
+    if (TARGET.includes(String(TUNNEL_PROXY_PORT))) {
       console.error("Set in mobile app: EXPO_PUBLIC_CONNECTION_MODE=cloudflare");
     }
     console.error("---\n");
@@ -50,7 +51,7 @@ child.stderr.on("data", (chunk) => {
     const url = match[0].replace(/[)\],'"\s]+$/, "").trim();
     console.error("\n---");
     console.error("Set in mobile app: EXPO_PUBLIC_SERVER_URL=" + url);
-    if (TARGET.includes("9443")) {
+    if (TARGET.includes(String(TUNNEL_PROXY_PORT))) {
       console.error("Set in mobile app: EXPO_PUBLIC_CONNECTION_MODE=cloudflare");
     }
     console.error("---\n");

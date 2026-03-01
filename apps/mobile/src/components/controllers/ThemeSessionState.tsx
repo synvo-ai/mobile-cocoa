@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useColorScheme } from "react-native";
 
 import { createAppStyles } from "@/components/styles/appStyles";
-import type { ModelOption, Provider as BrandProvider } from "@/constants/modelOptions";
+import type { ModelOption, Provider as BrandProvider } from "@/core/modelOptions";
 import {
   getDefaultPermissionModeUI,
   getThemeMode

@@ -5,9 +5,9 @@ import fs from "fs";
 import path from "path";
 import { getWorkspaceCwd, WORKSPACE_ALLOWED_ROOT } from "../config/index.js";
 import {
-    buildWorkspaceTree, getMimeForFile, IMAGE_EXT,
-    MAX_TEXT_FILE_BYTES,
-    resolveWithinRoot
+  buildWorkspaceTree, getMimeForFile, IMAGE_EXT,
+  MAX_TEXT_FILE_BYTES,
+  resolveWithinRoot
 } from "../utils/index.js";
 
 export function registerWorkspaceRoutes(app) {
@@ -18,44 +18,52 @@ export function registerWorkspaceRoutes(app) {
   app.post("/api/workspace/create-folder", handleWorkspaceCreateFolder);
 }
 
+function resolveWorkspaceContext(baseParam, rootParam, parentParam) {
+  const base = baseParam === "os" ? "os" : "workspace";
+  let rootDir;
+  let candidate = null;
+
+  if (base === "os") {
+    rootDir = path.resolve("/");
+  } else if (typeof rootParam === "string" && rootParam.trim()) {
+    candidate = path.resolve(rootParam.trim());
+    if (!candidate.startsWith(WORKSPACE_ALLOWED_ROOT) && candidate !== WORKSPACE_ALLOWED_ROOT) {
+      throw { status: 403, error: "Root must be under allowed workspace" };
+    }
+    rootDir = candidate;
+  } else {
+    rootDir = getWorkspaceCwd();
+  }
+
+  let parent = typeof parentParam === "string"
+    ? parentParam.replace(/^\/+/, "").replace(/\\/g, "/")
+    : "";
+  if (parent.includes("..")) {
+    throw { status: 400, error: "Invalid path" };
+  }
+
+  const dir = parent ? path.join(rootDir, parent) : rootDir;
+  const resolvedDir = path.resolve(dir);
+
+  // Check inside allowed roots
+  const rootNorm = rootDir.replace(/\/$/, "") || rootDir;
+  if (resolvedDir !== rootNorm && !resolvedDir.startsWith(rootNorm + path.sep)) {
+    throw { status: 403, error: "Path outside root" };
+  }
+  if (base !== "os" && !resolvedDir.startsWith(WORKSPACE_ALLOWED_ROOT) && resolvedDir !== WORKSPACE_ALLOWED_ROOT) {
+    throw { status: 403, error: "Path outside allowed workspace" };
+  }
+
+  return { base, rootDir, resolvedDir, candidate };
+}
+
 function handleWorkspaceCreateFolder(req, res) {
   try {
-    const base = req.body.base === "os" ? "os" : "workspace";
-    let rootDir;
-    if (base === "os") {
-      rootDir = path.resolve("/");
-    } else if (typeof req.body.root === "string" && req.body.root.trim()) {
-      const candidate = path.resolve(req.body.root.trim());
-      if (!candidate.startsWith(WORKSPACE_ALLOWED_ROOT) && candidate !== WORKSPACE_ALLOWED_ROOT) {
-        return res.status(403).json({ error: "Root must be under allowed workspace" });
-      }
-      rootDir = candidate;
-    } else {
-      rootDir = getWorkspaceCwd();
-    }
-
-    let parent = typeof req.body.parent === "string"
-      ? req.body.parent.replace(/^\/+/, "").replace(/\\/g, "/")
-      : "";
-    if (parent.includes("..")) {
-      return res.status(400).json({ error: "Invalid path" });
-    }
+    const { resolvedDir } = resolveWorkspaceContext(req.body.base, req.body.root, req.body.parent);
 
     const { name } = req.body;
     if (typeof name !== "string" || !name.trim() || name.includes("/") || name.includes("\\") || name === ".." || name === ".") {
       return res.status(400).json({ error: "Invalid folder name" });
-    }
-
-    const dir = parent ? path.join(rootDir, parent) : rootDir;
-    const resolvedDir = path.resolve(dir);
-
-    // Check inside allowed roots
-    const rootNorm = rootDir.replace(/\/$/, "") || rootDir;
-    if (resolvedDir !== rootNorm && !resolvedDir.startsWith(rootNorm + path.sep)) {
-      return res.status(403).json({ error: "Path outside root" });
-    }
-    if (base !== "os" && !resolvedDir.startsWith(WORKSPACE_ALLOWED_ROOT) && resolvedDir !== WORKSPACE_ALLOWED_ROOT) {
-      return res.status(403).json({ error: "Path outside allowed workspace" });
     }
 
     const targetFolder = path.join(resolvedDir, name);
@@ -66,6 +74,9 @@ function handleWorkspaceCreateFolder(req, res) {
     fs.mkdirSync(targetFolder, { recursive: true });
     res.json({ success: true, path: targetFolder });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.error });
+    }
     res.status(500).json({ error: err.message || "Failed to create folder" });
   }
 }
@@ -92,45 +103,22 @@ export function createServeWorkspaceFileMiddleware() {
 
 function handleWorkspaceAllowedChildren(req, res) {
   try {
+    // Run preliminary validation from handleWorkspaceAllowedChildren
     const base = req.query.base === "os" ? "os" : "workspace";
-    let rootDir;
-    if (base === "os") {
-      rootDir = path.resolve("/");
-    } else if (typeof req.query.root === "string" && req.query.root.trim()) {
+    if (base !== "os" && typeof req.query.root === "string" && req.query.root.trim()) {
       const candidate = path.resolve(req.query.root.trim());
-      if (!candidate.startsWith(WORKSPACE_ALLOWED_ROOT) && candidate !== WORKSPACE_ALLOWED_ROOT) {
-        return res.status(403).json({ error: "Root must be under allowed workspace" });
+      if (candidate.startsWith(WORKSPACE_ALLOWED_ROOT) || candidate === WORKSPACE_ALLOWED_ROOT) {
+        if (!fs.existsSync(candidate)) {
+          return res.status(404).json({ error: "Path not found on server", children: [] });
+        }
+        if (!fs.statSync(candidate).isDirectory()) {
+          return res.status(400).json({ error: "Not a directory", children: [] });
+        }
       }
-      if (!fs.existsSync(candidate)) {
-        return res.status(404).json({ error: "Path not found on server", children: [] });
-      }
-      if (!fs.statSync(candidate).isDirectory()) {
-        return res.status(400).json({ error: "Not a directory", children: [] });
-      }
-      rootDir = candidate;
-    } else {
-      rootDir = getWorkspaceCwd();
-    }
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[workspace-allowed-children] rootDir=%s parent=%s", rootDir, req.query.parent ?? "(root)");
     }
 
-    let parent = typeof req.query.parent === "string"
-      ? req.query.parent.replace(/^\/+/, "").replace(/\\/g, "/")
-      : "";
-    if (parent.includes("..")) {
-      return res.status(400).json({ error: "Invalid path" });
-    }
+    const { rootDir, resolvedDir } = resolveWorkspaceContext(req.query.base, req.query.root, req.query.parent);
 
-    const dir = parent ? path.join(rootDir, parent) : rootDir;
-    const resolvedDir = path.resolve(dir);
-    const rootNorm = rootDir.replace(/\/$/, "") || rootDir;
-    if (resolvedDir !== rootNorm && !resolvedDir.startsWith(rootNorm + path.sep)) {
-      return res.status(403).json({ error: "Path outside root" });
-    }
-    if (base !== "os" && !resolvedDir.startsWith(WORKSPACE_ALLOWED_ROOT) && resolvedDir !== WORKSPACE_ALLOWED_ROOT) {
-      return res.status(403).json({ error: "Path outside allowed workspace" });
-    }
     if (!fs.existsSync(resolvedDir)) {
       return res.status(404).json({ error: "Path not found on server", children: [] });
     }
@@ -144,6 +132,9 @@ function handleWorkspaceAllowedChildren(req, res) {
       .map((e) => ({ name: e.name, path: path.join(resolvedDir, e.name) }));
     res.json({ children });
   } catch (err) {
+    if (err.status) {
+      return res.status(err.status).json({ error: err.error, children: [] });
+    }
     res.status(500).json({ error: err.message || "Failed to list directories" });
   }
 }

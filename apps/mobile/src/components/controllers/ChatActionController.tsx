@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from "react";
 
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
-import type { Provider as BrandProvider } from "@/constants/modelOptions";
+import type { Provider as BrandProvider } from "@/core/modelOptions";
 import { triggerHaptic } from "@/design-system";
 import { getSubmitPermissionConfig } from "@/features/app/appConfig";
 import { useChat, type Message } from "@/services/chat/hooks";

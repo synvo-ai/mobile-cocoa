@@ -31,13 +31,6 @@ export function registerConfigRoutes(app) {
 
   app.get("/api/workspace-path", (_, res) => {
     const cwd = getWorkspaceCwd();
-    if (process.env.NODE_ENV !== "production") {
-      console.log("[workspace-path] GET response:", {
-        path: cwd,
-        allowedRoot: WORKSPACE_ALLOWED_ROOT,
-        workspaceRoot: cwd,
-      });
-    }
     res.json({
       path: cwd,
       allowedRoot: WORKSPACE_ALLOWED_ROOT,

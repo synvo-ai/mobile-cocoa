@@ -21,7 +21,6 @@ export function registerSessionManagementStoreRoutes(app) {
   app.post("/api/session-management-store", (req, res) => {
     const snapshot = req.body;
     if (!snapshot || typeof snapshot !== "object") {
-      console.log("[SessionStore] rejected non-object payload");
       return res.status(400).json({ ok: false, error: "Invalid payload" });
     }
     latestSessionManagementSnapshotReceivedAt = new Date().toISOString();
@@ -29,9 +28,6 @@ export function registerSessionManagementStoreRoutes(app) {
       ...snapshot,
       receivedAt: latestSessionManagementSnapshotReceivedAt,
     };
-    console.log(
-      `[SessionStore] updated snapshot at ${latestSessionManagementSnapshotReceivedAt} from ${req.ip} with keys ${Object.keys(snapshot).join(",")}`
-    );
     res.json({ ok: true });
   });
 }

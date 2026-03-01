@@ -12,9 +12,9 @@ import { projectRoot, loadSkillsConfig } from "../config/index.js";
 function getSkillsConfigValues() {
   const cfg = loadSkillsConfig();
   return {
-    skillFile: cfg.skillFileName || "SKILL.md",
-    enabledFilePath: path.join(projectRoot, cfg.skillsEnabledFile || "server/skills-enabled.json"),
-    defaultCategory: cfg.defaultCategory || "Development",
+    skillFile: cfg.skillFileName,
+    enabledFilePath: path.join(projectRoot, cfg.skillsEnabledFile),
+    defaultCategory: cfg.defaultCategory,
     categories: cfg.categories || {},
   };
 }
@@ -317,4 +317,3 @@ export function syncEnabledSkillsFolder(skillsDir, agentDir, targetDir) {
 
   return paths;
 }
-

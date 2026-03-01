@@ -10,28 +10,35 @@ import fs from "fs";
 import path from "path";
 import {
   PI_CLI_PATH, PORT,
-  SESSIONS_ROOT
+  SESSIONS_ROOT,
+  loadModelsConfig,
+  loadPiConfig,
+  loadSkillsConfig,
 } from "../config/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
 import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
 
-const CLIENT_PROVIDER_TO_PI = {
-  claude: "anthropic", // OAuth from auth.json (key: "anthropic")
-  codex: "openai-codex", // OAuth from auth.json (key: "openai-codex")
-  gemini: "google-gemini", // OAuth from auth.json (key: "google-gemini")
-};
+/** Provider mapping: loaded from config/pi.json. */
+function getClientProviderToPi() {
+  const cfg = loadPiConfig();
+  return cfg.providerMapping ?? {
+    claude: "anthropic",
+    codex: "openai-codex",
+  };
+}
 
-/** Map client short model names to Pi CLI model IDs (Pi expects anthropic/claude-sonnet-4-5, not anthropic/sonnet4.5). */
-const CLIENT_MODEL_TO_PI = {
-  "sonnet4.5": "claude-sonnet-4-5",
-  "opus4.5": "claude-opus-4-5",
-};
-
+/** Map client short model names to Pi CLI model IDs, loaded from config/models.json. */
 function toPiModel(clientModel, piProvider) {
-  if (piProvider === "anthropic" && clientModel && CLIENT_MODEL_TO_PI[clientModel]) {
-    return CLIENT_MODEL_TO_PI[clientModel];
+  if (piProvider !== "anthropic" || !clientModel) return clientModel;
+  try {
+    const cfg = loadModelsConfig();
+    const aliases = cfg.modelAliases ?? {};
+    return aliases[clientModel] ?? clientModel;
+  } catch (_) {
+    // fallback to built-in aliases
+    const BUILTIN = { "sonnet4.5": "claude-sonnet-4-5", "opus4.5": "claude-opus-4-5" };
+    return BUILTIN[clientModel] ?? clientModel;
   }
-  return clientModel;
 }
 
 /**
@@ -71,13 +78,38 @@ function getConnectionContext(socket) {
   return "remote";
 }
 
+/**
+ * Map client provider + model to the Pi CLI --provider value.
+ *
+ * Pi CLI providers (from `pi --list-models`):
+ *   - google-gemini-cli  → gemini-2.x, gemini-3.x-preview, gemini-3.1-*
+ *   - google-antigravity  → gemini-3-pro-low, gemini-3-pro-high, gemini-3-flash
+ *   - anthropic           → claude-*
+ *   - openai              → gpt-*, codex-*
+ */
 function getPiProviderForModel(clientProvider, model) {
-  if (typeof model === "string" && /^gemini-/.test(model)) return "google-gemini";
-  if (typeof model === "string" && /^gpt-/.test(model)) return "openai-codex";
-  if (typeof model === "string" && (/^claude-/.test(model) || /^(sonnet4\.5|opus4\.5|claude-haiku)/.test(model))) return "anthropic";
-  if (clientProvider === "gemini") return "google-gemini";
-  if (clientProvider === "claude") return "anthropic";
-  return "openai-codex";
+  const cfg = loadPiConfig();
+  const routing = cfg.providerRouting ?? {};
+  const rules = routing.rules ?? [];
+  const fallback = routing.fallback ?? {};
+  const providerMap = cfg.providerMapping ?? {};
+
+  if (typeof model === "string") {
+    // Evaluate routing rules in order; first match wins
+    for (const rule of rules) {
+      if (!rule.modelPattern) continue;
+      const match = new RegExp(rule.modelPattern).test(model);
+      if (match) {
+        if (rule.excludePattern && new RegExp(rule.excludePattern).test(model)) continue;
+        return rule.provider;
+      }
+    }
+  }
+
+  // Fallback by client provider name
+  if (fallback[clientProvider]) return fallback[clientProvider];
+  if (providerMap[clientProvider]) return providerMap[clientProvider];
+  return "openai";
 }
 
 function parseAskQuestionAnswersFromInput(raw) {
@@ -307,7 +339,9 @@ export function createPiRpcSession({
     if (piProcess) return;
 
     const piProvider = getPiProviderForModel(options.clientProvider ?? "claude", options.model);
-    const rawModel = options.model ?? (piProvider === "anthropic" ? "claude-sonnet-4-5" : piProvider === "openai" || piProvider === "openai-codex" ? "gpt-4o" : "gemini-3.1-pro-preview");
+    const piCfg = loadPiConfig();
+    const defaultModels = piCfg.defaultModels ?? {};
+    const rawModel = options.model ?? (defaultModels[piProvider] || "gemini-3.1-pro-preview");
     const piModel = toPiModel(rawModel, piProvider);
     const cwd = getWorkspaceCwd();
     // Session dir = base sessions folder (sessions/). Pi expects this base; it creates
@@ -320,6 +354,7 @@ export function createPiRpcSession({
     } catch (_) { }
 
     const terminalRules =
+      piCfg.systemPrompts?.terminalRules ||
       "When running terminal commands: (1) MANDATORY: use the Bash tool for every terminal command step — never use run_terminal_cmd, run_command, or alternatives; (2) use ad-hoc bash, not persistent shells; (3) when starting background servers, ALWAYS use nohup + disown: nohup bash -c 'cd dir && ... && python run.py' >> log 2>&1 & disown — Pi's Bash tool waits for children, so nohup+disown prevents the call from hanging;";
     const connectionType = getConnectionContext(socket);
     const previewHost = getPreviewHost();
@@ -382,10 +417,11 @@ export function createPiRpcSession({
     console.log("[pi]   4. terminal-runner context:", terminalRunnerContext);
     console.log("[pi]   5. skill-tag awareness:", skillTagPrompt);
 
-    // Register enabled skills: sync symlinks from ./server/skills-library into ./server/skills_enabled
-    const skillsDir = path.join(projectRoot, "server", "skills-library");
+    // Register enabled skills: sync symlinks from skills-library into skills_enabled
+    const skillsCfg = loadSkillsConfig();
+    const skillsDir = path.join(projectRoot, skillsCfg.skillsLibraryDir || "server/skills-library");
     const skillsAgentDir = resolveAgentDir(cwd, projectRoot);
-    const skillsEnabledDir = path.join(projectRoot, "server", "skills_enabled");
+    const skillsEnabledDir = path.join(projectRoot, skillsCfg.skillsEnabledDir || "server/skills_enabled");
     const skillPaths = syncEnabledSkillsFolder(skillsDir, skillsAgentDir, skillsEnabledDir);
     if (skillPaths.length > 0) {
       args.push("--skill", skillsEnabledDir);

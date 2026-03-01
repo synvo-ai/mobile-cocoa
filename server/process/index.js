@@ -5,6 +5,7 @@
 import {
   DEFAULT_PERMISSION_MODE,
   DEFAULT_PROVIDER, getWorkspaceCwd,
+  loadModelsConfig,
   projectRoot
 } from "../config/index.js";
 
@@ -36,7 +37,20 @@ function resolveProvider(fromPayload) {
   return DEFAULT_PROVIDER;
 }
 
+/**
+ * Return the default model for a given provider by reading config/models.json.
+ * Falls back to hardcoded safe values when the provider is missing from config.
+ */
 function getDefaultModelForProvider(provider) {
+  try {
+    const cfg = loadModelsConfig();
+    return cfg.providers?.[provider]?.defaultModel ?? _builtinDefaultModel(provider);
+  } catch (_) {
+    return _builtinDefaultModel(provider);
+  }
+}
+
+function _builtinDefaultModel(provider) {
   if (provider === "claude") return "sonnet4.5";
   if (provider === "codex") return "gpt-5.1-codex-mini";
   return "gemini-3.1-pro-preview";

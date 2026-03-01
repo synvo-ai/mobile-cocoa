@@ -1,0 +1,66 @@
+{
+    "_comment": "Model configuration — edit this file to add/remove/rename models. No code changes required.",
+    "providers": {
+        "claude": {
+            "label": "Claude",
+            "piProvider": "anthropic",
+            "defaultModel": "sonnet4.5",
+            "models": [
+                {
+                    "value": "sonnet4.5",
+                    "label": "Sonnet 4.5"
+                },
+                {
+                    "value": "opus4.5",
+                    "label": "Opus 4.5"
+                },
+                {
+                    "value": "claude-haiku-4-5-20251001",
+                    "label": "Haiku 4.5"
+                }
+            ]
+        },
+        "gemini": {
+            "label": "Gemini",
+            "piProvider": "google-gemini-cli",
+            "defaultModel": "gemini-3.1-pro-preview",
+            "models": [
+                {
+                    "value": "gemini-3.1-flash",
+                    "label": "3.1 Flash"
+                },
+                {
+                    "value": "gemini-3.1-pro-low",
+                    "label": "3.1 Pro Low"
+                },
+                {
+                    "value": "gemini-3.1-pro-high",
+                    "label": "3.1 Pro High"
+                },
+                {
+                    "value": "gemini-3.1-pro-preview",
+                    "label": "3.1 Pro Preview"
+                }
+            ]
+        },
+        "codex": {
+            "label": "Codex",
+            "piProvider": "openai-codex",
+            "defaultModel": "gpt-5.1-codex-mini",
+            "models": [
+                {
+                    "value": "gpt-5.1-codex-mini",
+                    "label": "GPT-5.1 Codex Mini"
+                },
+                {
+                    "value": "gpt-5.2-codex",
+                    "label": "GPT-5.2 Codex"
+                }
+            ]
+        }
+    },
+    "modelAliases": {
+        "sonnet4.5": "claude-sonnet-4-5",
+        "opus4.5": "claude-opus-4-5"
+    }
+}

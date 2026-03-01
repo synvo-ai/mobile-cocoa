@@ -1,7 +1,11 @@
+/**
+ * Resolve the default model for a provider.
+ * Values must match config/models.json → providers[x].defaultModel (server source of truth).
+ */
 export const resolveDefaultModel = (provider: string): string => {
   if (provider === "claude") return "sonnet4.5";
   if (provider === "codex") return "gpt-5.1-codex-mini";
-  return "gemini-3.1-flash";
+  return "gemini-3.1-pro-preview"; // gemini default
 };
 
 export const resolveStreamUrl = (

@@ -6,41 +6,22 @@
  */
 import fs from "fs";
 import path from "path";
-import { projectRoot } from "../config/index.js";
+import { projectRoot, loadSkillsConfig } from "../config/index.js";
 
-const SKILL_FILE = "SKILL.md";
-const ENABLED_FILE_PATH = path.join(projectRoot, "server", "skills-enabled.json");
-
-/**
- * Skill category mapping. Maps skill directory name to a category.
- * Categories: Development, UI/UX, DevOps, Debug, Prompt
- */
-const SKILL_CATEGORIES = {
-  "fullstack-software-engineer": "Development",
-  "react-native-animations": "Development",
-  "refactor": "Development",
-  "test-driven-development": "Development",
-  "terminal-runner": "Development",
-  "ui-ux-pro-max": "UI/UX",
-  "enhance-prompt": "UI/UX",
-  "git-advanced-workflows": "DevOps",
-  "using-git-worktrees": "DevOps",
-  "finishing-a-development-branch": "DevOps",
-  "systematic-debugging": "Debug",
-  "receiving-code-review": "Debug",
-  "requesting-code-review": "Debug",
-  "verification-before-completion": "Debug",
-  "brainstorming": "Prompt",
-  "dispatching-parallel-agents": "Prompt",
-  "executing-plans": "Prompt",
-  "subagent-driven-development": "Prompt",
-  "using-superpowers": "Prompt",
-  "writing-plans": "Prompt",
-  "writing-skills": "Prompt",
-};
+/** Load skill config values from config/skills.json (with fallbacks). */
+function getSkillsConfigValues() {
+  const cfg = loadSkillsConfig();
+  return {
+    skillFile: cfg.skillFileName || "SKILL.md",
+    enabledFilePath: path.join(projectRoot, cfg.skillsEnabledFile || "server/skills-enabled.json"),
+    defaultCategory: cfg.defaultCategory || "Development",
+    categories: cfg.categories || {},
+  };
+}
 
 function getSkillCategory(id) {
-  return SKILL_CATEGORIES[id] || "Development";
+  const { categories, defaultCategory } = getSkillsConfigValues();
+  return categories[id] || defaultCategory;
 }
 
 /**
@@ -81,7 +62,7 @@ export function discoverSkills(skillsDir) {
       if (!ent.isDirectory()) continue;
 
       const skillPath = path.join(skillsDir, ent.name);
-      const skillFile = path.join(skillPath, SKILL_FILE);
+      const skillFile = path.join(skillPath, getSkillsConfigValues().skillFile);
       if (!fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) continue;
 
       try {
@@ -118,7 +99,8 @@ export function getSkillContent(id, skillsDir) {
   const skillRoot = path.resolve(skillsDir);
   const idClean = id.trim();
   let subdir = path.basename(idClean.replace(/[/\\]/g, ""));
-  let skillPath = path.join(skillRoot, subdir, SKILL_FILE);
+  const SKILL_FILE_NAME = getSkillsConfigValues().skillFile;
+  let skillPath = path.join(skillRoot, subdir, SKILL_FILE_NAME);
 
   if (!skillPath.startsWith(skillRoot) || !fs.existsSync(skillPath) || !fs.statSync(skillPath).isFile()) {
     const { skills } = discoverSkills(skillsDir);
@@ -132,7 +114,7 @@ export function getSkillContent(id, skillsDir) {
     );
     if (match) {
       subdir = match.id;
-      skillPath = path.join(skillRoot, subdir, SKILL_FILE);
+      skillPath = path.join(skillRoot, subdir, SKILL_FILE_NAME);
     }
   }
 
@@ -246,13 +228,14 @@ export function resolveAgentDir(workspaceCwd, projectRoot) {
  */
 export function getEnabledIds(agentDir) {
   try {
-    if (!fs.existsSync(ENABLED_FILE_PATH)) return [];
-    const data = JSON.parse(fs.readFileSync(ENABLED_FILE_PATH, "utf8"));
+    const enabledFile = getSkillsConfigValues().enabledFilePath;
+    if (!fs.existsSync(enabledFile)) return [];
+    const data = JSON.parse(fs.readFileSync(enabledFile, "utf8"));
     const ids = data?.enabledIds;
     const filtered = Array.isArray(ids) ? ids.filter((x) => typeof x === "string" && x) : [];
     return [...new Set(filtered)]; // Deduplicate to prevent same skill loading twice
   } catch (err) {
-    console.warn("[skills] Failed to read", ENABLED_FILE_PATH, err?.message);
+    console.warn("[skills] Failed to read enabled skills file:", err?.message);
     return [];
   }
 }
@@ -269,11 +252,12 @@ export function setEnabledIds(agentDir, enabledIds) {
     : [];
 
   try {
-    fs.mkdirSync(path.dirname(ENABLED_FILE_PATH), { recursive: true });
-    fs.writeFileSync(ENABLED_FILE_PATH, JSON.stringify({ enabledIds: normalized }, null, 2), "utf8");
+    const enabledFile = getSkillsConfigValues().enabledFilePath;
+    fs.mkdirSync(path.dirname(enabledFile), { recursive: true });
+    fs.writeFileSync(enabledFile, JSON.stringify({ enabledIds: normalized }, null, 2), "utf8");
     return { ok: true };
   } catch (err) {
-    console.warn("[skills] Failed to write", ENABLED_FILE_PATH, err?.message);
+    console.warn("[skills] Failed to write enabled skills file:", err?.message);
     return { ok: false, error: err?.message ?? "Failed to save" };
   }
 }
@@ -338,7 +322,7 @@ export function syncEnabledSkillsFolder(skillsDir, agentDir, targetDir) {
       if (!id || typeof id !== "string") continue;
       const subdir = path.basename(id);
       const srcPath = path.join(skillRoot, subdir);
-      const skillFile = path.join(srcPath, SKILL_FILE);
+      const skillFile = path.join(srcPath, getSkillsConfigValues().skillFile);
       if (!srcPath.startsWith(skillRoot) || !fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) continue;
 
       const linkPath = path.join(targetDir, subdir);
@@ -378,7 +362,7 @@ export function loadEnabledSkillsContent(skillsDir, agentDir) {
     if (seen.has(subdir)) continue;
     seen.add(subdir);
 
-    const skillPath = path.join(skillRoot, subdir, SKILL_FILE);
+    const skillPath = path.join(skillRoot, subdir, getSkillsConfigValues().skillFile);
 
     if (!skillPath.startsWith(skillRoot)) continue;
     if (!fs.existsSync(skillPath) || !fs.statSync(skillPath).isFile()) continue;

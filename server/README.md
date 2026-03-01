@@ -34,6 +34,8 @@ import { setupSocketHandlers } from "./server/socket/index.js";
 
 1. **New API routes**: Add to `server/routes/index.js`
 2. **New Socket events**: Add to `server/socket/index.js`
-3. **New AI provider via Pi**: Pi supports multiple providers; configure in `piRpcSession.js` (`CLIENT_PROVIDER_TO_PI` mapping)
-4. **New utilities**: Add to appropriate module or create new module
-5. **New configuration**: Add to `server/config/index.js`
+3. **New AI provider via Pi**: Edit `config/pi.json` (provider mapping, routing rules, default models)
+4. **New/changed models**: Edit `config/models.json`
+5. **Skills configuration**: Edit `config/skills.json` (library path, categories, enabled-file path)
+6. **New utilities**: Add to appropriate module or create new module
+7. **New configuration**: Add to `server/config/index.js`

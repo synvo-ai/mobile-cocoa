@@ -3,8 +3,9 @@
  */
 import os from "os";
 import {
-    ENABLE_DOCKER_MANAGER, getWorkspaceCwd,
-    setWorkspaceCwd, SIDEBAR_REFRESH_INTERVAL_MS, WORKSPACE_ALLOWED_ROOT
+  ENABLE_DOCKER_MANAGER, getWorkspaceCwd,
+  loadModelsConfig,
+  setWorkspaceCwd, SIDEBAR_REFRESH_INTERVAL_MS, WORKSPACE_ALLOWED_ROOT
 } from "../config/index.js";
 
 function toMb(value) {
@@ -16,6 +17,16 @@ export function registerConfigRoutes(app) {
     res.json({
       sidebarRefreshIntervalMs: SIDEBAR_REFRESH_INTERVAL_MS,
     });
+  });
+
+  /**
+   * GET /api/models
+   * Returns the full model configuration from config/models.json.
+   * Re-reads from disk on every request so edits take effect without restart.
+   */
+  app.get("/api/models", (_, res) => {
+    const cfg = loadModelsConfig();
+    res.json(cfg);
   });
 
   app.get("/api/workspace-path", (_, res) => {

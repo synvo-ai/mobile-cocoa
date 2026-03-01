@@ -14,6 +14,104 @@ import { fileURLToPath } from "url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
 
+// ── External models config ──────────────────────────────────────────────────
+/** Absolute path to the models config JSON (config/models.json). */
+export const MODELS_CONFIG_PATH = path.join(projectRoot, "config", "models.json");
+
+/**
+ * Load and parse the models config from disk.
+ * Falls back to a minimal built-in config so the server never crashes if the
+ * file is missing or malformed.
+ * @returns {import('./models.js').ModelsConfig}
+ */
+export function loadModelsConfig() {
+  try {
+    const raw = fs.readFileSync(MODELS_CONFIG_PATH, "utf8");
+    const cfg = JSON.parse(raw);
+    if (!cfg || typeof cfg.providers !== "object") {
+      throw new Error("Missing 'providers' key in models.json");
+    }
+    return cfg;
+  } catch (err) {
+    console.warn("[models-config] Could not load config/models.json — using built-in fallback:", err?.message);
+    return {
+      providers: {
+        claude: { defaultModel: "sonnet4.5", models: [{ value: "sonnet4.5", label: "Sonnet 4.5" }] },
+        gemini: { defaultModel: "gemini-3.1-pro-preview", models: [{ value: "gemini-3.1-pro-preview", label: "3.1 Pro Preview" }] },
+        codex: { defaultModel: "gpt-5.1-codex-mini", models: [{ value: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" }] },
+      },
+      modelAliases: { "sonnet4.5": "claude-sonnet-4-5", "opus4.5": "claude-opus-4-5" },
+    };
+  }
+}
+
+// ── External Pi config ──────────────────────────────────────────────────────
+/** Absolute path to the Pi config JSON (config/pi.json). */
+export const PI_CONFIG_PATH = path.join(projectRoot, "config", "pi.json");
+
+/**
+ * Load and parse the Pi config from disk.
+ * Falls back to built-in defaults so the server never crashes if the file is
+ * missing or malformed.
+ * @returns {object}
+ */
+export function loadPiConfig() {
+  try {
+    const raw = fs.readFileSync(PI_CONFIG_PATH, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("[pi-config] Could not load config/pi.json — using built-in fallback:", err?.message);
+    return {
+      cliPath: "pi",
+      autoApproveToolConfirm: false,
+      providerMapping: { claude: "anthropic", codex: "openai-codex" },
+      providerRouting: {
+        rules: [
+          { modelPattern: "^gemini-3-", excludePattern: "-preview$", provider: "google-antigravity" },
+          { modelPattern: "^gemini-", provider: "google-gemini-cli" },
+          { modelPattern: "^gpt-|^codex-", provider: "openai" },
+          { modelPattern: "^claude-|^sonnet|^opus|^claude-haiku", provider: "anthropic" },
+        ],
+        fallback: { gemini: "google-gemini-cli", claude: "anthropic", codex: "openai" },
+      },
+      defaultModels: {
+        anthropic: "claude-sonnet-4-5",
+        openai: "gpt-4o",
+        "openai-codex": "gpt-4o",
+        "google-gemini-cli": "gemini-3.1-pro-preview",
+        "google-antigravity": "gemini-3.1-pro-preview",
+      },
+      systemPrompts: {},
+    };
+  }
+}
+
+// ── External Skills config ──────────────────────────────────────────────────
+/** Absolute path to the skills config JSON (config/skills.json). */
+export const SKILLS_CONFIG_PATH = path.join(projectRoot, "config", "skills.json");
+
+/**
+ * Load and parse the skills config from disk.
+ * Falls back to built-in defaults.
+ * @returns {object}
+ */
+export function loadSkillsConfig() {
+  try {
+    const raw = fs.readFileSync(SKILLS_CONFIG_PATH, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("[skills-config] Could not load config/skills.json — using built-in fallback:", err?.message);
+    return {
+      skillsLibraryDir: "server/skills-library",
+      skillsEnabledFile: "server/skills-enabled.json",
+      skillsEnabledDir: "server/skills_enabled",
+      skillFileName: "SKILL.md",
+      defaultCategory: "Development",
+      categories: {},
+    };
+  }
+}
+
 /**
  * Resolve workspace directory from CLI or environment variables.
  * Priority: --workspace flag > positional arg > WORKSPACE env > WORKSPACE_CWD env > default

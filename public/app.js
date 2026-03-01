@@ -12,30 +12,43 @@ const sidebarTree = document.getElementById("sidebar-tree");
 const sidebarWorkspaceName = document.getElementById("sidebar-workspace-name");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 
-/** Current AI provider ("claude" | "gemini"). Fixed during chat; user cannot switch provider. */
+/** Current AI provider ("claude" | "gemini" | "codex"). Fixed during chat; user cannot switch provider. */
 let currentProvider = "gemini";
 
-/** Model options per provider. Used for model dropdown only (provider not selectable in chat). */
-const CLAUDE_MODELS = [
-  { value: "haiku", label: "Haiku 4.5" },
-  { value: "sonnet", label: "Sonnet 4.5" },
-  { value: "opus", label: "Opus 4.5" },
-];
-const GEMINI_MODELS = [
-  { value: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro Low" },
-  { value: "gemini-3.1-flash", label: "Gemini 3.1 Flash" },
-  { value: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High" },
-  { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
-];
-const DEFAULT_CLAUDE_MODEL = "sonnet";
-const DEFAULT_GEMINI_MODEL = "gemini-3.1-pro-preview";
+/** Loaded from /api/models at startup. Null until fetched. */
+let _modelsConfig = null;
 
-function getModelsForProvider(provider) {
-  return provider === "claude" ? CLAUDE_MODELS : GEMINI_MODELS;
+/** @returns {Promise<{providers: Record<string, {defaultModel:string, models:{value:string,label:string}[]}>}>} */
+async function fetchModelsConfig() {
+  if (_modelsConfig) return _modelsConfig;
+  try {
+    const res = await fetch("/api/models");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    _modelsConfig = await res.json();
+  } catch (err) {
+    console.warn("[models-config] Could not load /api/models, using built-in fallback:", err?.message);
+    _modelsConfig = {
+      providers: {
+        claude: { defaultModel: "sonnet4.5", models: [{ value: "sonnet4.5", label: "Sonnet 4.5" }] },
+        gemini: { defaultModel: "gemini-3.1-pro-preview", models: [{ value: "gemini-3.1-pro-preview", label: "3.1 Pro Preview" }] },
+        codex: { defaultModel: "gpt-5.1-codex-mini", models: [{ value: "gpt-5.1-codex-mini", label: "GPT-5.1 Codex Mini" }] },
+      },
+    };
+  }
+  return _modelsConfig;
 }
 
-/** Current model. User can switch model only; provider is fixed. */
-let currentModel = DEFAULT_GEMINI_MODEL;
+function getModelsForProvider(provider) {
+  return _modelsConfig?.providers?.[provider]?.models ?? [];
+}
+
+function getDefaultModelForProvider(provider) {
+  return _modelsConfig?.providers?.[provider]?.defaultModel ?? "";
+}
+
+/** Current model. Resolved after config loads. */
+let currentModel = "";
+
 
 const socket = io();
 
@@ -586,7 +599,7 @@ function initProviderSelector() {
   wrap.innerHTML = '<label class="input-bar-label">Model: <select id="model-select"></select></label>';
   const modelSel = wrap.querySelector("#model-select");
   const models = getModelsForProvider(currentProvider);
-  const defaultModel = currentProvider === "claude" ? DEFAULT_CLAUDE_MODEL : DEFAULT_GEMINI_MODEL;
+  const defaultModel = getDefaultModelForProvider(currentProvider);
   const validValues = models.map((m) => m.value);
   if (!validValues.includes(currentModel)) currentModel = defaultModel;
   modelSel.innerHTML = models.map((m) => `<option value="${m.value}">${m.label}</option>`).join("");
@@ -598,4 +611,10 @@ function initProviderSelector() {
     currentModel = modelSel.value;
   });
 }
-initProviderSelector();
+
+// Initialise: fetch model config first, then build the selector
+fetchModelsConfig().then(() => {
+  // Resolve initial model from config
+  currentModel = getDefaultModelForProvider(currentProvider);
+  initProviderSelector();
+});

@@ -287,6 +287,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       const endedSessionId = connectionSessionIdRef.current;
       if (!endedSessionId) return;
       if (displayedSessionIdRef.current === endedSessionId) {
+        setSessionStateForSession(endedSessionId, "idle");
         setWaitingForUserInput(false);
       }
     };

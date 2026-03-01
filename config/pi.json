@@ -1,0 +1,47 @@
+{
+    "_comment": "Pi CLI configuration — edit this file to change Pi agent behavior. No code changes required.",
+    "cliPath": "pi",
+    "autoApproveToolConfirm": false,
+    "defaultPermissionMode": "bypassPermissions",
+    "providerMapping": {
+        "claude": "anthropic",
+        "codex": "openai-codex"
+    },
+    "providerRouting": {
+        "_comment": "Regex-based routing for Gemini models. Evaluated in order; first match wins.",
+        "rules": [
+            {
+                "modelPattern": "^gemini-3-",
+                "excludePattern": "-preview$",
+                "provider": "google-antigravity"
+            },
+            {
+                "modelPattern": "^gemini-",
+                "provider": "google-gemini-cli"
+            },
+            {
+                "modelPattern": "^gpt-|^codex-",
+                "provider": "openai"
+            },
+            {
+                "modelPattern": "^claude-|^sonnet|^opus|^claude-haiku",
+                "provider": "anthropic"
+            }
+        ],
+        "fallback": {
+            "gemini": "google-gemini-cli",
+            "claude": "anthropic",
+            "codex": "openai"
+        }
+    },
+    "defaultModels": {
+        "anthropic": "claude-sonnet-4-5",
+        "openai": "gpt-4o",
+        "openai-codex": "gpt-4o",
+        "google-gemini-cli": "gemini-3.1-pro-preview",
+        "google-antigravity": "gemini-3.1-pro-preview"
+    },
+    "systemPrompts": {
+        "terminalRules": "When running terminal commands: (1) MANDATORY: use the Bash tool for every terminal command step — never use run_terminal_cmd, run_command, or alternatives; (2) use ad-hoc bash, not persistent shells; (3) when starting background servers, ALWAYS use nohup + disown: nohup bash -c 'cd dir && ... && python run.py' >> log 2>&1 & disown — Pi's Bash tool waits for children, so nohup+disown prevents the call from hanging;"
+    }
+}

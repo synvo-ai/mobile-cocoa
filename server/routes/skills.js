@@ -2,14 +2,15 @@
  * Skills discovery and management routes.
  */
 import path from "path";
-import { getWorkspaceCwd, projectRoot } from "../config/index.js";
+import { getWorkspaceCwd, projectRoot, loadSkillsConfig } from "../config/index.js";
 import {
-    discoverSkills, getEnabledIds, getSkillChildren, getSkillContent, resolveAgentDir, setEnabledIds
+  discoverSkills, getEnabledIds, getSkillChildren, getSkillContent, resolveAgentDir, setEnabledIds
 } from "../skills/index.js";
 
-/** Resolve skills directory from the server directory. */
+/** Resolve skills directory from config/skills.json. */
 function getSkillsDir() {
-  return path.join(projectRoot, "server", "skills-library");
+  const cfg = loadSkillsConfig();
+  return path.join(projectRoot, cfg.skillsLibraryDir || "server/skills-library");
 }
 
 export function registerSkillsRoutes(app) {

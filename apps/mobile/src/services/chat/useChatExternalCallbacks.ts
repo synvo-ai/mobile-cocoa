@@ -1,6 +1,6 @@
 import type { Message, PendingAskUserQuestion, PermissionDenial } from "@/core/types";
 import { useEffect, useRef } from "react";
-import type { SessionRuntimeState, UseChatOptions } from "./hooks-types";
+import type { SessionRuntimeState, UseChatOptions } from "./hooksTypes";
 
 type RuntimeCallbacks = Pick<
   UseChatOptions,

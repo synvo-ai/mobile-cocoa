@@ -1,7 +1,7 @@
 import type { CodeReference, Message } from "@/core/types";
 import { stripAnsi, stripTrailingIncompleteTag } from "@/services/providers/stream";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import type { SessionLiveState, SessionRuntimeState } from "./hooks-types";
+import type { SessionLiveState, SessionRuntimeState } from "./hooksTypes";
 
 export interface SessionMessageHandlers {
   addMessageForSession: (role: Message["role"], content: string, codeReferences?: CodeReference[]) => string;

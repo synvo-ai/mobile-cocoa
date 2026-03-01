@@ -2,15 +2,12 @@ import { createEventDispatcher } from "@/services/providers/eventDispatcher";
 import { isProviderStream, stripAnsi } from "@/services/providers/stream";
 import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { AppState, type AppStateStatus } from "react-native";
-import { resolveStreamUrl } from "./chatHookHelpers";
 import type {
-    EventSourceLike, LastRunOptions, Message,
+    LastRunOptions, Message,
     PendingAskUserQuestion,
     PermissionDenial,
-    SessionLiveState,
     SessionRuntimeState
-} from "./hooks-types";
-import { moveSessionCacheData } from "./sessionCacheHelpers";
+} from "./hooksTypes";
 import { createSessionMessageHandlers } from "./sessionMessageHandlers";
 import {
     SSE_MAX_RETRIES,
@@ -24,6 +21,7 @@ import {
     createStreamFlusher,
 } from "./streamFlusher";
 import { processRawSseLine } from "./sseMessageParser";
+import type { UseSessionCache } from "./useSessionCache";
 
 
 type UseChatStreamingLifecycleParams = {
@@ -31,42 +29,15 @@ type UseChatStreamingLifecycleParams = {
   sessionId: string | null;
   storeSessionId: string | null;
   sessionStatuses: Array<{ id: string; status: string }>;
+  sessionCache: UseSessionCache;
   skipReplayForSessionRef: MutableRefObject<string | null>;
   nextIdRef: MutableRefObject<number>;
   liveMessagesRef: MutableRefObject<Message[]>;
   outputBufferRef: MutableRefObject<string>;
-  sessionStatesRef: MutableRefObject<Map<string, SessionLiveState>>;
-  sessionMessagesRef: MutableRefObject<Map<string, Message[]>>;
-  sessionDraftRef: MutableRefObject<Map<string, string>>;
-  activeSseRef: MutableRefObject<{ id: string; source: EventSourceLike } | null>;
-  activeSseHandlersRef: MutableRefObject<SseEventHandlers | null>;
-  suppressActiveSessionSwitchRef: MutableRefObject<boolean>;
-  selectedSessionRuntimeRef: MutableRefObject<{ id: string | null; running: boolean } | null>;
-  connectionIntentBySessionRef: MutableRefObject<Map<string, boolean>>;
-  sawAgentEndRef: MutableRefObject<boolean>;
-  streamFlushTimeoutRef: MutableRefObject<ReturnType<typeof setTimeout> | null>;
-  displayedSessionIdRef: MutableRefObject<string | null>;
-  recordToolUseRef: MutableRefObject<(id: string, data: { tool_name: string; tool_input?: Record<string, unknown> }) => void>;
-  getAndClearToolUseRef: MutableRefObject<(id: string) => { tool_name: string; tool_input?: Record<string, unknown> } | null>;
-  addPermissionDenialRef: MutableRefObject<(denial: PermissionDenial) => void>;
-  deduplicateDenialsRef: MutableRefObject<(denials: PermissionDenial[]) => PermissionDenial[]>;
-  getOrCreateSessionState: (sid: string) => SessionLiveState;
-  getOrCreateSessionMessages: (sid: string) => Message[];
-  getSessionDraft: (sid: string) => string;
-  setSessionDraft: (sid: string, draft: string) => void;
-  setSessionMessages: (sid: string, messages: Message[]) => void;
-  deduplicateMessageIds: (messages: Message[]) => Message[];
-  getMaxMessageId: (messages: Message[]) => number;
-  closeActiveSse: (reason?: string) => void;
-  syncSessionToReact: (sid: string | null) => void;
-  getConnectionIntent: (sid: string | null) => boolean | undefined;
-  setConnectionIntent: (sid: string | null, shouldConnect: boolean) => void;
-  clearConnectionIntent: (sid: string | null) => void;
   setConnected: Dispatch<SetStateAction<boolean>>;
   setSessionId: Dispatch<SetStateAction<string | null>>;
   setLiveSessionMessages: Dispatch<SetStateAction<Message[]>>;
   setSessionState: Dispatch<SetStateAction<SessionRuntimeState>>;
-  setSessionStateForSession: (sid: string | null, next: SessionRuntimeState) => void;
   setWaitingForUserInput: Dispatch<SetStateAction<boolean>>;
   setPendingAskQuestion: Dispatch<SetStateAction<PendingAskUserQuestion | null>>;
   setPermissionDenials: Dispatch<SetStateAction<PermissionDenial[] | null>>;
@@ -79,48 +50,34 @@ type UseChatStreamingLifecycleParams = {
  *  5MB is well under Hermes' ~500MB limit but large enough for any legitimate partial line. */
 const OUTPUT_BUFFER_MAX_SIZE = 5 * 1024 * 1024;
 
+const resolveStreamUrl = (
+  serverUrl: string,
+  sessionId: string,
+  skipReplayForSession: string | null
+): { url: string; applySkipReplay: boolean } => {
+  const baseUrl = `${serverUrl}/api/sessions/${sessionId}/stream?activeOnly=1`;
+  const applySkipReplay = skipReplayForSession === sessionId;
+  return {
+    url: applySkipReplay ? `${baseUrl}&skipReplay=1` : baseUrl,
+    applySkipReplay,
+  };
+};
+
 export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParams) {
   const {
     serverUrl,
     sessionId,
     storeSessionId,
     sessionStatuses,
+    sessionCache,
     skipReplayForSessionRef,
     nextIdRef,
     liveMessagesRef,
     outputBufferRef,
-    sessionStatesRef,
-    sessionMessagesRef,
-    sessionDraftRef,
-    activeSseRef,
-    activeSseHandlersRef,
-    suppressActiveSessionSwitchRef,
-    selectedSessionRuntimeRef,
-    connectionIntentBySessionRef,
-    sawAgentEndRef,
-    streamFlushTimeoutRef,
-    displayedSessionIdRef,
-    recordToolUseRef,
-    getAndClearToolUseRef,
-    addPermissionDenialRef,
-    deduplicateDenialsRef,
-    getOrCreateSessionState,
-    getOrCreateSessionMessages,
-    getSessionDraft,
-    setSessionDraft,
-    setSessionMessages,
-    deduplicateMessageIds,
-    getMaxMessageId,
-    closeActiveSse,
-    syncSessionToReact,
-    getConnectionIntent,
-    setConnectionIntent,
-    clearConnectionIntent,
     setConnected,
     setSessionId,
     setLiveSessionMessages,
     setSessionState,
-    setSessionStateForSession,
     setWaitingForUserInput,
     setPendingAskQuestion,
     setPermissionDenials,
@@ -128,6 +85,30 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     setStoreSessionId,
     lastRunOptionsRef,
   } = params;
+  const {
+    syncSessionToReact,
+    deduplicateMessageIds,
+    getMaxMessageId,
+    closeActiveSse,
+    setSessionStateForSession,
+    getConnectionIntent,
+    getOrCreateSessionState,
+    getOrCreateSessionMessages,
+    getSessionDraft,
+    setSessionDraft,
+    setSessionMessages,
+    displayedSessionIdRef,
+    activeSseRef,
+    activeSseHandlersRef,
+    suppressActiveSessionSwitchRef,
+    selectedSessionRuntimeRef,
+    sawAgentEndRef,
+    streamFlushTimeoutRef,
+    recordToolUseRef,
+    getAndClearToolUseRef,
+    addPermissionDenialRef,
+    deduplicateDenialsRef,
+  } = sessionCache;
 
   // Derive a primitive boolean for the target session's running status.
   // sessionStatuses array changes identity every 3s poll, but this boolean
@@ -301,25 +282,8 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
     const setSessionIdWithRekey = (newId: string | null) => {
       const currentSid = connectionSessionIdRef.current;
       if (newId && newId !== currentSid && !newId.startsWith("temp-")) {
-        moveSessionCacheData(currentSid, newId, sessionStatesRef.current, sessionMessagesRef.current, sessionDraftRef.current);
+        sessionCache.rekeySessionData(currentSid, newId);
         connectionSessionIdRef.current = newId;
-        // Sync displayed session ID during the rekey window (temp-* → real ID)
-        if (displayedSessionIdRef.current === currentSid) {
-          displayedSessionIdRef.current = newId;
-        }
-        if (activeSseRef.current && activeSseRef.current.id === currentSid) {
-          activeSseRef.current.id = newId;
-          suppressActiveSessionSwitchRef.current = true;
-        }
-        const selectedSessionRuntime = selectedSessionRuntimeRef.current;
-        if (selectedSessionRuntime?.id === currentSid) {
-          selectedSessionRuntimeRef.current = { ...selectedSessionRuntime, id: newId };
-        }
-        const intent = connectionIntentBySessionRef.current.get(currentSid);
-        if (intent !== undefined) {
-          connectionIntentBySessionRef.current.delete(currentSid);
-          connectionIntentBySessionRef.current.set(newId, intent);
-        }
       }
       setSessionId(newId);
     };

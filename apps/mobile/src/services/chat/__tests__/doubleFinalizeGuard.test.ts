@@ -8,7 +8,7 @@
  *    effect cleanup from calling finalize when handleStreamEnd already did.
  */
 import { createSessionMessageHandlers } from "../sessionMessageHandlers";
-import type { SessionLiveState, SessionRuntimeState } from "../hooks-types";
+import type { SessionLiveState, SessionRuntimeState } from "../hooksTypes";
 import type { Message } from "@/core/types";
 
 /** Build mock deps for createSessionMessageHandlers with an in-memory store. */

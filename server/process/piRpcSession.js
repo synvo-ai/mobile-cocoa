@@ -28,12 +28,6 @@ import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
 /** Byte threshold above which assistant message SSE events are stripped to prevent unbounded responseText growth. */
 const SLIM_SSE_THRESHOLD_BYTES = 2048;
 
-/** Provider mapping: loaded from config/pi.json. */
-function getClientProviderToPi() {
-  const cfg = loadPiConfig();
-  return cfg.providerMapping ?? {};
-}
-
 function isLoopbackHost(rawHost) {
   const host = String(rawHost || "").toLowerCase();
   if (!host) return false;
@@ -549,13 +543,13 @@ export function createPiRpcSession({
     });
   }
 
-  async function startTurn({ prompt, options }) {
+  async function startTurn({ prompt, clientProvider, model }) {
     turnCompleted = false;
     turnRunning = true;
     closeIoOutputStream();
     await ensurePiProcess({
-      clientProvider: options.clientProvider,
-      model: options.model,
+      clientProvider,
+      model,
     });
 
     openPiIoOutputStream();
@@ -566,7 +560,7 @@ export function createPiRpcSession({
     // and checks for parsed.type as well, so this format works for both transports.
     emitOutputLine(JSON.stringify({
       type: "session-started",
-      provider: options.clientProvider ?? sessionManagement?.provider ?? DEFAULT_PROVIDER,
+      provider: clientProvider ?? sessionManagement?.provider ?? DEFAULT_PROVIDER,
       session_id: null,
       permissionMode: null,
       allowedTools: [],
@@ -603,16 +597,11 @@ export function createPiRpcSession({
     return true;
   }
 
-  function hasProcess() {
-    return piProcess !== null;
-  }
-
   function isTurnRunning() {
     return turnRunning;
   }
 
   return {
-    hasProcess,
     isTurnRunning,
     close,
     startTurn,

@@ -24,6 +24,8 @@ import {
     createNewSessionFile,
     replayHistoryToResponse,
     parseMessagesFromJsonl,
+    assertValidSessionId,
+    isValidSessionId,
 } from "./sessionHelpers.js";
 
 const DEFAULT_SESSION_PROVIDER = DEFAULT_PROVIDER;
@@ -34,6 +36,28 @@ const SSE_PROCESS_START_WAIT_MS = 6_000;
 /** Interval in ms to poll for process start during active-only SSE connections. */
 const SSE_PROCESS_START_POLL_MS = 150;
 
+const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
+    try {
+        return fs.realpathSync(WORKSPACE_ALLOWED_ROOT);
+    } catch {
+        return path.resolve(WORKSPACE_ALLOWED_ROOT);
+    }
+})();
+
+function isInsideRoot(rootDir, targetPath) {
+    const rel = path.relative(rootDir, targetPath);
+    return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
+function requireValidSessionIdParam(req, res) {
+    try {
+        return assertValidSessionId(req.params.sessionId);
+    } catch {
+        res.status(400).json({ error: "Invalid sessionId" });
+        return null;
+    }
+}
+
 /**
  * Find an existing session or create (and optionally replace) one.
  * Writes the user prompt to the JSONL immediately so GET /messages can find it
@@ -41,9 +65,12 @@ const SSE_PROCESS_START_POLL_MS = 150;
  * @returns {{ session: object, sessionId: string }}
  */
 function findOrCreateSession(payload, provider, model, prompt, sessionCwd) {
-    let sessionId = payload.sessionId;
-    if (!sessionId || typeof sessionId !== "string" || sessionId.startsWith("temp-")) {
-        sessionId = null;
+    let sessionId = null;
+    if (typeof payload?.sessionId === "string" && payload.sessionId.trim()) {
+        const candidate = payload.sessionId.trim();
+        if (!candidate.startsWith("temp-")) {
+            sessionId = assertValidSessionId(candidate);
+        }
     }
 
     let session = sessionId ? getSession(sessionId) : null;
@@ -168,7 +195,13 @@ export function registerSessionsRoutes(app) {
             return res.status(400).json({ ok: false, error: "Prompt cannot be empty" });
         }
 
-        const { session, sessionId } = findOrCreateSession(payload, provider, model, prompt, sessionCwd);
+        let session;
+        let sessionId;
+        try {
+            ({ session, sessionId } = findOrCreateSession(payload, provider, model, prompt, sessionCwd));
+        } catch (err) {
+            return res.status(400).json({ ok: false, error: err?.message || "Invalid sessionId" });
+        }
 
         try {
             session.processManager.handleSubmitPrompt(payload, req.headers.host);
@@ -182,10 +215,17 @@ export function registerSessionsRoutes(app) {
     // POST /api/sessions/destroy-workspace - Delete all sessions for a workspace (and their session folders)
     router.post("/destroy-workspace", (req, res) => {
         const rawPath = req.body?.path ?? req.query?.path;
-        const targetPath = (typeof rawPath === "string" && rawPath.trim())
+        const targetPathInput = (typeof rawPath === "string" && rawPath.trim())
             ? path.resolve(rawPath.trim())
             : getWorkspaceCwd();
-        if (!targetPath.startsWith(WORKSPACE_ALLOWED_ROOT)) {
+        const targetPath = (() => {
+            try {
+                return fs.realpathSync(targetPathInput);
+            } catch {
+                return targetPathInput;
+            }
+        })();
+        if (!isInsideRoot(WORKSPACE_ALLOWED_ROOT_REAL, targetPath)) {
             return res.status(400).json({ error: "Path must be under allowed root" });
         }
         const sessionsBase = path.join(SESSIONS_ROOT, "sessions");
@@ -197,6 +237,7 @@ export function registerSessionsRoutes(app) {
             const subdirs = fs.readdirSync(sessionsBase, { withFileTypes: true }).filter((e) => e.isDirectory());
             for (const d of subdirs) {
                 const sessionId = d.name;
+                if (!isValidSessionId(sessionId)) continue;
                 const filePath = findJsonlInDir(path.join(sessionsBase, sessionId));
                 if (!filePath) continue;
                 const { cwd } = parseSessionMetadata(filePath);
@@ -226,7 +267,9 @@ export function registerSessionsRoutes(app) {
 
     // POST /api/sessions/:sessionId/input
     router.post("/:sessionId/input", (req, res) => {
-        const session = getSession(req.params.sessionId);
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
+        const session = getSession(sessionId);
         if (!session) return res.status(404).json({ error: "Session not found" });
 
         session.processManager.handleInput(req.body);
@@ -235,21 +278,27 @@ export function registerSessionsRoutes(app) {
 
     // POST /api/sessions/:sessionId/terminate
     router.post("/:sessionId/terminate", (req, res) => {
-        const session = getSession(req.params.sessionId);
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
+        const session = getSession(sessionId);
         if (!session) return res.status(404).json({ error: "Session not found" });
 
         session.processManager.handleTerminate({ resetSession: req.body.resetSession });
         res.json({ ok: true });
     });
 
-    // POST /api/sessions/:sessionId/finished - Client notifies that it has observed the session as idle/finished
+    // POST /api/sessions/:sessionId/finished - compatibility endpoint for mobile side-effects
     router.post("/:sessionId/finished", (req, res) => {
-        res.json({ ok: true });
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
+        // Intentionally no-op: mobile uses this as a completion signal hook.
+        res.json({ ok: true, sessionId });
     });
 
     // GET /api/sessions/:sessionId/messages - Load messages from central .pi/agent/sessions
     router.get("/:sessionId/messages", (req, res) => {
-        const { sessionId } = req.params;
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
         const filePath = resolveSessionFilePath(sessionId);
         if (!filePath || !fs.existsSync(filePath)) {
             return res.status(404).json({ error: "Session not found" });
@@ -282,7 +331,8 @@ export function registerSessionsRoutes(app) {
 
     // DELETE /api/sessions/:sessionId - Remove session folder and clean up active registry
     router.delete("/:sessionId", (req, res) => {
-        const { sessionId } = req.params;
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
         const sessionDir = getSessionDir(sessionId);
         if (!fs.existsSync(sessionDir)) {
             return res.status(404).json({ error: "Session not found" });
@@ -302,7 +352,8 @@ export function registerSessionsRoutes(app) {
 
     // GET /api/sessions/:sessionId/stream
     router.get("/:sessionId/stream", async (req, res) => {
-        const sessionId = req.params.sessionId;
+        const sessionId = requireValidSessionIdParam(req, res);
+        if (!sessionId) return;
         const session = resolveSession(sessionId);
 
         // Setup SSE headers
@@ -340,13 +391,31 @@ export function registerSessionsRoutes(app) {
             const pollMs = SSE_PROCESS_START_POLL_MS;
             const start = Date.now();
             let done = false;
-            req.on("close", () => {
+            let pollTimer;
+            const isClosed = () =>
+                done ||
+                res.writableEnded ||
+                res.destroyed ||
+                req.aborted ||
+                req.destroyed ||
+                req.socket?.destroyed;
+            const cleanup = () => {
+                if (done) return;
                 done = true;
+                if (pollTimer) clearTimeout(pollTimer);
                 session.subscribers.delete(res);
-            });
+            };
+            req.on("close", cleanup);
             const check = () => {
-                if (done || res.writableEnded) return;
+                if (isClosed()) {
+                    cleanup();
+                    return;
+                }
                 if (session.processManager.processRunning?.()) {
+                    if (isClosed()) {
+                        cleanup();
+                        return;
+                    }
                     done = true;
                     session.subscribers.add(res);
                     if (process.env.DEBUG_SSE) {
@@ -356,13 +425,14 @@ export function registerSessionsRoutes(app) {
                 }
                 if (Date.now() - start >= maxWaitMs) {
                     done = true;
+                    if (pollTimer) clearTimeout(pollTimer);
                     res.write(`event: end\ndata: {"exitCode": 0}\n\n`);
                     res.end();
                     return;
                 }
-                setTimeout(check, pollMs);
+                pollTimer = setTimeout(check, pollMs);
             };
-            setTimeout(check, pollMs);
+            pollTimer = setTimeout(check, pollMs);
             return;
         }
 

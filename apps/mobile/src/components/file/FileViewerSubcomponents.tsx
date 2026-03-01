@@ -1,4 +1,4 @@
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import React, { memo } from "react";
 import { Dimensions, type TextStyle, type ViewStyle } from "react-native";
 

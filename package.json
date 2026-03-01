@@ -8,8 +8,8 @@
   ],
   "scripts": {
     "postinstall": "patch-package",
-    "start": "node server.js",
-    "dev": "nodemon server.js",
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
     "dev:mobile": "EXPO_PUBLIC_SERVER_URL=http://localhost:3456 npm run -w mobile start",
     "proxy": "node server/utils/proxy.js",
     "cloudflare:tunnel": "node server/scripts/start-cloudflare-tunnel.mjs",

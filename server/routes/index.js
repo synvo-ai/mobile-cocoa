@@ -12,9 +12,9 @@
 import { registerConfigRoutes } from "./config.js";
 import { registerDockerRoutes } from "./docker.js";
 import { registerGitRoutes } from "./git.js";
-import { registerHealthPageRoutes } from "./health-page.js";
+import { registerHealthPageRoutes } from "./healthPage.js";
 import { registerProcessesRoutes } from "./processes.js";
-import { registerSessionManagementStoreRoutes } from "./session-management-store.js";
+import { registerSessionManagementStoreRoutes } from "./sessionManagementStore.js";
 import { registerSessionsRoutes } from "./sessions.js";
 import { registerSkillsRoutes } from "./skills.js";
 import { createServeWorkspaceFileMiddleware, registerWorkspaceRoutes } from "./workspace.js";

@@ -77,7 +77,7 @@ Core state management for the mobile chat UI. Manages SSE connections, message s
 | `getOrCreateSessionMessages(map, sid)` | Gets or initializes session messages array |
 | `moveSessionCacheData(current, next, ...)` | Migrates cache data when session ID changes |
 
-### [`hooks-types.ts`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/apps/mobile/src/services/chat/hooks-types.ts) — Type Definitions
+### [`hooksTypes.ts`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/apps/mobile/src/services/chat/hooksTypes.ts) — Type Definitions
 
 | Type | Description |
 |------|-------------|
@@ -86,7 +86,7 @@ Core state management for the mobile chat UI. Manages SSE connections, message s
 | `LastRunOptions` | Provider, permission mode, tools for retry |
 | `UseChatOptions` | Hook configuration options |
 
-### [`hooks-serialization.ts`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/apps/mobile/src/services/chat/hooks-serialization.ts) — Payload Utilities
+### [`hooksSerialization.ts`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/apps/mobile/src/services/chat/hooksSerialization.ts) — Payload Utilities
 
 Normalizes submit-prompt payloads and provides stable JSON serialization.
 

@@ -3,7 +3,7 @@
  * Finds processes listening on common dev ports and retrieves their command lines.
  * Extracts log file paths from commands (>> file.log, > file.log) for the "View log" feature.
  */
-import { execSync } from "child_process";
+import { execSync, spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { PORT, TUNNEL_PROXY_PORT } from "../config/index.js";
@@ -276,12 +276,20 @@ export function getLogTail(absPath, workspacePath, lines = TAIL_LINES, allowOuts
     return { ok: false, error: "File not found or inaccessible" };
   }
   try {
-    const content = execSync(`tail -n ${lines} "${resolved}" 2>/dev/null || true`, {
+    const result = spawnSync("tail", ["-n", String(lines), resolved], {
       encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
       maxBuffer: 512 * 1024,
       timeout: 10_000, // Safety net — never block event loop for more than 10s
     });
-    return { ok: true, content, path: resolved };
+    if (result.error) {
+      return { ok: false, error: result.error.message || "Failed to read log" };
+    }
+    if (result.status !== 0) {
+      const errText = (result.stderr || result.stdout || "Failed to read log").trim();
+      return { ok: false, error: errText || "Failed to read log" };
+    }
+    return { ok: true, content: result.stdout ?? "", path: resolved };
   } catch (err) {
     return { ok: false, error: err?.message ?? "Failed to read log" };
   }

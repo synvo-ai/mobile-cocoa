@@ -9,9 +9,9 @@ import type {
 import { getAllowedToolsFromDenials } from "@/services/providers/stream";
 import { useSessionManagementStore } from "@/state/sessionManagementStore";
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
-import { normalizeSubmitPayload, stableStringify } from "./hooks-serialization";
-import type { SessionLiveState, SessionRuntimeState } from "./hooks-types";
-import { appendCodeRefsToPrompt } from "./hooks-utils";
+import { normalizeSubmitPayload, stableStringify } from "./hooksSerialization";
+import { appendCodeRefsToPrompt } from "./hooksUtils";
+import type { UseSessionCache } from "./useSessionCache";
 
 type UseChatActionsParams = {
   serverUrl: string;
@@ -27,21 +27,13 @@ type UseChatActionsParams = {
   displayedSessionIdRef: MutableRefObject<string | null>;
   skipReplayForSessionRef: MutableRefObject<string | null>;
   addMessage: (role: Message["role"], content: string, codeReferences?: CodeReference[]) => string;
-  deduplicateMessageIds: (messages: Message[]) => Message[];
-  getOrCreateSessionState: (sid: string) => SessionLiveState;
-  getOrCreateSessionMessages: (sid: string) => Message[];
-  setSessionMessages: (sid: string, messages: Message[]) => void;
-  setSessionDraft: (sid: string, draft: string) => void;
+  sessionCache: UseSessionCache;
   setSessionId: Dispatch<SetStateAction<string | null>>;
   setLiveSessionMessages: Dispatch<SetStateAction<Message[]>>;
   setPermissionDenials: Dispatch<SetStateAction<PermissionDenial[] | null>>;
   setPendingAskQuestion: Dispatch<SetStateAction<PendingAskUserQuestion | null>>;
   setLastSessionTerminated: Dispatch<SetStateAction<boolean>>;
   setWaitingForUserInput: Dispatch<SetStateAction<boolean>>;
-  setSessionStateForSession: (sid: string | null, next: SessionRuntimeState) => void;
-  setConnectionIntent: (sid: string | null, shouldConnect: boolean) => void;
-  clearConnectionIntent: (sid: string | null) => void;
-  closeActiveSse: (reason?: string) => void;
 };
 
 export function useChatActions(params: UseChatActionsParams) {
@@ -59,22 +51,26 @@ export function useChatActions(params: UseChatActionsParams) {
     displayedSessionIdRef,
     skipReplayForSessionRef,
     addMessage,
-    deduplicateMessageIds,
-    getOrCreateSessionState,
-    getOrCreateSessionMessages,
-    setSessionMessages,
-    setSessionDraft,
+    sessionCache,
     setSessionId,
     setLiveSessionMessages,
     setPermissionDenials,
     setPendingAskQuestion,
     setLastSessionTerminated,
     setWaitingForUserInput,
+  } = params;
+
+  const {
+    deduplicateMessageIds,
+    getOrCreateSessionState,
+    getOrCreateSessionMessages,
+    setSessionMessages,
+    setSessionDraft,
     setSessionStateForSession,
     setConnectionIntent,
     clearConnectionIntent,
     closeActiveSse,
-  } = params;
+  } = sessionCache;
 
   const syncRunningStatusToGlobalStore = useCallback(
     (targetSessionId: string, promptText: string) => {

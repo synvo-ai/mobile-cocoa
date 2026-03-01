@@ -5,7 +5,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { ScrollView } from "@/components/ui/scroll-view";
 import { Text } from "@/components/ui/text";
 import type { AskUserQuestionItem, PendingAskUserQuestion } from "@/core/types";
-import { AnimatedPressableView, EntranceAnimation, triggerHaptic } from "@/design-system";
+import { AnimatedPressableView, EntranceAnimation, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import React, { useCallback, useEffect, useState } from "react";
 

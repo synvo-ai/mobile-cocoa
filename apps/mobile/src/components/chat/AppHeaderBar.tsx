@@ -6,7 +6,7 @@ import {
     AnimatedPressableView,
     EntranceAnimation,
     triggerHaptic
-} from "@/design-system";
+} from "@/designSystem";
 import { useThemeAssets } from "@/hooks/useThemeAssets";
 import { useTheme } from "@/theme/index";
 import { BlurView } from "expo-blur";

@@ -34,7 +34,6 @@ export function registerConfigRoutes(app) {
     res.json({
       path: cwd,
       allowedRoot: WORKSPACE_ALLOWED_ROOT,
-      workspaceRoot: cwd,
     });
   });
 

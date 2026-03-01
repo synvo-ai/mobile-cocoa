@@ -41,7 +41,7 @@ function handleLogTail(req, res) {
     let result;
     if (relPath) {
       if (path.isAbsolute(relPath)) {
-        result = getLogTail(relPath, cwd, lines, true);
+        result = getLogTail(relPath, cwd, lines, false);
       } else {
         const { ok, fullPath, error } = resolveWithinRoot(cwd, relPath);
         if (!ok || !fullPath) {

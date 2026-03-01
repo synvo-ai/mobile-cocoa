@@ -1,6 +1,6 @@
 import { AlertBanner } from "@/components/reusable/AlertBanner";
 import { Button, ButtonText } from "@/components/ui/button";
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import type { PermissionDenial } from "@/services/chat/hooks";
 import React from "react";
 interface PermissionDenialBannerProps {

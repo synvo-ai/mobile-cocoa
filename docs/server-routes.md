@@ -8,7 +8,7 @@ All Express HTTP endpoints, organized as separate route modules wired together b
 
 ## Workflow
 
-1. `server.js` calls `setupRoutes(app)`
+1. `server/server.js` calls `setupRoutes(app)`
 2. `setupRoutes()` registers all route modules in order
 3. A catch-all `app.get("*")` serves workspace files for non-API paths
 4. API logging middleware logs all `/api/` requests with timestamps
@@ -117,7 +117,7 @@ Enabled only when `ENABLE_DOCKER_MANAGER` is set.
 
 ---
 
-### Health Page Routes — [`health-page.js`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/routes/health-page.js)
+### Health Page Routes — [`healthPage.js`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/routes/healthPage.js)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -126,7 +126,7 @@ Enabled only when `ENABLE_DOCKER_MANAGER` is set.
 
 ---
 
-### Session Management Store — [`session-management-store.js`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/routes/session-management-store.js)
+### Session Management Store — [`sessionManagementStore.js`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/routes/sessionManagementStore.js)
 
 In-memory store for session management snapshots (posted by mobile client).
 

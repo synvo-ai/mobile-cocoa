@@ -28,7 +28,7 @@ export {
     useSpringAnimation, type AnimationConfig,
     // Types
     type AnimationVariant, type HapticConfig
-} from "@/design-system/animations";
+} from "@/designSystem/animations";
 // ============================================================================
 // Component Exports
 // ============================================================================
@@ -49,7 +49,7 @@ export {
     // Types
     type ButtonVariant, type CardVariant,
     type TextTone
-} from "@/design-system/components";
+} from "@/designSystem/components";
 export {
     brandColors,
     // Utilities
@@ -65,7 +65,7 @@ export {
     // Types
     type Theme,
     type ThemeColors, type TypographyStyle, type TypographyVariant
-} from "@/design-system/theme";
+} from "@/designSystem/theme";
 export { cn } from "@/utils/cn";
 
 

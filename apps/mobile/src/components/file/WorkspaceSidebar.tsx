@@ -1,16 +1,16 @@
 import {
     FileTreePane,
     type WorkspaceTreeItem
-} from "@/components/file/workspace-sidebar/FileTreePane";
-import { FolderRow } from "@/components/file/workspace-sidebar/FolderRow";
-import { GitPane } from "@/components/file/workspace-sidebar/GitPane";
-import { SidebarHeader } from "@/components/file/workspace-sidebar/SidebarHeader";
+} from "@/components/file/workspaceSidebar/FileTreePane";
+import { FolderRow } from "@/components/file/workspaceSidebar/FolderRow";
+import { GitPane } from "@/components/file/workspaceSidebar/GitPane";
+import { SidebarHeader } from "@/components/file/workspaceSidebar/SidebarHeader";
 import {
     FileIconByType, FolderIconByType
 } from "@/components/icons/WorkspaceTreeIcons";
 import { ListSectionCard } from "@/components/reusable/ListSectionCard";
 import { ModalScaffold } from "@/components/reusable/ModalScaffold";
-import { showAlert } from "@/components/ui/alert/native-alert";
+import { showAlert } from "@/components/ui/alert/nativeAlert";
 import { Badge, BadgeText } from "@/components/ui/badge";
 import { Box } from "@/components/ui/box";
 import { Pressable } from "@/components/ui/pressable";
@@ -18,7 +18,7 @@ import { ScrollView } from "@/components/ui/scroll-view";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
 import { getDefaultServerConfig } from "@/core";
-import { EntranceAnimation, triggerHaptic } from "@/design-system";
+import { EntranceAnimation, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import { basename, dirname } from "@/utils/path";
 import { BlurView } from "expo-blur";

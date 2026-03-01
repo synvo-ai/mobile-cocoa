@@ -10,6 +10,19 @@ import {
   resolveWithinRoot
 } from "../utils/index.js";
 
+const WORKSPACE_ALLOWED_ROOT_REAL = (() => {
+  try {
+    return fs.realpathSync(WORKSPACE_ALLOWED_ROOT);
+  } catch {
+    return path.resolve(WORKSPACE_ALLOWED_ROOT);
+  }
+})();
+
+function isInsideRoot(rootDir, targetPath) {
+  const rel = path.relative(rootDir, targetPath);
+  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
 export function registerWorkspaceRoutes(app) {
   app.get("/api/workspace-allowed-children", handleWorkspaceAllowedChildren);
   app.get("/api/workspace-tree", handleWorkspaceTree);
@@ -26,7 +39,14 @@ function resolveWorkspaceContext(baseParam, rootParam, parentParam) {
     rootDir = path.resolve("/");
   } else if (typeof rootParam === "string" && rootParam.trim()) {
     rootDir = path.resolve(rootParam.trim());
-    if (!rootDir.startsWith(WORKSPACE_ALLOWED_ROOT) && rootDir !== WORKSPACE_ALLOWED_ROOT) {
+    const resolvedRoot = (() => {
+      try {
+        return fs.realpathSync(rootDir);
+      } catch {
+        return null;
+      }
+    })();
+    if (!resolvedRoot || !isInsideRoot(WORKSPACE_ALLOWED_ROOT_REAL, resolvedRoot)) {
       throw { status: 403, error: "Root must be under allowed workspace" };
     }
   } else {
@@ -40,15 +60,12 @@ function resolveWorkspaceContext(baseParam, rootParam, parentParam) {
     throw { status: 400, error: "Invalid path" };
   }
 
-  const dir = parent ? path.join(rootDir, parent) : rootDir;
-  const resolvedDir = path.resolve(dir);
-
-  // Check inside allowed roots
-  const rootNorm = rootDir.replace(/\/$/, "") || rootDir;
-  if (resolvedDir !== rootNorm && !resolvedDir.startsWith(rootNorm + path.sep)) {
+  const { ok, fullPath: resolvedDir } = resolveWithinRoot(rootDir, parent);
+  if (!ok || !resolvedDir) {
     throw { status: 403, error: "Path outside root" };
   }
-  if (base !== "os" && !resolvedDir.startsWith(WORKSPACE_ALLOWED_ROOT) && resolvedDir !== WORKSPACE_ALLOWED_ROOT) {
+
+  if (base !== "os" && !isInsideRoot(WORKSPACE_ALLOWED_ROOT_REAL, resolvedDir)) {
     throw { status: 403, error: "Path outside allowed workspace" };
   }
 
@@ -113,7 +130,11 @@ function handleWorkspaceAllowedChildren(req, res) {
     const entries = fs.readdirSync(resolvedDir, { withFileTypes: true });
     const children = entries
       .filter((e) => e.isDirectory() && !e.name.startsWith("."))
-      .map((e) => ({ name: e.name, path: path.join(resolvedDir, e.name) }));
+      .map((e) => {
+        const childPath = path.join(resolvedDir, e.name);
+        const relativePath = path.relative(WORKSPACE_ALLOWED_ROOT, childPath).replace(/\\/g, "/");
+        return { name: e.name, path: relativePath };
+      });
     res.json({ children });
   } catch (err) {
     if (err.status) {

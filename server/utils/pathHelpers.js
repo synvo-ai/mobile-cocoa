@@ -3,6 +3,7 @@
  * Centralizes path normalization and security checks to prevent directory traversal.
  */
 import path from "path";
+import fs from "fs";
 
 /** Pattern to strip leading directory traversal segments. */
 const TRAVERSAL_STRIP = /^(\.\.(\/|\\|$))+/;
@@ -18,6 +19,48 @@ export function normalizeRelativePath(relPath) {
   return normalized;
 }
 
+function existsOrSymbolic(pathToCheck) {
+  try {
+    fs.lstatSync(pathToCheck);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeRealPath(pathToResolve) {
+  try {
+    return fs.realpathSync(pathToResolve);
+  } catch {
+    return null;
+  }
+}
+
+function resolveThroughExistingAncestor(candidatePath) {
+  let current = path.resolve(candidatePath);
+
+  while (!existsOrSymbolic(current)) {
+    const parent = path.dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+
+  const currentReal = safeRealPath(current);
+  if (!currentReal) {
+    return null;
+  }
+
+  const remainder = path.relative(current, path.resolve(candidatePath));
+  return path.resolve(currentReal, remainder);
+}
+
+function isInsideRoot(rootDir, targetPath) {
+  const rel = path.relative(rootDir, targetPath);
+  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
 /**
  * Resolve and validate that a path stays within a root directory.
  * @param {string} rootDir - Absolute root path (e.g. workspace cwd)
@@ -26,10 +69,19 @@ export function normalizeRelativePath(relPath) {
  */
 export function resolveWithinRoot(rootDir, relativePath) {
   const normalized = normalizeRelativePath(relativePath);
-  const fullPath = path.resolve(path.join(rootDir, normalized));
-  const rootNorm = path.resolve(rootDir).replace(/\/$/, "") || path.resolve(rootDir);
+  const requested = path.resolve(path.join(rootDir, normalized));
+  const rootReal = safeRealPath(rootDir);
 
-  if (fullPath !== rootNorm && !fullPath.startsWith(rootNorm + path.sep)) {
+  if (!rootReal) {
+    return { ok: false, error: "Invalid workspace root" };
+  }
+
+  const fullPath = safeRealPath(requested) ?? resolveThroughExistingAncestor(requested);
+  if (!fullPath) {
+    return { ok: false, error: "Path resolution failed" };
+  }
+
+  if (!isInsideRoot(rootReal, fullPath)) {
     return { ok: false, error: "Path outside root" };
   }
   return { ok: true, fullPath };

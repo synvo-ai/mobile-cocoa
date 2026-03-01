@@ -1,15 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState } from "react";
 
 import { createWorkspaceFileService } from "@/core";
 import type { IServerConfig } from "@/core/types";
-import { triggerHaptic } from "@/design-system";
+import { triggerHaptic } from "@/designSystem";
 import { useFileViewer } from "@/features/app/useFileViewer";
 import {
-    basename,
-    dirname,
-    isAbsolutePath,
-    normalizePathSeparators,
-    toWorkspaceRelativePath
+  basename,
+  dirname,
+  isAbsolutePath,
+  normalizePathSeparators,
+  toWorkspaceRelativePath
 } from "@/utils/path";
 
 export type WorkspaceFileControllerProps = {
@@ -34,7 +34,7 @@ export type WorkspaceFileControllerState = {
   switchWorkspaceForSession: (cwd: string) => Promise<void>;
 };
 
-export function WorkspaceFileController({
+export const WorkspaceFileController = memo(function WorkspaceFileController({
   serverConfig,
   onWorkspaceSelectedFromPicker,
   children,
@@ -93,11 +93,20 @@ export function WorkspaceFileController({
 
       try {
         const baseUrl = serverConfig.getBaseUrl();
-        const wsRes = await fetch(`${baseUrl}/api/workspace-path`);
-        const wsData = (await wsRes.json()) as { path?: string };
-        if (typeof wsData?.path === "string") {
-          setWorkspacePath(wsData.path);
-          const rel = toWorkspaceRelativePath(normalized, wsData.path);
+
+        // Use cached workspace path when available to avoid a redundant network call.
+        const currentWorkspace = workspacePath ?? await (async () => {
+          const wsRes = await fetch(`${baseUrl}/api/workspace-path`);
+          const wsData = (await wsRes.json()) as { path?: string };
+          if (typeof wsData?.path === "string") {
+            setWorkspacePath(wsData.path);
+            return wsData.path;
+          }
+          return null;
+        })();
+
+        if (currentWorkspace) {
+          const rel = toWorkspaceRelativePath(normalized, currentWorkspace);
           if (rel != null) {
             openFile(rel || basename(normalized));
             return;
@@ -124,7 +133,7 @@ export function WorkspaceFileController({
 
       openFile(normalized);
     })();
-  }, [serverConfig, openFile]);
+  }, [serverConfig, workspacePath, openFile]);
 
   const handleWorkspaceSelectedFromPicker = useCallback(
     (path?: string) => {
@@ -151,21 +160,38 @@ export function WorkspaceFileController({
     }
   }, [serverConfig]);
 
-  const state: WorkspaceFileControllerState = {
-    workspacePath,
-    workspacePathLoading,
-    selectedFilePath,
-    fileContent,
-    fileIsImage,
-    fileLoading,
-    fileError,
-    onFileSelectFromSidebar,
-    onFileSelectFromChat,
-    onCloseFileViewer: closeFileViewer,
-    fetchWorkspacePath,
-    onWorkspaceSelectedFromPicker: handleWorkspaceSelectedFromPicker,
-    switchWorkspaceForSession,
-  };
+  const state: WorkspaceFileControllerState = useMemo(
+    () => ({
+      workspacePath,
+      workspacePathLoading,
+      selectedFilePath,
+      fileContent,
+      fileIsImage,
+      fileLoading,
+      fileError,
+      onFileSelectFromSidebar,
+      onFileSelectFromChat,
+      onCloseFileViewer: closeFileViewer,
+      fetchWorkspacePath,
+      onWorkspaceSelectedFromPicker: handleWorkspaceSelectedFromPicker,
+      switchWorkspaceForSession,
+    }),
+    [
+      workspacePath,
+      workspacePathLoading,
+      selectedFilePath,
+      fileContent,
+      fileIsImage,
+      fileLoading,
+      fileError,
+      onFileSelectFromSidebar,
+      onFileSelectFromChat,
+      closeFileViewer,
+      fetchWorkspacePath,
+      handleWorkspaceSelectedFromPicker,
+      switchWorkspaceForSession,
+    ]
+  );
 
   return <>{children(state)}</>;
-}
+});

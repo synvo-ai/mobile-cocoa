@@ -1,7 +1,7 @@
 import { hasCodeBlockContent, hasFileActivityContent, MessageBubble } from "@/components/chat/MessageBubble";
 import { PermissionDenialBanner } from "@/components/common/PermissionDenialBanner";
 import type { Provider as BrandProvider } from "@/core/modelOptions";
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import type { Message, PermissionDenial } from "@/services/chat/hooks";
 import React, { memo, useMemo } from "react";
 import { ScrollView, type StyleProp, type ViewStyle } from "react-native";

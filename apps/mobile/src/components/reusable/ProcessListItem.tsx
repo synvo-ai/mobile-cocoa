@@ -4,7 +4,7 @@ import { Box } from "@/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Text } from "@/components/ui/text";
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import React, { memo, useMemo } from "react";
 import { Platform, TouchableOpacity } from "react-native";

@@ -51,11 +51,6 @@ export function getSession(sessionId) {
   return registry.get(sessionId);
 }
 
-/** Return all sessions in the registry (for merging with disk-based list). */
-export function getAllSessions() {
-  return Array.from(registry.values());
-}
-
 /**
  * Resolve session by ID, file stem, or UUID. Tries direct lookup first,
  * then scans registry for keys ending with the UUID (e.g. timestamp_uuid).
@@ -98,12 +93,5 @@ export function subscribeToSession(sessionId, res) {
   const session = resolveSession(sessionId);
   if (session) {
     session.subscribers.add(res);
-  }
-}
-
-export function unsubscribeFromSession(sessionId, res) {
-  const session = resolveSession(sessionId);
-  if (session) {
-    session.subscribers.delete(res);
   }
 }

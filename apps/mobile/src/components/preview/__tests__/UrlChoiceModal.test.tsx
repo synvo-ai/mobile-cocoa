@@ -1,7 +1,7 @@
 import { fireEvent, render } from '@testing-library/react-native';
 import React from 'react';
 
-jest.mock('@/design-system', () => ({
+jest.mock('@/designSystem', () => ({
   EntranceAnimation: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 

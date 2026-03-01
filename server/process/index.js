@@ -3,7 +3,6 @@
  * Supports Claude, Gemini, and Codex through the unified Pi coding agent.
  */
 import {
-  DEFAULT_PERMISSION_MODE,
   DEFAULT_PROVIDER,
   DEFAULT_PROVIDER_MODELS,
   DEFAULT_SSE_HOST,
@@ -15,17 +14,17 @@ import {
 
 import { createPiRpcSession } from "./piRpcSession.js";
 
-export const globalSpawnChildren = new Set();
+const globalSpawnChildren = new Set();
 
-export function shutdown(signal) {
-  for (const c of globalSpawnChildren) {
+export function shutdown() {
+  for (const child of globalSpawnChildren) {
     try {
-      if (process.platform !== "win32" && c.pid) {
+      if (process.platform !== "win32" && child.pid) {
         try {
-          process.kill(-c.pid, "SIGTERM");
+          process.kill(-child.pid, "SIGTERM");
         } catch (_) { }
       }
-      c.kill();
+      child.kill();
     } catch (_) { }
   }
   globalSpawnChildren.clear();
@@ -46,13 +45,13 @@ function resolveProvider(fromPayload) {
 function getDefaultModelForProvider(provider) {
   try {
     const cfg = loadModelsConfig();
-    return cfg.providers?.[provider]?.defaultModel ?? _builtinDefaultModel(provider);
+    return cfg.providers?.[provider]?.defaultModel ?? getBuiltinDefaultModel(provider);
   } catch (_) {
-    return _builtinDefaultModel(provider);
+    return getBuiltinDefaultModel(provider);
   }
 }
 
-function _builtinDefaultModel(provider) {
+function getBuiltinDefaultModel(provider) {
   return DEFAULT_PROVIDER_MODELS?.[provider] || provider;
 }
 
@@ -71,12 +70,11 @@ export function formatSessionLogTimestamp() {
  * Creates an AI process manager for a socket connection.
  * Uses Pi RPC for all providers (claude, gemini, codex).
  */
-export function createProcessManager(socket, { hasCompletedFirstRunRef, session_management, onPiSessionId, existingSessionPath, sessionId }) {
-  let turnCounter = 0;
+export function createProcessManager(socket, { hasCompletedFirstRunRef, sessionManagement, onPiSessionId, existingSessionPath, sessionId }) {
   const piRpcSession = createPiRpcSession({
     socket,
     hasCompletedFirstRunRef,
-    sessionManagement: session_management,
+    sessionManagement,
     globalSpawnChildren,
     getWorkspaceCwd,
     projectRoot,
@@ -106,40 +104,26 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
         : defaultModel;
 
     if (
-      session_management &&
-      (session_management.provider !== provider || session_management.model !== model)
+      sessionManagement &&
+      (sessionManagement.provider !== provider || sessionManagement.model !== model)
     ) {
-      session_management.session_id = null;
-      session_management.session_log_timestamp = null;
-      session_management.provider = provider;
-      session_management.model = model;
+      sessionManagement.sessionId = null;
+      sessionManagement.sessionLogTimestamp = null;
+      sessionManagement.provider = provider;
+      sessionManagement.model = model;
       hasCompletedFirstRunRef.value = false;
     }
 
-    turnCounter += 1;
-    if (session_management && !session_management.session_log_timestamp) {
-      session_management.session_log_timestamp = formatSessionLogTimestamp();
-    }
-    const conversationSessionId = socket.id ?? "unknown";
-
-    const options = {
-      model,
-      clientProvider: provider,
-      permissionMode: DEFAULT_PERMISSION_MODE || null,
-      allowedTools: [],
-      useContinue: hasCompletedFirstRunRef.value,
-      hasCompletedFirstRunRef,
-      sessionLogTimestamp: session_management?.session_log_timestamp ?? undefined,
-      conversationSessionId,
-      turnId: turnCounter,
-    };
-
-    if (session_management) {
-      session_management.provider = provider;
-      session_management.model = model;
+    if (sessionManagement && !sessionManagement.sessionLogTimestamp) {
+      sessionManagement.sessionLogTimestamp = formatSessionLogTimestamp();
     }
 
-    piRpcSession.startTurn({ prompt, options }).catch((err) => {
+    if (sessionManagement) {
+      sessionManagement.provider = provider;
+      sessionManagement.model = model;
+    }
+
+    piRpcSession.startTurn({ prompt, clientProvider: provider, model }).catch((err) => {
       emitError(socket, err?.message || "Failed to start Pi RPC.");
       socket.emit("exit", { exitCode: 1 });
     });
@@ -151,10 +135,10 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
 
   function handleTerminate(payload) {
     const resetSession = !!payload?.resetSession;
-    if (resetSession && session_management) {
+    if (resetSession && sessionManagement) {
       hasCompletedFirstRunRef.value = false;
-      session_management.session_id = null;
-      session_management.session_log_timestamp = null;
+      sessionManagement.sessionId = null;
+      sessionManagement.sessionLogTimestamp = null;
     }
     piRpcSession.close();
     socket.emit("exit", { exitCode: 0 });
@@ -170,7 +154,6 @@ export function createProcessManager(socket, { hasCompletedFirstRunRef, session_
     handleInput,
     handleTerminate,
     cleanup,
-    getTurnCounter: () => turnCounter,
   };
 }
 
@@ -223,21 +206,21 @@ export function createSessionProcessManager(sessionId, session, { onPiSessionId,
   const sessionManagement = {
     provider: session.provider,
     model: session.model,
-    session_id: null,
-    session_log_timestamp: sessionLogTimestamp ?? session.sessionLogTimestamp,
+    sessionId: null,
+    sessionLogTimestamp: sessionLogTimestamp ?? session.sessionLogTimestamp,
   };
   const socket = createSseSocketAdapter(sessionId, session);
-  const pm = createProcessManager(socket, {
+  const processManager = createProcessManager(socket, {
     hasCompletedFirstRunRef,
-    session_management: sessionManagement,
+    sessionManagement,
     onPiSessionId,
     existingSessionPath,
     sessionId,
   });
-  const origHandleSubmitPrompt = pm.handleSubmitPrompt;
-  pm.handleSubmitPrompt = (payload, host) => {
+  const originalHandleSubmitPrompt = processManager.handleSubmitPrompt;
+  processManager.handleSubmitPrompt = (payload, host) => {
     if (host) socket.setHost(host);
-    origHandleSubmitPrompt(payload);
+    originalHandleSubmitPrompt(payload);
   };
-  return pm;
+  return processManager;
 }

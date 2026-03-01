@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -12,15 +12,33 @@ function execGitCmd(cwd, ...args) {
             throw new Error(`Directory is not a git repository: ${cwd}`);
         }
 
-        // Command string
-        const cmd = `git ${args.join(" ")}`;
-        return execSync(cmd, { cwd, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+        const cleanArgs = args
+            .filter((arg) => typeof arg === "string")
+            .map((arg) => arg.trim())
+            .filter((arg) => arg.length > 0);
+
+        const result = spawnSync("git", cleanArgs, {
+            cwd,
+            encoding: "utf8",
+            stdio: ["pipe", "pipe", "pipe"],
+            maxBuffer: 8 * 1024 * 1024,
+        });
+
+        if (result.error) {
+            throw result.error;
+        }
+        if (result.status !== 0) {
+            const errText = result.stderr || result.stdout || "Command failed";
+            throw new Error(typeof errText === "string" ? errText.trim() : "Command failed");
+        }
+
+        return (result.stdout || "").trim();
     } catch (err) {
-        if (err.stdout != null) {
+        if (err.stdout != null || err.stderr != null) {
             console.error(`Git Command Failed: ${err.message}\nSTDOUT: ${err.stdout}\nSTDERR: ${err.stderr}`);
             throw new Error((err.stderr || err.stdout || err.message).trim());
         }
-        throw new Error(err.message || String(err));
+        throw new Error(err?.message || String(err));
     }
 }
 
@@ -33,12 +51,19 @@ function execGitCmd(cwd, ...args) {
 export function getGitCommits(cwd, limit = 50) {
     try {
         // Format: Hash|%h, Author|%an, Date|%cd, Message|%s
-        // Use an exotic delimiter like `|||` to split safely, and quote it so the shell doesn't pipe!
-        const output = execGitCmd(cwd, "log", "-n", limit.toString(), '"--pretty=format:%H|||%an|||%cd|||%s"', '"--date=format:%a %b %d %H:%M:%S %Y"', "--abbrev-commit");
+        const output = execGitCmd(
+            cwd,
+            "log",
+            "-n",
+            limit.toString(),
+            "--pretty=format:%H|||%an|||%cd|||%s",
+            "--date=format:%a %b %d %H:%M:%S %Y",
+            "--abbrev-commit"
+        );
 
         if (!output) return [];
 
-        return output.split("\n").map(line => {
+        return output.split("\n").map((line) => {
             const parts = line.split("|||");
             if (parts.length < 4) return null;
             return {
@@ -79,7 +104,16 @@ export function getGitTree(cwd, dirPath = "") {
 
         let lastCommit = null;
         try {
-            const logOutput = execGitCmd(cwd, "log", "-n", "1", '"--pretty=format:%H|||%an|||%cd|||%s"', '"--date=format:%a %b %d %H:%M:%S %Y"', "--", `"${relPath}"`);
+            const logOutput = execGitCmd(
+                cwd,
+                "log",
+                "-n",
+                "1",
+                "--pretty=format:%H|||%an|||%cd|||%s",
+                "--date=format:%a %b %d %H:%M:%S %Y",
+                "--",
+                relPath
+            );
             if (logOutput) {
                 const parts = logOutput.split("|||");
                 if (parts.length >= 4) {
@@ -160,9 +194,13 @@ export function gitAdd(cwd, files) {
     const fileArray = Array.isArray(files) ? files : [files];
     if (fileArray.length === 0) return { success: true };
 
-    // Wrap in quotes to avoid shell issues
-    const quotedFiles = fileArray.map(f => `"${f}"`);
-    execGitCmd(cwd, "add", ...quotedFiles);
+    const safeFiles = fileArray
+        .filter((f) => typeof f === "string")
+        .map((f) => f.trim())
+        .filter((f) => f.length > 0);
+    if (safeFiles.length === 0) return { success: true };
+
+    execGitCmd(cwd, "add", ...safeFiles);
     return { success: true };
 }
 
@@ -176,8 +214,7 @@ export function gitCommit(cwd, message) {
         throw new Error("Commit message is required.");
     }
 
-    // Using array parameters to avoid quoting issues with execSync
-    execGitCmd(cwd, "commit", "-m", `"${message.replace(/"/g, '\\"')}"`);
+    execGitCmd(cwd, "commit", "-m", message);
     return { success: true };
 }
 
@@ -196,8 +233,7 @@ export function gitPush(cwd) {
  */
 export function gitInit(cwd) {
     try {
-        const cmd = "git init";
-        execSync(cmd, { cwd, encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+        execGitCmd(cwd, "init");
         return { success: true };
     } catch (err) {
         throw new Error(err.message || String(err));

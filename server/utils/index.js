@@ -52,14 +52,6 @@ export function getActiveOverlay() {
   return getOverlayNetwork();
 }
 
-const ANSI_REGEX =
-  /\x1B\[[0-9;?]*[ -/]*[@-~]|\x1B\][^\x07]*(?:\x07|\x1B\\)|\x1B[@-_]|\x1B.|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g;
-
-export function stripAnsi(str) {
-  if (typeof str !== "string") return "";
-  return str.replace(ANSI_REGEX, "");
-}
-
 const SKIP_DIRS = new Set([
   "node_modules", ".git", ".idea", ".vscode", "dist", "build", "out",
   ".cache", "coverage", ".nyc_output", ".expo"

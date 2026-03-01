@@ -1,7 +1,7 @@
 import React from "react";
 import { Platform } from "react-native";
 
-import type { WorkspaceTreeItem } from "@/components/file/workspace-sidebar/FileTreePane";
+import type { WorkspaceTreeItem } from "@/components/file/workspaceSidebar/FileTreePane";
 import {
     FileIconByType,
     FolderIconByType

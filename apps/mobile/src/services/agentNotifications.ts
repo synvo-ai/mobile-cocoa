@@ -9,7 +9,7 @@
  * Note: expo-notifications is not fully supported in Expo Go. We lazy-load it
  * only in dev/preview builds to avoid the warning; in Expo Go we use haptics only.
  */
-import { triggerHaptic } from "@/design-system";
+import { triggerHaptic } from "@/designSystem";
 import Constants from "expo-constants";
 import * as Device from "expo-device";
 import { Platform } from "react-native";

@@ -13,7 +13,7 @@ import { ScrollView } from "@/components/ui/scroll-view";
 import { Spinner } from "@/components/ui/spinner";
 import { Text as GText } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
-import { EntranceAnimation, triggerHaptic } from "@/design-system";
+import { EntranceAnimation, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import { basename, getDirname, getParentPath, getRelativePath, truncatePathForDisplay } from "@/utils/path";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";

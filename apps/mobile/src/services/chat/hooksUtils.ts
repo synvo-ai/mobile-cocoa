@@ -1,8 +1,8 @@
 import type { Message, PermissionDenial } from "@/core/types";
 
-export const deduplicateMessageIds = (msgs: Message[], nextIdRef: { current: number }): Message[] => {
+export const deduplicateMessageIds = (messages: Message[], nextIdRef: { current: number }): Message[] => {
   const seen = new Set<string>();
-  return msgs.map((message) => {
+  return messages.map((message) => {
     let id = message.id;
     if (seen.has(id)) {
       id = `msg-${++nextIdRef.current}`;

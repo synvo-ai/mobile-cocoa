@@ -5,10 +5,10 @@
  * These are pure functions / factory helpers with no React dependencies.
  */
 import EventSource from "react-native-sse";
-import type { EventSourceCtor, EventSourceLike } from "./hooks-types";
+import type { EventSourceCtor, EventSourceLike } from "./hooksTypes";
 
 export const SSE_MAX_RETRIES = 5;
-export const SSE_RETRY_BASE_MS = 1000;
+const SSE_RETRY_BASE_MS = 1000;
 
 /** Resolve the EventSource constructor across CJS/ESM module shapes. */
 export function resolveEventSourceCtor(): EventSourceCtor {

@@ -5,7 +5,7 @@
  * Provides the same component interfaces using RN's built-in Animated API.
  */
 
-import { motion, useTheme } from "@/design-system/theme";
+import { motion, useTheme } from "@/designSystem/theme";
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {

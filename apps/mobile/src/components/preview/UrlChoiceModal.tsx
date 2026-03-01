@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/modal";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import React, { useMemo } from "react";
 

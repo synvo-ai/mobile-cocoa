@@ -2,12 +2,13 @@
  * Git routes (commits, tree, status, diff, actions).
  */
 import { spawnSync } from "child_process";
+import path from "path";
 import { getWorkspaceCwd } from "../config/index.js";
 import {
     getGitCommits, getGitStatus, getGitTree, gitAdd,
     gitCommit, gitInit, gitPush
 } from "../utils/git.js";
-import { normalizeRelativePath } from "../utils/index.js";
+import { normalizeRelativePath, resolveWithinRoot } from "../utils/index.js";
 
 export function registerGitRoutes(app) {
   app.get("/api/git/commits", handleGitCommits);
@@ -59,8 +60,14 @@ async function handleGitDiff(req, res) {
     const args = ["diff", "--color=never"];
     if (isStaged) args.push("--cached");
     if (file) {
+      const { ok, fullPath, error } = resolveWithinRoot(cwd, file);
+      if (!ok || !fullPath) {
+        return res.status(403).json({ error: error || "Path outside workspace" });
+      }
+
+      const safeFile = path.relative(cwd, fullPath).replace(/\\/g, "/");
       args.push("--");
-      args.push(file);
+      args.push(safeFile);
     }
 
     const result = spawnSync("git", args, { cwd, encoding: "utf8" });

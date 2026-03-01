@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getFallbackDefaultModelForProvider } from "@/services/server/modelsApi";
 
 export type SessionStatus = {
   id: string;
@@ -58,7 +59,7 @@ export const useSessionManagementStore = create<SessionManagementStore>((set) =>
   sessionStatuses: [],
   sessionId: null,
   provider: "codex",
-  model: "gpt-5.1-codex-mini",
+  model: getFallbackDefaultModelForProvider("codex"),
   setSessionStatuses: (sessions) =>
     set((state) => {
       const normalized = sessions.map(normalizeSession);

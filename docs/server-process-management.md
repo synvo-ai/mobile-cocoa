@@ -17,7 +17,6 @@ Creates and manages AI provider processes (Claude, Gemini, Codex) via Pi RPC. Pr
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `shutdown(signal)` | `shutdown("SIGINT")` | Graceful shutdown — kills all spawned children |
 | `resolveProvider(fromPayload)` | `resolveProvider("gemini")` | Validates and defaults the provider string |
 | `getDefaultModelForProvider(provider)` | `getDefaultModelForProvider("claude")` | Reads default model from `config/models.json` |
 | `createProcessManager(socket, opts)` | — | Creates a Socket.IO-based process manager with `handleSubmitPrompt`, `handleInput`, `handleTerminate`, `cleanup` |
@@ -73,7 +72,6 @@ The manager returned by `createProcessManager` / `createSessionProcessManager` e
 | `handleResize()` | No-op (PTY resize not used with Pi RPC) |
 | `cleanup()` | Kill process and clean up resources |
 | `processRunning()` | Returns whether a process is active |
-| `getTurnCounter()` | Returns the current conversation turn number |
 
 ---
 
@@ -88,7 +86,7 @@ Spawns `pi --mode rpc` and manages the JSON-RPC protocol for AI interactions. Ma
 ## Workflow
 
 1. `ensurePiProcess(options)` — spawns `pi --mode rpc` with provider, model, workspace, skills
-2. `startTurn({ prompt, options })` — sends a user prompt to the Pi process
+2. `startTurn({ prompt, clientProvider, model })` — sends a user prompt to the Pi process
 3. Pi emits JSON events on stdout → `handlePiEvent(parsed)` routes each event type
 4. Events are forwarded to the client via `socket.emit("output", ...)` (slim versions for SSE)
 5. `handleInput(data)` — forwards user approval/text input to Pi's stdin
@@ -98,8 +96,7 @@ Spawns `pi --mode rpc` and manages the JSON-RPC protocol for AI interactions. Ma
 
 | Function | Description |
 |----------|-------------|
-| `createPiRpcSession(opts)` | Factory — returns `{ startTurn, handleInput, hasProcess, isTurnRunning, close }` |
-| `getClientProviderToPi()` | Maps `claude→anthropic`, `codex→openai-codex` from `config/pi.json` |
+| `createPiRpcSession(opts)` | Factory — returns `{ startTurn, handleInput, isTurnRunning, close }` |
 | `toPiModel(clientModel, piProvider)` | Resolves model aliases via `config/models.json` |
 | `getPiProviderForModel(clientProvider, model)` | Regex-based routing from `config/pi.json` rules |
 | `toAskUserQuestionPayload(request)` | Transforms Pi `extension_ui_request` to `AskUserQuestion` for client modal |
@@ -130,7 +127,6 @@ await session.startTurn({
 session.handleInput('{"answers":[{"answer":"approve"}]}');
 
 // Check status
-console.log(session.hasProcess());    // true
 console.log(session.isTurnRunning()); // true/false
 
 // Cleanup
@@ -148,8 +144,7 @@ RAPID_MODE=1 node scripts/smoke-pi-rpc-sse-session-switch.mjs
 
 | Method | Description |
 |--------|-------------|
-| `startTurn({ prompt, options })` | Send a prompt to the Pi process |
+| `startTurn({ prompt, clientProvider, model })` | Send a prompt to the Pi process |
 | `handleInput(data)` | Forward approval answers or text input |
-| `hasProcess()` | Whether Pi process is alive |
 | `isTurnRunning()` | Whether a conversation turn is active |
 | `close()` | Kill Pi process and clean up |

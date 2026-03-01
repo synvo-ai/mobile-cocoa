@@ -14,10 +14,10 @@ import {
 
 import {
     AnimatedPressableView, EntranceAnimation, ProgressiveImage, Skeleton, triggerHaptic, TypingDots, usePressableAnimation
-} from "@/design-system/animations";
+} from "@/designSystem/animations";
 import {
     radii, spacing, useColors, useTheme, type TypographyVariant
-} from "@/design-system/theme";
+} from "@/designSystem/theme";
 
 // ============================================================================
 // Typography Component
@@ -984,7 +984,7 @@ export function KeyboardAware({
 // ============================================================================
 
 // Re-export SkeletonText and SkeletonCard from animations
-export { SkeletonCard, SkeletonText } from "@/design-system/animations";
+export { SkeletonCard, SkeletonText } from "@/designSystem/animations";
 export {
     type ButtonVariant,
     type ButtonSize,

@@ -1,6 +1,6 @@
 import type { ModelOption } from "@/core/modelOptions";
 import type { Message } from "@/core";
-import { getModelsConfigSync } from "@/services/server/modelsApi";
+import { getDefaultModelForProvider, getModelOptionsForProvider } from "@/services/server/modelsApi";
 import { ColorMode, ColorModePreference } from "@/theme";
 import { getBackendPermissionMode, type PermissionModeUI } from "@/utils/permission";
 
@@ -40,8 +40,7 @@ export function getDefaultPermissionModeUI(): PermissionModeUI {
  * Reads from the server-fetched config cache (falls back to built-in defaults).
  */
 export function getModel(provider: string): string {
-  const cfg = getModelsConfigSync();
-  return cfg.providers[provider]?.defaultModel ?? "";
+  return getDefaultModelForProvider(provider);
 }
 
 /**
@@ -49,8 +48,7 @@ export function getModel(provider: string): string {
  * Reads from the server-fetched config cache (falls back to built-in defaults).
  */
 export function getModelOptions(provider: string): ModelOption[] {
-  const cfg = getModelsConfigSync();
-  return cfg.providers[provider]?.models ?? [];
+  return getModelOptionsForProvider(provider);
 }
 
 export function getSubmitPermissionConfig(permissionModeUI: PermissionModeUI, provider: string) {

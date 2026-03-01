@@ -6,7 +6,7 @@ import {
 } from "@/components/icons/ChatActionIcons";
 import { AsyncStateView } from "@/components/reusable/AsyncStateView";
 import { ModalScaffold } from "@/components/reusable/ModalScaffold";
-import { showAlert } from "@/components/ui/alert/native-alert";
+import { showAlert } from "@/components/ui/alert/nativeAlert";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
@@ -19,7 +19,7 @@ import {
     AnimatedPressableView, EntranceAnimation, FlashAnimation,
     PulseAnimation,
     spacing, triggerHaptic
-} from "@/design-system";
+} from "@/designSystem";
 import { useSessionManagementStore } from "@/state/sessionManagementStore";
 import { useTheme } from "@/theme/index";
 import { getFileName } from "@/utils/path";

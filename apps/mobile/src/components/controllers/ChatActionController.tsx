@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
 import type { Provider as BrandProvider } from "@/core/modelOptions";
-import { triggerHaptic } from "@/design-system";
+import { triggerHaptic } from "@/designSystem";
 import { getSubmitPermissionConfig } from "@/features/app/appConfig";
 import { useChat, type Message } from "@/services/chat/hooks";
 import type { PermissionModeUI } from "@/utils/permission";
@@ -39,7 +39,7 @@ export type ChatActionControllerState = {
   onClosePreview: () => void;
 };
 
-export function ChatActionController({
+export const ChatActionController = memo(function ChatActionController({
   provider,
   permissionModeUI,
   sessionId: _sessionId,
@@ -55,6 +55,11 @@ export function ChatActionController({
 }: ChatActionControllerProps) {
   const [pendingCodeRefs, setPendingCodeRefs] = useState<CodeRefPayload[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const messagesRef = useRef(messages);
+
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
 
   const onSubmitPrompt = useCallback(
     (prompt: string) => {
@@ -106,9 +111,9 @@ export function ChatActionController({
 
   const onRetryPermission = useCallback(() => {
     const { backend } = getSubmitPermissionConfig(permissionModeUI, provider);
-    const lastUserMessage = [...messages].reverse().find((msg) => msg.role === "user");
+    const lastUserMessage = [...messagesRef.current].reverse().find((msg) => msg.role === "user");
     retryAfterPermission(backend.permissionMode, backend.approvalMode, lastUserMessage?.content);
-  }, [messages, permissionModeUI, provider, retryAfterPermission]);
+  }, [permissionModeUI, provider, retryAfterPermission]);
 
   const onCommitByAI = useCallback(
     (userRequest: string) => {
@@ -135,20 +140,36 @@ export function ChatActionController({
     setPreviewUrl(null);
   }, []);
 
-  const state: ChatActionControllerState = {
-    pendingCodeRefs,
-    onSubmitPrompt,
-    onAddCodeReference,
-    onRemoveCodeRef,
-    onAskQuestionSubmit,
-    onAskQuestionCancel,
-    onRetryPermission,
-    onCommitByAI,
-    onOpenWebPreview,
-    onOpenPreviewInApp,
-    previewUrl,
-    onClosePreview,
-  };
+  const state: ChatActionControllerState = useMemo(
+    () => ({
+      pendingCodeRefs,
+      onSubmitPrompt,
+      onAddCodeReference,
+      onRemoveCodeRef,
+      onAskQuestionSubmit,
+      onAskQuestionCancel,
+      onRetryPermission,
+      onCommitByAI,
+      onOpenWebPreview,
+      onOpenPreviewInApp,
+      previewUrl,
+      onClosePreview,
+    }),
+    [
+      pendingCodeRefs,
+      onSubmitPrompt,
+      onAddCodeReference,
+      onRemoveCodeRef,
+      onAskQuestionSubmit,
+      onAskQuestionCancel,
+      onRetryPermission,
+      onCommitByAI,
+      onOpenWebPreview,
+      onOpenPreviewInApp,
+      previewUrl,
+      onClosePreview,
+    ]
+  );
 
   return <>{children(state)}</>;
-}
+});

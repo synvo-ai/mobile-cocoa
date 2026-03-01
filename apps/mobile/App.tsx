@@ -1,6 +1,6 @@
 import "./global.css";
 
-import React, { useCallback, useMemo } from "react";
+import React, { memo, useCallback, useMemo } from "react";
 
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { getDefaultServerConfig } from "@/core";
@@ -19,7 +19,7 @@ import type { IServerConfig } from "@/core/types";
 import { useThemeAssets } from "@/hooks/useThemeAssets";
 import { useSessionManagementStore } from "@/state/sessionManagementStore";
 
-function AppBackground() {
+const AppBackground = memo(function AppBackground() {
   const assets = useThemeAssets();
   return (
     <ImageBackground
@@ -28,14 +28,14 @@ function AppBackground() {
       resizeMode="stretch"
     />
   );
-}
+});
 
 /**
  * Extracted from the ChatActionController render-prop so that hooks
  * (useCallback, useMemo, useSessionSideEffects) are called at the
  * top level of a React component rather than inside a callback.
  */
-function AppInner({
+const AppInner = memo(function AppInner({
   themeState,
   sseState,
   workspaceState,
@@ -113,67 +113,103 @@ function AppInner({
       </GluestackUIProvider>
     </ThemeProvider>
   );
-}
+});
 
 export default function App() {
   const serverConfig = useMemo(() => getDefaultServerConfig(), []);
   const sidebarState = useSidebarState();
-  const storeSessionStatuses = useSessionManagementStore((state) => state.sessionStatuses);
-  const storeSessionId = useSessionManagementStore((state) => state.sessionId);
-  const sessionRunningFromStore = useMemo(
-    () => storeSessionStatuses.some((session) => session.id === storeSessionId && session.status === "running"),
-    [storeSessionStatuses, storeSessionId]
+  const memoizedSidebarState = useMemo(
+    () => ({
+      sidebarVisible: sidebarState.sidebarVisible,
+      sidebarActiveTab: sidebarState.sidebarActiveTab,
+      openSidebar: sidebarState.openSidebar,
+      closeSidebar: sidebarState.closeSidebar,
+      setSidebarActiveTab: sidebarState.setSidebarActiveTab,
+    }),
+    [
+      sidebarState.sidebarVisible,
+      sidebarState.sidebarActiveTab,
+      sidebarState.openSidebar,
+      sidebarState.closeSidebar,
+      sidebarState.setSidebarActiveTab,
+    ]
+  );
+  const sessionRunningFromStore = useSessionManagementStore(
+    (state) =>
+      state.sessionStatuses.some((session) => session.id === state.sessionId && session.status === "running")
+  );
+
+  const renderChatAction = useCallback(
+    (
+      themeState: ThemeSessionStateState,
+      sseState: SseSessionControllerState,
+      workspaceState: WorkspaceFileControllerState,
+      chatActionState: ChatActionControllerState
+    ) => (
+      <AppInner
+        themeState={themeState}
+        sseState={sseState}
+        workspaceState={workspaceState}
+        chatActionState={chatActionState}
+        sidebarState={memoizedSidebarState}
+        sessionRunningFromStore={sessionRunningFromStore}
+        serverConfig={serverConfig}
+      />
+    ),
+    [serverConfig, sessionRunningFromStore, memoizedSidebarState]
+  );
+
+  const renderSse = useCallback(
+    (
+      themeState: ThemeSessionStateState,
+      workspaceState: WorkspaceFileControllerState,
+      sseState: SseSessionControllerState
+    ) => (
+      <ChatActionController
+        provider={themeState.provider}
+        permissionModeUI={themeState.permissionModeUI}
+        sessionId={sseState.sessionId}
+        messages={sseState.messages}
+        submitPrompt={sseState.submitPrompt}
+        submitAskQuestionAnswer={sseState.submitAskQuestionAnswer}
+        dismissAskQuestion={sseState.dismissAskQuestion}
+        retryAfterPermission={sseState.retryAfterPermission}
+        closeFileViewer={workspaceState.onCloseFileViewer}
+        resetSession={sseState.resetSession}
+        onSubmitSideEffects={() => {
+          memoizedSidebarState.closeSidebar();
+          workspaceState.onCloseFileViewer();
+        }}
+      >
+        {(chatActionState) =>
+          renderChatAction(themeState, sseState, workspaceState, chatActionState)
+        }
+      </ChatActionController>
+    ),
+    [renderChatAction, memoizedSidebarState.closeSidebar]
+  );
+
+  const renderWorkspace = useCallback(
+    (themeState: ThemeSessionStateState) => (
+      <WorkspaceFileController serverConfig={serverConfig}>
+        {(workspaceState) => (
+          <SseSessionController
+            provider={themeState.provider}
+            model={themeState.model}
+            serverConfig={serverConfig}
+            setModel={themeState.setModel}
+            setProvider={themeState.setProvider}
+            switchWorkspaceForSession={workspaceState.switchWorkspaceForSession}
+          >
+            {(sseState) => renderSse(themeState, workspaceState, sseState)}
+          </SseSessionController>
+        )}
+      </WorkspaceFileController>
+    ),
+    [renderSse, serverConfig]
   );
 
   return (
-    <ThemeSessionState>
-      {(themeState) => (
-        <WorkspaceFileController
-          serverConfig={serverConfig}
-        >
-          {(workspaceState) => (
-            <SseSessionController
-              provider={themeState.provider}
-              model={themeState.model}
-              serverConfig={serverConfig}
-              setModel={themeState.setModel}
-              setProvider={themeState.setProvider}
-              switchWorkspaceForSession={workspaceState.switchWorkspaceForSession}
-            >
-              {(sseState) => (
-                <ChatActionController
-                  provider={themeState.provider}
-                  permissionModeUI={themeState.permissionModeUI}
-                  sessionId={sseState.sessionId}
-                  messages={sseState.messages}
-                  submitPrompt={sseState.submitPrompt}
-                  submitAskQuestionAnswer={sseState.submitAskQuestionAnswer}
-                  dismissAskQuestion={sseState.dismissAskQuestion}
-                  retryAfterPermission={sseState.retryAfterPermission}
-                  closeFileViewer={workspaceState.onCloseFileViewer}
-                  resetSession={sseState.resetSession}
-                  onSubmitSideEffects={() => {
-                    sidebarState.closeSidebar();
-                    workspaceState.onCloseFileViewer();
-                  }}
-                >
-                  {(chatActionState) => (
-                    <AppInner
-                      themeState={themeState}
-                      sseState={sseState}
-                      workspaceState={workspaceState}
-                      chatActionState={chatActionState}
-                      sidebarState={sidebarState}
-                      sessionRunningFromStore={sessionRunningFromStore}
-                      serverConfig={serverConfig}
-                    />
-                  )}
-                </ChatActionController>
-              )}
-            </SseSessionController>
-          )}
-        </WorkspaceFileController>
-      )}
-    </ThemeSessionState>
+    <ThemeSessionState>{renderWorkspace}</ThemeSessionState>
   );
 }

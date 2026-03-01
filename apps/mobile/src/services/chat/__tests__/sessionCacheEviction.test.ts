@@ -7,7 +7,7 @@
  * 3. Active session is never evicted
  * 4. moveSessionCacheData updates LRU order during rekey
  */
-import type { SessionLiveState } from "../hooks-types";
+import type { SessionLiveState } from "../hooksTypes";
 import type { Message } from "@/core/types";
 import {
   MAX_CACHED_SESSIONS,

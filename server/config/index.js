@@ -74,6 +74,11 @@ function asRequiredStringList(value, label) {
   return value.map((entry) => String(entry ?? "").trim()).filter(Boolean);
 }
 
+function isInsideRoot(rootDir, targetPath) {
+  const rel = path.relative(rootDir, targetPath);
+  return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
+}
+
 // Baseline defaults used when models/pi/skills config files are missing or invalid.
 const FALLBACKS = asObject(loadConfigFile(DEFAULTS_CONFIG_PATH, { label: "config/defaults.json" }));
 const SERVER_DEFAULTS = asObject(FALLBACKS.server);
@@ -302,18 +307,27 @@ export function setWorkspaceCwd(newPath) {
     return { ok: false, error: "Path is required" };
   }
   const resolved = path.resolve(newPath);
-  if (!resolved.startsWith(WORKSPACE_ALLOWED_ROOT)) {
-    return { ok: false, error: `Path must be under ${WORKSPACE_ALLOWED_ROOT}` };
-  }
   try {
     if (!fs.existsSync(resolved)) return { ok: false, error: "Path does not exist" };
     const stat = fs.statSync(resolved);
     if (!stat.isDirectory()) return { ok: false, error: "Path is not a directory" };
+
+    const allowedRootReal = (() => {
+      try {
+        return fs.realpathSync(WORKSPACE_ALLOWED_ROOT);
+      } catch {
+        return path.resolve(WORKSPACE_ALLOWED_ROOT);
+      }
+    })();
+    const resolvedReal = fs.realpathSync(resolved);
+    if (!isInsideRoot(allowedRootReal, resolvedReal)) {
+      return { ok: false, error: `Path must be under ${WORKSPACE_ALLOWED_ROOT}` };
+    }
+    currentWorkspaceCwd = resolvedReal;
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: err.message || "Invalid path" };
   }
-  currentWorkspaceCwd = resolved;
-  return { ok: true };
 }
 
 // Export project paths

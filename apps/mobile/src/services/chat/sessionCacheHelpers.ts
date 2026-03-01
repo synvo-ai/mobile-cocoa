@@ -1,5 +1,5 @@
 import type { Message } from "@/core/types";
-import type { SessionLiveState } from "./hooks-types";
+import type { SessionLiveState } from "./hooksTypes";
 
 // ── LRU Cache Eviction ───────────────────────────────────────────────────
 // Prevents unbounded memory growth on mobile devices when users access

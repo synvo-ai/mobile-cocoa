@@ -13,7 +13,7 @@ import {
 import { Box } from "@/components/ui/box";
 import { Text as GluestackText } from "@/components/ui/text";
 import { type Provider } from "@/core/modelOptions";
-import { triggerHaptic } from "@/design-system";
+import { triggerHaptic } from "@/designSystem";
 import { getTheme } from "@/theme/index";
 import { BlurView } from "expo-blur";
 import React from "react";

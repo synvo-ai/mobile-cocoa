@@ -23,7 +23,7 @@ export type ParsedLineAction =
  * Parse a single raw SSE line from the output buffer.
  * Returns a discriminated union describing what action the caller should take.
  */
-export function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
+function parseSseLine(clean: string): ParsedLineAction | ParsedLineAction[] {
   try {
     const parsed = JSON.parse(clean);
 

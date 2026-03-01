@@ -6,7 +6,7 @@ import { WorkspaceSidebarPage } from "@/components/pages/WorkspaceSidebarPage";
 import type { createAppStyles } from "@/components/styles/appStyles";
 import { Box } from "@/components/ui/box";
 import type { Provider as BrandProvider } from "@/core/modelOptions";
-import { EntranceAnimation } from "@/design-system";
+import { EntranceAnimation } from "@/designSystem";
 import type { Message, PendingAskUserQuestion, PermissionDenial } from "@/services/chat/hooks";
 import type { getTheme } from "@/theme/index";
 import type { PermissionModeUI } from "@/utils/permission";

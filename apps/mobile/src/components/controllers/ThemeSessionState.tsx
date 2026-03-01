@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { memo, useMemo, useState } from "react";
 import { useColorScheme } from "react-native";
 
 import { createAppStyles } from "@/components/styles/appStyles";
@@ -28,7 +28,7 @@ export type ThemeSessionStateState = {
   setProvider: (p: BrandProvider) => void;
 };
 
-export function ThemeSessionState({ children }: ThemeSessionStateProps) {
+export const ThemeSessionState = memo(function ThemeSessionState({ children }: ThemeSessionStateProps) {
   const [provider, setProvider] = useState<BrandProvider>("codex");
 
   // ── Dynamic model config from server (/api/models) ──
@@ -54,16 +54,21 @@ export function ThemeSessionState({ children }: ThemeSessionStateProps) {
 
   const permissionModeUI = useMemo(() => getDefaultPermissionModeUI(), []);
 
-  return children({
-    provider,
-    setProvider,
-    model,
-    setModel,
-    themeMode,
-    theme,
-    styles,
-    modelOptions,
-    providerModelOptions,
-    permissionModeUI,
-  });
-}
+  const state = useMemo(
+    () => ({
+      provider,
+      setProvider,
+      model,
+      setModel,
+      themeMode,
+      theme,
+      styles,
+      modelOptions,
+      providerModelOptions,
+      permissionModeUI,
+    }),
+    [provider, setProvider, model, setModel, themeMode, theme, styles, modelOptions, providerModelOptions, permissionModeUI]
+  );
+
+  return children(state);
+});

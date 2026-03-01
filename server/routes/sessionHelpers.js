@@ -9,6 +9,23 @@ const SESSION_FILE_VERSION = 3;
 const FIRST_USER_INPUT_MAX_LEN = 80;
 /** Byte threshold above which assistant message events are stripped during SSE replay. */
 const SLIM_REPLAY_THRESHOLD_BYTES = 2048;
+/** Restrictive single-segment session ID format to prevent path traversal. */
+const SAFE_SESSION_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+
+export function isValidSessionId(sessionId) {
+    if (typeof sessionId !== "string") return false;
+    const sid = sessionId.trim();
+    if (!sid || sid === "." || sid === "..") return false;
+    if (sid.includes("/") || sid.includes("\\")) return false;
+    return SAFE_SESSION_ID_RE.test(sid);
+}
+
+export function assertValidSessionId(sessionId) {
+    if (!isValidSessionId(sessionId)) {
+        throw new Error("Invalid sessionId");
+    }
+    return sessionId.trim();
+}
 
 /** Extract content from Pi message content array. Thinking uses c.thinking, text uses c.text. */
 export function extractMessageContent(contentArr) {
@@ -102,7 +119,8 @@ export function parseSessionMetadata(filePath) {
 
 /** Session dir = sessions/{sessionId}. Dir name is just the session id. */
 export function getSessionDir(sessionId) {
-    return path.join(SESSIONS_ROOT, "sessions", sessionId);
+    const sid = assertValidSessionId(sessionId);
+    return path.join(SESSIONS_ROOT, "sessions", sid);
 }
 
 /** Find .jsonl file in a session dir. */
@@ -242,6 +260,8 @@ export function parseMessagesFromJsonl(filePath) {
     const lines = raw.split("\n").filter((l) => l.trim());
 
     const messages = [];
+    const seenUserMessageIds = new Set();
+    const seenUserMessageContents = new Set();
     let idx = 0;
     let pendingAssistantContent = [];
     let pendingDeltaText = "";
@@ -288,9 +308,15 @@ export function parseMessagesFromJsonl(filePath) {
                     pendingAssistantContent.push(pendingDeltaText);
                     pendingDeltaText = "";
                 }
-                // Deduplicate: skip if this user content was already pre-written to the JSONL
-                const isDuplicate = messages.some((msg) => msg.role === "user" && msg.content === contentStr);
-                if (isDuplicate) continue;
+                // Prefer event message ID for dedupe; fallback to content only when no id is present.
+                const messageId = typeof m.id === "string" && m.id.trim().length > 0 ? m.id.trim() : "";
+                if (messageId) {
+                    if (seenUserMessageIds.has(messageId)) continue;
+                    seenUserMessageIds.add(messageId);
+                } else {
+                    if (seenUserMessageContents.has(contentStr)) continue;
+                    seenUserMessageContents.add(contentStr);
+                }
 
                 // Flush pending assistant chunks
                 if (pendingAssistantContent.length > 0) {

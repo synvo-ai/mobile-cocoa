@@ -7,7 +7,7 @@ import { Box } from "@/components/ui/box";
 import { Pressable } from "@/components/ui/pressable";
 import { ScrollView } from "@/components/ui/scroll-view";
 import { Text } from "@/components/ui/text";
-import { EntranceAnimation, radii, spacing, triggerHaptic } from "@/design-system";
+import { EntranceAnimation, radii, spacing, triggerHaptic } from "@/designSystem";
 import type { Message } from "@/services/chat/hooks";
 import { stripTrailingIncompleteTag } from "@/services/providers/stream";
 import { useTheme } from "@/theme/index";

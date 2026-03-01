@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, InteractionManager, ScrollView } from "react-native";
 
 import { type Provider } from "@/core/modelOptions";
-import { triggerHaptic } from "@/design-system";
+import { triggerHaptic } from "@/designSystem";
 import { getModel, ModalSessionItem } from "@/features/app/appConfig";
 import { useChat, type Message, type PendingAskUserQuestion, type PermissionDenial } from "@/services/chat/hooks";
 import * as sessionStore from "@/services/sessionStore";
@@ -54,7 +54,7 @@ export type SseSessionControllerState = {
   handleNewSession: () => void;
 };
 
-export function SseSessionController({
+export const SseSessionController = memo(function SseSessionController({
   provider,
   model,
   serverConfig,
@@ -203,6 +203,7 @@ export function SseSessionController({
         const selectedModel =
           typeof session.model === "string" && session.model.length > 0 ? session.model : getModel(selectedProvider);
         let sessionMessages = Array.isArray(session.messages) ? session.messages : [];
+        let sessionIdToLoad = session.id;
         const sessionWorkspace =
           typeof session.cwd === "string" && session.cwd.trim().length > 0 ? session.cwd.trim() : null;
 
@@ -217,6 +218,9 @@ export function SseSessionController({
             const res = await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(session.id)}/messages`);
             if (res.ok) {
               const data = await res.json();
+              if (typeof data?.activeSessionId === "string" && data.activeSessionId.trim().length > 0) {
+                sessionIdToLoad = data.activeSessionId.trim();
+              }
               sessionMessages = Array.isArray(data?.messages) ? data.messages : [];
             }
           } catch {
@@ -231,7 +235,7 @@ export function SseSessionController({
 
         sessionStore.setLastUsedProviderModel(selectedProvider, selectedModel);
 
-        loadSession(sessionMessages, session.id, session.running || session.sseConnected);
+        loadSession(sessionMessages, sessionIdToLoad, session.running || session.sseConnected);
       } finally {
         InteractionManager.runAfterInteractions(() => {
           setTimeout(() => {
@@ -259,39 +263,74 @@ export function SseSessionController({
     startNewSession();
   }, [startNewSession]);
 
-  const state: SseSessionControllerState = {
-    connected,
-    isSessionLoading,
-    messages,
-    sessionRunning,
-    waitingForUserInput,
-    permissionDenials,
-    lastSessionTerminated,
-    sessionId,
-    pendingAskQuestion,
-    submitPrompt,
-    submitAskQuestionAnswer,
-    dismissAskQuestion,
-    retryAfterPermission,
-    dismissPermission,
-    terminateAgent,
-    resetSession,
-    loadSession,
-    startNewSession,
-    tailBoxMaxHeight,
-    scrollViewRef,
-    onContentSizeChange,
-    sessionStatuses,
-    setSessionStatuses,
-    storeProvider,
-    storeModel,
-    storeSessionId,
-    handleModelChange,
-    handleProviderChange,
-    handleSelectSession,
-    handleSelectActiveChat,
-    handleNewSession,
-  };
+  const state: SseSessionControllerState = useMemo(
+    () => ({
+      connected,
+      isSessionLoading,
+      messages,
+      sessionRunning,
+      waitingForUserInput,
+      permissionDenials,
+      lastSessionTerminated,
+      sessionId,
+      pendingAskQuestion,
+      submitPrompt,
+      submitAskQuestionAnswer,
+      dismissAskQuestion,
+      retryAfterPermission,
+      dismissPermission,
+      terminateAgent,
+      resetSession,
+      loadSession,
+      startNewSession,
+      tailBoxMaxHeight,
+      scrollViewRef,
+      onContentSizeChange,
+      sessionStatuses,
+      setSessionStatuses,
+      storeProvider,
+      storeModel,
+      storeSessionId,
+      handleModelChange,
+      handleProviderChange,
+      handleSelectSession,
+      handleSelectActiveChat,
+      handleNewSession,
+    }),
+    [
+      connected,
+      isSessionLoading,
+      messages,
+      sessionRunning,
+      waitingForUserInput,
+      permissionDenials,
+      lastSessionTerminated,
+      sessionId,
+      pendingAskQuestion,
+      submitPrompt,
+      submitAskQuestionAnswer,
+      dismissAskQuestion,
+      retryAfterPermission,
+      dismissPermission,
+      terminateAgent,
+      resetSession,
+      loadSession,
+      startNewSession,
+      tailBoxMaxHeight,
+      scrollViewRef,
+      onContentSizeChange,
+      sessionStatuses,
+      setSessionStatuses,
+      storeProvider,
+      storeModel,
+      storeSessionId,
+      handleModelChange,
+      handleProviderChange,
+      handleSelectSession,
+      handleSelectActiveChat,
+      handleNewSession,
+    ]
+  );
 
   return <>{children(state)}</>;
-}
+});

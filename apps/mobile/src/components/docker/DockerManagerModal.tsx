@@ -2,7 +2,7 @@ import { ChevronLeftIcon, CloseIcon, ContainerIcon, CopyIcon, DockerIcon, ImageI
 import { DockerResourceCard } from "@/components/reusable/DockerResourceCard";
 import { ModalScaffold } from "@/components/reusable/ModalScaffold";
 import { TabBarPills } from "@/components/reusable/TabBarPills";
-import { showAlert } from "@/components/ui/alert/native-alert";
+import { showAlert } from "@/components/ui/alert/nativeAlert";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonIcon, ButtonText } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
@@ -11,7 +11,7 @@ import { RefreshControl } from "@/components/ui/refresh-control";
 import { ScrollView } from "@/components/ui/scroll-view";
 import { Spinner } from "@/components/ui/spinner";
 import { Text } from "@/components/ui/text";
-import { Skeleton, triggerHaptic } from "@/design-system";
+import { Skeleton, triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useState } from "react";

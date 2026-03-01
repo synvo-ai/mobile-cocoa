@@ -11,24 +11,15 @@ import type { CodeReference, LastRunOptions, Message, PendingAskUserQuestion, Pe
 import { getDefaultServerConfig } from "@/services/server/config";
 import { useSessionManagementStore } from "@/state/sessionManagementStore";
 import { useCallback, useRef, useState } from "react";
-import { resolveDefaultModel } from "./chatHookHelpers";
-import type { EventSourceLike, SessionLiveState, SessionRuntimeState, UseChatOptions } from "./hooks-types";
+import { getDefaultModelForProvider } from "@/services/server/modelsApi";
+import type { SessionRuntimeState, UseChatOptions } from "./hooksTypes";
 import {
-    deduplicateDenials,
-    deduplicateMessageIds as deduplicateMessageIdsUtil,
-    getMaxMessageId
-} from "./hooks-utils";
-import {
-    getOrCreateSessionMessages as getOrCreateSessionMessagesFromCache, getOrCreateSessionState as getOrCreateSessionStateFromCache, getSessionDraft as getSessionDraftFromCache,
-    setSessionDraft as setSessionDraftFromCache,
-    setSessionMessages as setSessionMessagesFromCache,
-    touchSession,
-    evictOldestSessions,
-} from "./sessionCacheHelpers";
+  deduplicateDenials,
+} from "./hooksUtils";
+import { useSessionCache } from "./useSessionCache";
 import { useChatActions } from "./useChatActions";
 import { useChatExternalCallbacks } from "./useChatExternalCallbacks";
 import { useChatStreamingLifecycle } from "./useChatStreamingLifecycle";
-import type { SseEventHandlers } from "./sseConnection";
 
 // Re-export hook types for consumers.
 export type { Message, CodeReference, PermissionDenial, PendingAskUserQuestion, LastRunOptions };
@@ -39,7 +30,7 @@ export function useChat(options: UseChatOptions = {}) {
   const serverUrl = serverConfig.getBaseUrl();
   const provider = options.provider ?? "codex";
 
-  const defaultModel = resolveDefaultModel(provider);
+  const defaultModel = getDefaultModelForProvider(provider);
   const model = options.model ?? defaultModel;
   const [connected, setConnected] = useState(false);
   const [liveSessionMessages, setLiveSessionMessages] = useState<Message[]>([]);
@@ -58,189 +49,54 @@ export function useChat(options: UseChatOptions = {}) {
 
   const [pendingAskQuestion, setPendingAskQuestion] = useState<PendingAskUserQuestion | null>(null);
   const [lastSessionTerminated, setLastSessionTerminated] = useState(false);
+  const sessionCache = useSessionCache({
+    setSessionState,
+    setWaitingForUserInput,
+    setConnected,
+    setLiveSessionMessages,
+  });
+  sessionCache.setCurrentSessionId(sessionId);
 
-  const activeSseRef = useRef<{ id: string; source: EventSourceLike } | null>(null);
-  const activeSseHandlersRef = useRef<SseEventHandlers | null>(null);
-  const suppressActiveSessionSwitchRef = useRef(false);
-  const selectedSessionRuntimeRef = useRef<{ id: string | null; running: boolean } | null>(null);
-  const connectionIntentBySessionRef = useRef<Map<string, boolean>>(new Map());
-  const sawAgentEndRef = useRef(false);
-  const outputBufferRef = useRef("");
-
-  const sessionStatesRef = useRef<Map<string, SessionLiveState>>(new Map());
-  const sessionMessagesRef = useRef<Map<string, Message[]>>(new Map());
-  const sessionDraftRef = useRef<Map<string, string>>(new Map());
-  const displayedSessionIdRef = useRef<string | null>(null);
-
-  const getOrCreateSessionState = useCallback((sid: string): SessionLiveState => {
-    return getOrCreateSessionStateFromCache(sessionStatesRef.current, sid);
-  }, []);
-
-  const getOrCreateSessionMessages = useCallback(
-    (sid: string): Message[] => getOrCreateSessionMessagesFromCache(sessionMessagesRef.current, sid),
-    []
-  );
-
-  const getSessionDraft = useCallback((sid: string): string => getSessionDraftFromCache(sessionDraftRef.current, sid), []);
-
-  const setSessionDraft = useCallback(
-    (sid: string, draft: string) => setSessionDraftFromCache(sessionDraftRef.current, sid, draft),
-    []
-  );
-
-  const setSessionMessages = useCallback(
-    (sid: string, messages: Message[]) => setSessionMessagesFromCache(sessionMessagesRef.current, sid, messages),
-    []
-  );
-
-  const setSessionStateForSession = useCallback(
-    (sid: string | null, next: SessionRuntimeState) => {
-      if (!sid) {
-        setSessionState(next);
-        return;
-      }
-      const state = getOrCreateSessionState(sid);
-      state.sessionState = next;
-      if (displayedSessionIdRef.current === sid) {
-        setSessionState(next);
-      }
-    },
-    [getOrCreateSessionState]
-  );
-
-  const nextIdRef = useRef(0);
-  const toolUseByIdRef = useRef<Map<string, { tool_name: string; tool_input?: Record<string, unknown> }>>(new Map());
-  // Periodic cleanup: entries older than ~5 min are orphaned (tool_result never arrived).
-  // Clear the entire map on session transitions (closeActiveSse) to keep it bounded.
-  const liveMessagesRef = useRef<Message[]>([]);
-  liveMessagesRef.current = liveSessionMessages;
-  const currentSessionIdRef = useRef<string | null>(null);
-  currentSessionIdRef.current = sessionId;
-  displayedSessionIdRef.current = sessionId;
-
-  const streamFlushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipReplayForSessionRef = useRef<string | null>(null);
   const sessionStatuses = useSessionManagementStore((state) => state.sessionStatuses);
   const storeSessionId = useSessionManagementStore((state) => state.sessionId);
   const setStoreSessionId = useSessionManagementStore((state) => state.setSessionId);
 
-  const getConnectionIntent = useCallback((sid: string | null): boolean | undefined => {
-    if (!sid) return undefined;
-    return connectionIntentBySessionRef.current.get(sid);
-  }, []);
-
-  const setConnectionIntent = useCallback((sid: string | null, shouldConnect: boolean) => {
-    if (!sid) return;
-    if (shouldConnect) {
-      connectionIntentBySessionRef.current.set(sid, true);
-      return;
-    }
-    connectionIntentBySessionRef.current.delete(sid);
-  }, []);
-
-  const clearConnectionIntent = useCallback((sid: string | null) => {
-    if (!sid) return;
-    connectionIntentBySessionRef.current.delete(sid);
-  }, []);
-
-  const syncSessionToReact = useCallback(
-    (sid: string | null) => {
-      if (!sid) return;
-      const s = sessionStatesRef.current.get(sid);
-      const messages = getOrCreateSessionMessages(sid);
-      if (s) {
-        setLiveSessionMessages(messages);
-        setSessionState(s.sessionState);
-        outputBufferRef.current = "";
-        liveMessagesRef.current = messages;
-      } else {
-        const isDisplayedSession = displayedSessionIdRef.current === sid;
-        const hasDisplayedMessages = liveMessagesRef.current.length > 0;
-        if (!(isDisplayedSession && hasDisplayedMessages)) {
-          setLiveSessionMessages([]);
-          liveMessagesRef.current = [];
-        }
-        outputBufferRef.current = "";
-        setSessionState("idle");
-        setWaitingForUserInput(false);
-      }
-    },
-    [getOrCreateSessionMessages]
-  );
-
-  const closeActiveSse = useCallback(
-    (reason?: string) => {
-      const active = activeSseRef.current;
-      if (!active) {
-        return;
-      }
-      const { id, source } = active;
-      const handlers = activeSseHandlersRef.current;
-      if (__DEV__) {
-        console.log("[sse] disconnected", { reason: reason ?? "close", sessionId: id });
-      }
-      // Null the refs FIRST to prevent any in-flight queued SSE events from
-      // referencing the old session after close. This fixes the race where
-      // late-arriving chunks for the previous session corrupt display state.
-      activeSseRef.current = null;
-      activeSseHandlersRef.current = null;
-      if (handlers) {
-        source.removeEventListener("open", handlers.open);
-        source.removeEventListener("error", handlers.error);
-        source.removeEventListener("message", handlers.message);
-        source.removeEventListener("end", handlers.end);
-        source.removeEventListener("done", handlers.done);
-      }
-      source.close();
-      if (displayedSessionIdRef.current === id) {
-        if (sawAgentEndRef.current) {
-          // Normal end — agent_end was received.
-          setSessionStateForSession(id, "idle");
-          setWaitingForUserInput(false);
-        } else if (reason !== "session-switch" && reason !== "session-load" && reason !== "new-session") {
-          // Server ended (crash/restart) while session was running — agent_end was never sent.
-          // Transition to idle so the UI doesn't stay stuck in "running" state.
-          if (__DEV__) console.log("[sse] server ended without agent_end, forcing idle", { sessionId: id, reason });
-          setSessionStateForSession(id, "idle");
-          setWaitingForUserInput(false);
-          setLastSessionTerminated(true);
-        }
-      }
-      suppressActiveSessionSwitchRef.current = false;
-      if (streamFlushTimeoutRef.current) {
-        clearTimeout(streamFlushTimeoutRef.current);
-        streamFlushTimeoutRef.current = null;
-      }
-      clearConnectionIntent(id);
-      // Clear orphaned tool_use records to prevent slow memory leak when
-      // tool_result never arrives (e.g. SSE drops, session crash).
-      toolUseByIdRef.current.clear();
-      setConnected(false);
-    },
-    [clearConnectionIntent, setSessionStateForSession]
-  );
-
-  const deduplicateMessageIds = useCallback(
-    (msgs: Message[]): Message[] => deduplicateMessageIdsUtil(msgs, nextIdRef),
-    []
-  );
+  const deduplicateMessageIds = sessionCache.deduplicateMessageIds;
+  const { setConnectionIntent, clearConnectionIntent, syncSessionToReact } = sessionCache;
+  const {
+    getOrCreateSessionState,
+    getOrCreateSessionMessages,
+    setSessionDraft,
+    setSessionMessages,
+    setSessionStateForSession,
+    touchSession,
+    evictOldestSessions,
+    activeSseRef,
+    displayedSessionIdRef,
+    skipReplayForSessionRef,
+    outputBufferRef,
+    nextIdRef,
+    liveMessagesRef,
+    currentSessionIdRef,
+    closeActiveSse,
+  } = sessionCache;
 
   const pendingMessagesForNewSessionRef = useRef<Message[]>([]);
 
   const addMessage = useCallback(
     (role: Message["role"], content: string, codeReferences?: CodeReference[]) => {
-      const sid = currentSessionIdRef.current;
+      const currentSessionId = currentSessionIdRef.current;
       const id = `msg-${++nextIdRef.current}`;
       const newMsg: Message = { id, role, content, codeReferences };
-      if (!sid) {
+      if (!currentSessionId) {
         setLiveSessionMessages((prev) => [...prev, newMsg]);
         pendingMessagesForNewSessionRef.current = [...pendingMessagesForNewSessionRef.current, newMsg];
         return id;
       }
-      const messages = getOrCreateSessionMessages(sid);
+      const messages = getOrCreateSessionMessages(currentSessionId);
       const nextMessages = [...messages, newMsg];
-      setSessionMessages(sid, nextMessages);
-      if (displayedSessionIdRef.current === sid) {
+      setSessionMessages(currentSessionId, nextMessages);
+      if (displayedSessionIdRef.current === currentSessionId) {
         setLiveSessionMessages([...nextMessages]);
         liveMessagesRef.current = nextMessages;
       }
@@ -250,22 +106,22 @@ export function useChat(options: UseChatOptions = {}) {
   );
 
   const seedSessionFromMessages = useCallback(
-    (sid: string, initialMessages: Message[] | undefined, statusHint?: boolean) => {
+    (sessionIdToSeed: string, initialMessages: Message[] | undefined, statusHint?: boolean) => {
       const shouldRun =
         typeof statusHint === "boolean"
           ? statusHint
-          : sessionStatuses.find((session) => session.id === sid)?.status === "running";
-      const state = getOrCreateSessionState(sid);
+          : sessionStatuses.find((session) => session.id === sessionIdToSeed)?.status === "running";
+      const state = getOrCreateSessionState(sessionIdToSeed);
       if (typeof statusHint === "boolean") {
-        setConnectionIntent(sid, statusHint);
+        setConnectionIntent(sessionIdToSeed, statusHint);
       } else {
-        clearConnectionIntent(sid);
+        clearConnectionIntent(sessionIdToSeed);
       }
       if (initialMessages && initialMessages.length > 0) {
-        const maxN = getMaxMessageId(initialMessages);
+        const maxN = sessionCache.getMaxMessageId(initialMessages);
         nextIdRef.current = Math.max(nextIdRef.current, maxN);
         const deduped = deduplicateMessageIds(initialMessages);
-        setSessionMessages(sid, [...deduped]);
+        setSessionMessages(sessionIdToSeed, [...deduped]);
         // When the session is running and the last message is from the assistant,
         // initialize the draft with that content so incoming SSE deltas append
         // to it instead of replacing it. Without this, the first live delta
@@ -274,30 +130,25 @@ export function useChat(options: UseChatOptions = {}) {
         const seedDraft = shouldRun && lastMsg?.role === "assistant" && typeof lastMsg.content === "string"
           ? lastMsg.content
           : "";
-        setSessionDraft(sid, seedDraft);
+        setSessionDraft(sessionIdToSeed, seedDraft);
         setLiveSessionMessages([...deduped]);
         liveMessagesRef.current = deduped;
-        skipReplayForSessionRef.current = sid;
+        skipReplayForSessionRef.current = sessionIdToSeed;
       } else {
-        setSessionMessages(sid, []);
-        setSessionDraft(sid, "");
+        setSessionMessages(sessionIdToSeed, []);
+        setSessionDraft(sessionIdToSeed, "");
       }
       state.sessionState = shouldRun ? "running" : "idle";
       setSessionState(state.sessionState);
 
-      setSessionId(sid);
-      setSessionStateForSession(sid, state.sessionState);
-      syncSessionToReact(sid);
+      setSessionId(sessionIdToSeed);
+      setSessionStateForSession(sessionIdToSeed, state.sessionState);
+      syncSessionToReact(sessionIdToSeed);
       setConnected(false);
 
       // LRU: mark this session as recently used and evict oldest if over limit
-      touchSession(sid);
-      evictOldestSessions(
-        sessionStatesRef.current,
-        sessionMessagesRef.current,
-        sessionDraftRef.current,
-        sid,
-      );
+      touchSession(sessionIdToSeed);
+      evictOldestSessions(sessionIdToSeed);
     },
     [
       clearConnectionIntent,
@@ -328,14 +179,11 @@ export function useChat(options: UseChatOptions = {}) {
   const deduplicateDenialsCallback = useCallback(deduplicateDenials, []);
 
   const recordToolUse = useCallback((id: string, data: { tool_name: string; tool_input?: Record<string, unknown> }) => {
-    toolUseByIdRef.current.set(id, data);
+    sessionCache.recordToolUse(id, data);
   }, []);
 
   const getAndClearToolUse = useCallback((id: string) => {
-    const m = toolUseByIdRef.current;
-    const v = m.get(id);
-    m.delete(id);
-    return v ?? null;
+    return sessionCache.getAndClearToolUse(id);
   }, []);
 
   const addPermissionDenial = useCallback(
@@ -345,14 +193,10 @@ export function useChat(options: UseChatOptions = {}) {
     [deduplicateDenialsCallback]
   );
 
-  const recordToolUseRef = useRef(recordToolUse);
-  const getAndClearToolUseRef = useRef(getAndClearToolUse);
-  const addPermissionDenialRef = useRef(addPermissionDenial);
-  const deduplicateDenialsRef = useRef(deduplicateDenialsCallback);
-  recordToolUseRef.current = recordToolUse;
-  getAndClearToolUseRef.current = getAndClearToolUse;
-  addPermissionDenialRef.current = addPermissionDenial;
-  deduplicateDenialsRef.current = deduplicateDenialsCallback;
+  sessionCache.recordToolUseRef.current = recordToolUse;
+  sessionCache.getAndClearToolUseRef.current = getAndClearToolUse;
+  sessionCache.addPermissionDenialRef.current = addPermissionDenial;
+  sessionCache.deduplicateDenialsRef.current = deduplicateDenialsCallback;
 
   useChatExternalCallbacks({
     connected,
@@ -376,42 +220,14 @@ export function useChat(options: UseChatOptions = {}) {
     sessionId,
     storeSessionId,
     sessionStatuses,
-    skipReplayForSessionRef,
+    sessionCache,
     nextIdRef,
-    liveMessagesRef,
-    outputBufferRef,
-    sessionStatesRef,
-    sessionMessagesRef,
-    sessionDraftRef,
-    activeSseRef,
-    activeSseHandlersRef,
-    suppressActiveSessionSwitchRef,
-    selectedSessionRuntimeRef,
-    connectionIntentBySessionRef,
-    sawAgentEndRef,
-    streamFlushTimeoutRef,
-    displayedSessionIdRef,
-    recordToolUseRef,
-    getAndClearToolUseRef,
-    addPermissionDenialRef,
-    deduplicateDenialsRef,
-    getOrCreateSessionState,
-    getOrCreateSessionMessages,
-    getSessionDraft,
-    setSessionDraft,
-    setSessionMessages,
-    deduplicateMessageIds,
-    getMaxMessageId,
-    closeActiveSse,
+    liveMessagesRef: sessionCache.liveMessagesRef,
+    outputBufferRef: sessionCache.outputBufferRef,
     syncSessionToReact,
-    getConnectionIntent,
-    setConnectionIntent,
-    clearConnectionIntent,
     setConnected,
     setSessionId,
-    setLiveSessionMessages,
     setSessionState,
-    setSessionStateForSession,
     setWaitingForUserInput,
     setPendingAskQuestion,
     setPermissionDenials,
@@ -436,6 +252,7 @@ export function useChat(options: UseChatOptions = {}) {
     sessionId,
     pendingAskQuestion,
     permissionDenials,
+    sessionCache,
     lastRunOptionsRef,
     liveMessagesRef,
     pendingMessagesForNewSessionRef,
@@ -443,21 +260,11 @@ export function useChat(options: UseChatOptions = {}) {
     displayedSessionIdRef,
     skipReplayForSessionRef,
     addMessage,
-    deduplicateMessageIds,
-    getOrCreateSessionState,
-    getOrCreateSessionMessages,
-    setSessionMessages,
-    setSessionDraft,
     setSessionId,
-    setLiveSessionMessages,
+    setWaitingForUserInput,
     setPermissionDenials,
     setPendingAskQuestion,
     setLastSessionTerminated,
-    setWaitingForUserInput,
-    setSessionStateForSession,
-    setConnectionIntent,
-    clearConnectionIntent,
-    closeActiveSse,
   });
 
   return {

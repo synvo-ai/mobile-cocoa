@@ -21,7 +21,9 @@ import {
 import {
     getOrCreateSessionMessages as getOrCreateSessionMessagesFromCache, getOrCreateSessionState as getOrCreateSessionStateFromCache, getSessionDraft as getSessionDraftFromCache,
     setSessionDraft as setSessionDraftFromCache,
-    setSessionMessages as setSessionMessagesFromCache
+    setSessionMessages as setSessionMessagesFromCache,
+    touchSession,
+    evictOldestSessions,
 } from "./sessionCacheHelpers";
 import { useChatActions } from "./useChatActions";
 import { useChatExternalCallbacks } from "./useChatExternalCallbacks";
@@ -182,6 +184,11 @@ export function useChat(options: UseChatOptions = {}) {
       if (__DEV__) {
         console.log("[sse] disconnected", { reason: reason ?? "close", sessionId: id });
       }
+      // Null the refs FIRST to prevent any in-flight queued SSE events from
+      // referencing the old session after close. This fixes the race where
+      // late-arriving chunks for the previous session corrupt display state.
+      activeSseRef.current = null;
+      activeSseHandlersRef.current = null;
       if (handlers) {
         source.removeEventListener("open", handlers.open);
         source.removeEventListener("error", handlers.error);
@@ -205,8 +212,6 @@ export function useChat(options: UseChatOptions = {}) {
         }
       }
       suppressActiveSessionSwitchRef.current = false;
-      activeSseRef.current = null;
-      activeSseHandlersRef.current = null;
       if (streamFlushTimeoutRef.current) {
         clearTimeout(streamFlushTimeoutRef.current);
         streamFlushTimeoutRef.current = null;
@@ -281,6 +286,15 @@ export function useChat(options: UseChatOptions = {}) {
       setSessionStateForSession(sid, state.sessionState);
       syncSessionToReact(sid);
       setConnected(false);
+
+      // LRU: mark this session as recently used and evict oldest if over limit
+      touchSession(sid);
+      evictOldestSessions(
+        sessionStatesRef.current,
+        sessionMessagesRef.current,
+        sessionDraftRef.current,
+        sid,
+      );
     },
     [
       clearConnectionIntent,

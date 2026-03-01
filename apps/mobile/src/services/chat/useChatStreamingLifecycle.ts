@@ -79,6 +79,9 @@ const STREAM_BOUNDARY_MARKER = /[.!?;,\n]/;
 
 const SSE_MAX_RETRIES = 5;
 const SSE_RETRY_BASE_MS = 1000;
+/** Safety limit for outputBufferRef to prevent RangeError from unbounded string growth.
+ *  5MB is well under Hermes' ~500MB limit but large enough for any legitimate partial line. */
+const OUTPUT_BUFFER_MAX_SIZE = 5 * 1024 * 1024;
 
 /** Resolve the EventSource constructor across CJS/ESM module shapes. */
 function resolveEventSourceCtor(): EventSourceCtor {
@@ -517,9 +520,46 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       if (event.data == null) return;
 
       const dataStr = event.data;
-      outputBufferRef.current += dataStr + "\n";
-      const lines = outputBufferRef.current.split("\n");
-      outputBufferRef.current = lines.pop() ?? "";
+      const dataStrLen = typeof dataStr === "string" ? dataStr.length : 0;
+
+      // Safety valve: if buffer + new data would exceed limit, reset buffer.
+      // This prevents the RangeError from occurring in the first place.
+      if (outputBufferRef.current.length + dataStrLen + 1 > OUTPUT_BUFFER_MAX_SIZE) {
+        console.warn("[sse] outputBuffer exceeded safety limit, resetting", {
+          bufferLen: outputBufferRef.current.length,
+          dataStrLen,
+          limit: OUTPUT_BUFFER_MAX_SIZE,
+        });
+        outputBufferRef.current = "";
+        return;
+      }
+
+      // DIAGNOSTIC: Catch the exact operation that triggers RangeError
+      try {
+        outputBufferRef.current += dataStr + "\n";
+      } catch (bufferErr) {
+        console.error("[sse][DIAG] RangeError on outputBuffer concat", {
+          bufferLen: outputBufferRef.current.length,
+          dataStrLen,
+          error: String(bufferErr),
+        });
+        // Reset buffer to prevent cascading failures
+        outputBufferRef.current = "";
+        return;
+      }
+
+      let lines: string[];
+      try {
+        lines = outputBufferRef.current.split("\n");
+        outputBufferRef.current = lines.pop() ?? "";
+      } catch (splitErr) {
+        console.error("[sse][DIAG] RangeError on buffer split", {
+          bufferLen: outputBufferRef.current.length,
+          error: String(splitErr),
+        });
+        outputBufferRef.current = "";
+        return;
+      }
 
       for (const line of lines) {
         const trimmed = line.trim();
@@ -533,7 +573,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         try {
           const parsed = JSON.parse(clean);
 
-          if (parsed.type === "session-started" || parsed.type === "claude-started") {
+          if (parsed.type === "session-started") {
             hasStreamEndedRef.current = false;
             setLastSessionTerminated(false);
             if (displayedSessionIdRef.current === connectionSessionIdRef.current) {
@@ -567,13 +607,37 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
           }
 
           if (isProviderStream(parsed)) {
-            dispatchProviderEvent(parsed as Record<string, unknown>);
+            try {
+              dispatchProviderEvent(parsed as Record<string, unknown>);
+            } catch (dispatchErr) {
+              console.error("[sse][DIAG] RangeError in dispatchProviderEvent", {
+                type: parsed.type,
+                dataLen: clean.length,
+                error: String(dispatchErr),
+              });
+            }
           } else if (typeof parsed === "object" && parsed != null && "type" in parsed) {
             continue;
           } else {
-            queueAssistantText(clean + "\n");
+            try {
+              queueAssistantText(clean + "\n");
+            } catch (queueErr) {
+              console.error("[sse][DIAG] RangeError in queueAssistantText (non-provider)", {
+                cleanLen: clean.length,
+                pendingLen: pendingAssistantText.length,
+                error: String(queueErr),
+              });
+            }
           }
-        } catch {
+        } catch (outerErr) {
+          // Check if this is a RangeError rather than a JSON parse error
+          if (outerErr instanceof RangeError) {
+            console.error("[sse][DIAG] RangeError in messageHandler processing", {
+              cleanLen: clean.length,
+              error: String(outerErr),
+            });
+            continue;
+          }
           const jsonStart = clean.indexOf("{");
           if (clean.startsWith("<u") && jsonStart > 0) {
             try {
@@ -591,7 +655,15 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
               if (typeof parsed === "object" && parsed != null && "type" in parsed) continue;
             } catch {}
           }
-          queueAssistantText(clean + "\n");
+          try {
+            queueAssistantText(clean + "\n");
+          } catch (queueErr2) {
+            console.error("[sse][DIAG] RangeError in queueAssistantText (fallback)", {
+              cleanLen: clean.length,
+              pendingLen: pendingAssistantText.length,
+              error: String(queueErr2),
+            });
+          }
         }
       }
     };

@@ -270,6 +270,33 @@ export function createPiRpcSession({
     turnRunning = false;
   }
 
+  /**
+   * Strip heavy content from snapshot/lifecycle events before forwarding to SSE clients.
+   * Events like message_end, turn_end, agent_end carry the full message content (60KB+)
+   * but the mobile client treats them as no-ops. Sending slim versions prevents
+   * xhr.responseText from growing unboundedly, which causes RangeError in Hermes.
+   */
+  function slimEventForSse(parsed) {
+    const type = String(parsed.type ?? "");
+    // These event types carry full message/content snapshots that the client ignores
+    const HEAVY_TYPES = new Set(["message_end", "turn_end", "message_start"]);
+    if (HEAVY_TYPES.has(type)) {
+      return { type };
+    }
+    // agent_end carries all conversation messages — strip to just type
+    if (type === "agent_end") {
+      return { type: "agent_end" };
+    }
+    // message events with role: assistant may contain full content — strip if > 2KB
+    if (type === "message" && parsed.message?.role === "assistant") {
+      const serialized = JSON.stringify(parsed);
+      if (serialized.length > 2048) {
+        return { type: "message", id: parsed.id, parentId: parsed.parentId, timestamp: parsed.timestamp, message: { role: "assistant", content: "[content stripped for SSE]" } };
+      }
+    }
+    return parsed;
+  }
+
   function handlePiEvent(parsed) {
     if (!parsed || typeof parsed !== "object") return;
     const type = String(parsed.type ?? "");
@@ -310,8 +337,9 @@ export function createPiRpcSession({
         turnRunning,
       };
       console.log("[pi] agent_end received", JSON.stringify(context));
-      // Ensure agent_end remains observable in the streamed payload before finalizing.
-      emitOutputLine(JSON.stringify(parsed) + "\n");
+      // Emit slim agent_end (no messages array) to avoid bloating SSE responseText
+      const slimmed = slimEventForSse(parsed);
+      emitOutputLine(JSON.stringify(slimmed) + "\n");
       signalTurnComplete(0, { markCompleted: true });
       return;
     }
@@ -331,8 +359,9 @@ export function createPiRpcSession({
       return;
     }
 
-    // Forward all events to client (native Pi protocol)
-    emitOutputLine(JSON.stringify(parsed) + "\n");
+    // Forward events to client, stripping heavy snapshot content
+    const slimmed = slimEventForSse(parsed);
+    emitOutputLine(JSON.stringify(slimmed) + "\n");
   }
 
   async function ensurePiProcess(options) {
@@ -514,7 +543,7 @@ export function createPiRpcSession({
 
     openPiIoOutputStream();
     // No temp folders: Pi writes to .pi/sessions; we only emit to socket
-    socket.emit("claude-started", {
+    socket.emit("session-started", {
       provider: options.clientProvider ?? sessionManagement?.provider ?? "claude",
       session_id: null,
       permissionMode: null,

@@ -138,15 +138,13 @@ function createHandlerRegistry(ctx: EventContext): Map<string, EventHandler> {
       // Status line "-> Completed" / "-> Failed" intentionally omitted per UI preference
     }
   });
-  registry.set("turn_end", (data) => {
-    const msg = data.message as { content?: Array<{ type?: string; text?: string }> } | undefined;
-    if (msg?.content) {
-      const text = msg.content
-        .filter((c) => c.type === "text" && c.text)
-        .map((c) => c.text)
-        .join("");
-      if (text) appendSnapshotTextDelta(ctx, text);
-    }
+  registry.set("turn_end", (_data) => {
+    // Intentionally a no-op. All assistant content is already captured
+    // incrementally via message_update text_delta events. The turn_end
+    // snapshot contains the same text and appendSnapshotTextDelta's dedup
+    // logic fails when <think> blocks (from tool output) exist in the
+    // streamed draft but not in the snapshot, causing the entire text to
+    // be appended again — resulting in duplicate messages.
   });
   registry.set("turn_start", () => {});
   registry.set("agent_start", () => {});

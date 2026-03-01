@@ -210,7 +210,7 @@ Use **Cloudflare Tunnel** so the app can reach your dev server from any network.
 | Event | Payload | Description |
 |-------|---------|-------------|
 | `output` | `string` | AI output stream |
-| `claude-started` | `{ provider, permissionMode, allowedTools, useContinue, approvalMode? }` | Session started |
+| `session-started` | `{ provider, permissionMode, allowedTools, useContinue, approvalMode? }` | Session started |
 | `exit` | `{ exitCode }` | Session ended |
 | `run-render-started` | `{ terminalId, pid? }` | Terminal created |
 | `run-render-stdout` | `{ terminalId, chunk }` | Terminal stdout |

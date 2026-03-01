@@ -74,6 +74,7 @@ export function SseSessionController({
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [sessionRunning, setSessionRunning] = useState(false);
+  const sessionSwitchLockRef = useRef(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [waitingForUserInput, setWaitingForUserInput] = useState(false);
   const [permissionDenials, setPermissionDenials] = useState<PermissionDenial[] | null>(null);
@@ -189,40 +190,61 @@ export function SseSessionController({
       if (!session || typeof session.id !== "string" || session.id.length === 0) {
         return;
       }
+      // Prevent concurrent session switches (double-tap guard)
+      if (sessionSwitchLockRef.current) return;
+      sessionSwitchLockRef.current = true;
       setIsSessionLoading(true);
 
       // Let React render the loading state
       await new Promise(resolve => setTimeout(resolve, 10));
 
-      const selectedProvider = (typeof session.provider === "string" && session.provider.length > 0 ? session.provider : "codex") as Provider;
-      const selectedModel =
-        typeof session.model === "string" && session.model.length > 0 ? session.model : getModel(selectedProvider);
-      const sessionMessages = Array.isArray(session.messages) ? session.messages : [];
-      const sessionWorkspace =
-        typeof session.cwd === "string" && session.cwd.trim().length > 0 ? session.cwd.trim() : null;
+      try {
+        const selectedProvider = (typeof session.provider === "string" && session.provider.length > 0 ? session.provider : "codex") as Provider;
+        const selectedModel =
+          typeof session.model === "string" && session.model.length > 0 ? session.model : getModel(selectedProvider);
+        let sessionMessages = Array.isArray(session.messages) ? session.messages : [];
+        const sessionWorkspace =
+          typeof session.cwd === "string" && session.cwd.trim().length > 0 ? session.cwd.trim() : null;
 
-      if (sessionWorkspace) {
-        await switchWorkspaceForSession?.(sessionWorkspace);
+        if (sessionWorkspace) {
+          await switchWorkspaceForSession?.(sessionWorkspace);
+        }
+
+        // Pre-fetch messages from server to avoid showing an empty chat flash
+        if (sessionMessages.length === 0 && session.id) {
+          try {
+            const baseUrl = serverConfig.getBaseUrl();
+            const res = await fetch(`${baseUrl}/api/sessions/${encodeURIComponent(session.id)}/messages`);
+            if (res.ok) {
+              const data = await res.json();
+              sessionMessages = Array.isArray(data?.messages) ? data.messages : [];
+            }
+          } catch {
+            // Fall through with empty messages — loadSession will handle it
+          }
+        }
+
+        if (selectedModel) {
+          setModel(selectedModel);
+        }
+        setProvider(selectedProvider);
+
+        sessionStore.setLastUsedProviderModel(selectedProvider, selectedModel);
+
+        loadSession(sessionMessages, session.id, session.running || session.sseConnected);
+      } finally {
+        InteractionManager.runAfterInteractions(() => {
+          setTimeout(() => {
+            setIsSessionLoading(false);
+            sessionSwitchLockRef.current = false;
+            scrollViewRef.current?.scrollToEnd({ animated: false });
+          }, 100);
+        });
       }
-
-      if (selectedModel) {
-        setModel(selectedModel);
-      }
-      setProvider(selectedProvider);
-
-      sessionStore.setLastUsedProviderModel(selectedProvider, selectedModel);
-
-      loadSession(sessionMessages, session.id, session.running || session.sseConnected);
-
-      InteractionManager.runAfterInteractions(() => {
-        setTimeout(() => {
-          setIsSessionLoading(false);
-          scrollViewRef.current?.scrollToEnd({ animated: false });
-        }, 100);
-      });
     },
     [
       loadSession,
+      serverConfig,
       setModel,
       setProvider,
       switchWorkspaceForSession,

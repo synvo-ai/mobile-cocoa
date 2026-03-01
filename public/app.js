@@ -183,7 +183,7 @@ async function initSidebar() {
 }
 
 let sessionRunning = false;
-/** Options used for the current or last Claude run (set by server on claude-started). */
+/** Options used for the current or last session run (set by server on session-started). */
 let lastRunOptions = { permissionMode: null, allowedTools: [], useContinue: false };
 let waitingForUserInput = false;
 let outputBuffer = "";
@@ -509,7 +509,7 @@ socket.on("disconnect", () => {
   setConnectionState(false);
 });
 
-socket.on("claude-started", (payload) => {
+socket.on("session-started", (payload) => {
   if (payload && typeof payload === "object") {
     lastRunOptions = {
       permissionMode: payload.permissionMode ?? null,

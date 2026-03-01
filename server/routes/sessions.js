@@ -274,6 +274,21 @@ export function registerSessionsRoutes(app) {
             if (!existingPath) {
                 existingPath = createNewSessionFile(sessionId, sessionCwd);
             }
+            // Write the user prompt to the JSONL immediately so parseSessionMetadata
+            // and GET /messages can find it during streaming (Pi may not log the user
+            // message until thousands of streaming events later).
+            try {
+                const userMsgLine = JSON.stringify({
+                    type: "message",
+                    id: crypto.randomUUID(),
+                    timestamp: new Date().toISOString(),
+                    message: {
+                        role: "user",
+                        content: [{ type: "text", text: prompt }],
+                    },
+                }) + "\n";
+                fs.appendFileSync(existingPath, userMsgLine, "utf-8");
+            } catch (_) { /* non-fatal */ }
             session = createSession(sessionId, provider, model, {
                 existingSessionPath: existingPath,
                 sessionLogTimestamp: formatSessionLogTimestamp(),
@@ -556,6 +571,30 @@ export function registerSessionsRoutes(app) {
         }
     });
 
+    /**
+     * Strip heavy snapshot/lifecycle events during SSE replay to prevent
+     * xhr.responseText from growing unboundedly on the mobile client.
+     * Returns the line unchanged if it's not a heavy event.
+     */
+    function slimReplayLine(line) {
+        // Fast regex checks before any JSON.parse
+        if (/"type"\s*:\s*"(message_end|turn_end|message_start)"/.test(line)) {
+            // Extract just the type and return a tiny event
+            const typeMatch = line.match(/"type"\s*:\s*"([^"]+)"/);
+            return JSON.stringify({ type: typeMatch?.[1] ?? "unknown" });
+        }
+        // Large "message" events with assistant content — check size before stripping
+        if (/"type"\s*:\s*"message"/.test(line) && line.length > 2048) {
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed.message?.role === "assistant") {
+                    return JSON.stringify({ type: "message", id: parsed.id, parentId: parsed.parentId, timestamp: parsed.timestamp, message: { role: "assistant", content: "[stripped]" } });
+                }
+            } catch { }
+        }
+        return line;
+    }
+
     // GET /api/sessions/:sessionId/stream
     router.get("/:sessionId/stream", async (req, res) => {
         const sessionId = req.params.sessionId;
@@ -581,7 +620,8 @@ export function registerSessionsRoutes(app) {
                             // Skip lifecycle events from previous turns — replaying agent_end/agent_start
                             // confuses the client into thinking the current session has ended.
                             if (/"type"\s*:\s*"agent_(end|start)"/.test(line)) continue;
-                            res.write(`data: ${line}\n\n`);
+                            const slimmed = slimReplayLine(line);
+                            res.write(`data: ${slimmed}\n\n`);
                         }
                         console.log(`[SSE] sessionId=${sessionId} not in registry — replayed ${lines.length} lines from disk`);
                     } catch (e) {
@@ -611,7 +651,8 @@ export function registerSessionsRoutes(app) {
                         // Skip lifecycle events from previous turns — replaying agent_end/agent_start
                         // confuses the client into thinking the current session has ended.
                         if (/"type"\s*:\s*"agent_(end|start)"/.test(line)) continue;
-                        res.write(`data: ${line}\n\n`);
+                        const slimmed = slimReplayLine(line);
+                        res.write(`data: ${slimmed}\n\n`);
                         sentLines++;
                     }
                 } catch (e) {

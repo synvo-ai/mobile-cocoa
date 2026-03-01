@@ -1,6 +1,51 @@
 import type { Message } from "@/core/types";
 import type { SessionLiveState } from "./hooks-types";
 
+// ── LRU Cache Eviction ───────────────────────────────────────────────────
+// Prevents unbounded memory growth on mobile devices when users access
+// many sessions over time. Keeps the most recently accessed sessions.
+export const MAX_CACHED_SESSIONS = 15;
+const sessionAccessOrder: string[] = [];
+
+/** Mark a session as recently used (moves it to the end of the LRU list). */
+export const touchSession = (sid: string): void => {
+  const idx = sessionAccessOrder.indexOf(sid);
+  if (idx >= 0) sessionAccessOrder.splice(idx, 1);
+  sessionAccessOrder.push(sid);
+};
+
+/** Evict oldest sessions from all cache maps until we're at or below the limit. */
+export const evictOldestSessions = (
+  sessionStates: Map<string, SessionLiveState>,
+  sessionMessages: Map<string, Message[]>,
+  sessionDrafts: Map<string, string>,
+  activeSessionId?: string | null,
+): void => {
+  let safetyCounter = 0;
+  while (sessionAccessOrder.length > MAX_CACHED_SESSIONS && safetyCounter < sessionAccessOrder.length + 5) {
+    safetyCounter++;
+    const oldest = sessionAccessOrder[0];
+    if (!oldest) break;
+    // Never evict the currently active session
+    if (oldest === activeSessionId) {
+      sessionAccessOrder.splice(0, 1);
+      sessionAccessOrder.push(oldest);
+      continue;
+    }
+    sessionAccessOrder.splice(0, 1);
+    sessionStates.delete(oldest);
+    sessionMessages.delete(oldest);
+    sessionDrafts.delete(oldest);
+  }
+};
+
+/** Reset the access order (for testing). */
+export const _resetAccessOrder = (): void => {
+  sessionAccessOrder.length = 0;
+};
+
+// ── Session State Helpers ────────────────────────────────────────────────
+
 export const getOrCreateSessionState = (sessionStates: Map<string, SessionLiveState>, sid: string): SessionLiveState => {
   let state = sessionStates.get(sid);
   if (!state) {
@@ -55,5 +100,12 @@ export const moveSessionCacheData = (
   if (draft !== undefined) {
     sessionDrafts.delete(currentSid);
     sessionDrafts.set(nextSid, draft);
+  }
+  // Update LRU order for the rekey
+  const idx = sessionAccessOrder.indexOf(currentSid);
+  if (idx >= 0) {
+    sessionAccessOrder[idx] = nextSid;
+  } else {
+    sessionAccessOrder.push(nextSid);
   }
 };

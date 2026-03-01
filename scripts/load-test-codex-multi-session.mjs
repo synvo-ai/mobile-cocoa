@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Load Test: 10 Distinct Queries → Codex 5.2 in Separate Concurrent Sessions
+ * Load Test: 10 Distinct Queries → Codex 5.3 in Separate Concurrent Sessions
  *
- * Fires 10 distinct prompts to gpt-5.2-codex simultaneously,
+ * Fires 10 distinct prompts to gpt-5.3-codex simultaneously,
  * each in its own session, to stress-test multi-session concurrency.
  *
  * What it tests:
@@ -41,9 +41,9 @@ const CWD_BASE = process.env.CWD_BASE || "/Users/yifanxu/machine_learning/LoVC/v
 const PROMPTS = [
     {
         // CODING PROJECT: Full-stack todo app — Claude
-        label: "Q01-TodoApp-Claude",
-        provider: "claude",
-        model: "sonnet4.5",
+        label: "Q01-TodoApp-Codex",
+        provider: "codex",
+        model: "gpt-5.3-codex",
         prompt: `Build a complete Todo application as a single-page HTML file called todo-app.html. It should be fully self-contained with inline CSS and JavaScript. Requirements:
 1. A beautiful dark-themed UI with a gradient header, rounded cards for each todo, and smooth animations.
 2. Features: add todos, mark complete (with strikethrough animation), delete (with fade-out), edit inline, filter by All/Active/Completed, clear completed button.
@@ -56,9 +56,9 @@ Write the complete file. In your final reply, include this exact verification to
     },
     {
         // PUZZLE: Brain teasers — Antigravity
-        label: "Q02-BrainTeasers-Antigravity",
-        provider: "gemini",
-        model: "gemini-3-pro-high",
+        label: "Q02-BrainTeasers-Codex",
+        provider: "codex",
+        model: "gpt-5.3-codex",
         prompt: `Create a file called brain-teasers.js that solves these classic puzzles programmatically. For each puzzle, implement the solution and print the answer with a clear explanation:
 
 1. **River Crossing**: A farmer needs to cross a river with a wolf, a goat, and a cabbage. The boat fits only the farmer + one item. The wolf eats the goat if left alone, the goat eats the cabbage. Find the sequence of crossings using BFS.
@@ -81,7 +81,7 @@ Run all solutions when executed with node. In your final reply, include this exa
         // CODING PROJECT: REST API server — Codex
         label: "Q03-RestApi-Codex",
         provider: "codex",
-        model: "gpt-5.2-codex",
+        model: "gpt-5.3-codex",
         prompt: `Create a complete REST API project with 3 files:
 
 1. **server.js** — A Node.js HTTP server (no express, pure http module) that implements a JSON API for a "bookstore":
@@ -102,9 +102,9 @@ Write all 3 files. In your final reply, include this exact verification token: {
     },
     {
         // UI: Animated landing page — Claude
-        label: "Q04-LandingPage-Claude",
-        provider: "claude",
-        model: "sonnet4.5",
+        label: "Q04-LandingPage-Codex",
+        provider: "codex",
+        model: "gpt-5.3-codex",
         prompt: `Create a file called landing-page.html — a stunning, modern landing page for a fictional AI startup called "NeuralFlow". Single self-contained HTML file with inline CSS and JS. Requirements:
 
 1. **Hero section**: Large animated gradient background that slowly shifts colors. Bold headline with a typewriter text animation cycling through: "Build Faster", "Think Deeper", "Ship Smarter". A glowing CTA button with pulse animation.
@@ -125,9 +125,9 @@ Write the complete file. In your final reply, include this exact verification to
     },
     {
         // UI: Interactive dashboard — Antigravity
-        label: "Q05-Dashboard-Antigravity",
-        provider: "gemini",
-        model: "gemini-3-pro-high",
+        label: "Q05-Dashboard-Codex",
+        provider: "codex",
+        model: "gpt-5.3-codex",
         prompt: `Create a file called dashboard.html — an analytics dashboard UI as a single self-contained HTML file. Requirements:
 
 1. **Sidebar**: A collapsible sidebar (toggle with hamburger icon) with navigation items: Dashboard, Analytics, Users, Settings. Active item highlighted. Icons as inline SVGs.
@@ -255,6 +255,8 @@ function createSseCollector(sessionId, token, label) {
         }, TIMEOUT_MS);
 
         es.onmessage = (ev) => {
+            // Record TTFC on the very first SSE payload, before any parsing
+            if (!liveState.firstChunkTime) liveState.firstChunkTime = Date.now();
             const str =
                 typeof ev.data === "string" ? ev.data : String(ev.data ?? "");
             outputBuffer += str + "\n";
@@ -264,7 +266,6 @@ function createSseCollector(sessionId, token, label) {
                 const trimmed = line.trim();
                 if (!trimmed) continue;
                 liveState.events++;
-                if (!liveState.firstChunkTime) liveState.firstChunkTime = Date.now();
                 try {
                     const parsed = JSON.parse(trimmed);
                     const text = extractText(parsed);
@@ -317,10 +318,10 @@ async function main() {
     const { mkdirSync } = await import("fs");
 
     console.error("╔════════════════════════════════════════════════════════════╗");
-    console.error("║  LOAD TEST: 5 Queries → Claude / Gemini / Codex          ║");
+    console.error("║  LOAD TEST: 5 Queries → Codex                            ║");
     console.error("╚════════════════════════════════════════════════════════════╝");
     console.error(`  Server:   ${SERVER_URL}`);
-    console.error(`  Providers: claude (sonnet4.5), gemini (gemini-3-pro-high), codex (gpt-5.2-codex)`);
+    console.error(`  Providers: codex (gpt-5.3-codex)`);
     console.error(`  Timeout:  ${TIMEOUT_MS / 1000}s per session`);
     console.error(`  Stagger:  ${STAGGER_MS}ms between session starts`);
     console.error(`  CWD Base: ${CWD_BASE} (each session gets its own /1 .. /5)`);
@@ -345,7 +346,7 @@ async function main() {
     for (let i = 0; i < PROMPTS.length; i++) {
         const cfg = PROMPTS[i];
         const cwd = `${CWD_BASE}/${i + 1}`;
-        const sessionId = `load-test-${i}-${crypto.randomUUID()}`;
+        const sessionId = crypto.randomUUID();
         const token = `LOADTEST_${i}_${Date.now()}`;
         const prompt = cfg.prompt.replace("{TOKEN}", token);
 
@@ -471,12 +472,12 @@ async function main() {
     console.error(`  Avg session time:   ${avgTime}s`);
     console.error(`  Total output:       ${(totalOutput / 1024).toFixed(1)}KB`);
     console.error(`  Total SSE events:   ${totalEvents}`);
-    console.error(`  Providers:          claude, gemini, codex`);
+    console.error(`  Providers:          codex`);
     console.error("─────────────────────────────────────────────────────────────\n");
 
     if (allPassed) {
         console.error("🎉 LOAD TEST PASSED — All 5 sessions completed successfully.");
-        console.error("   Multi-provider concurrency (Claude/Antigravity/Codex) is working correctly.\n");
+        console.error("   Concurrency is working correctly.\n");
         process.exit(0);
     } else {
         console.error("⚠️  LOAD TEST HAD FAILURES — Check individual results above.\n");

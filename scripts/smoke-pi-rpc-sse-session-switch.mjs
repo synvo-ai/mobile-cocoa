@@ -65,14 +65,14 @@ const RUNS = [
     prompt: "Summarize the full project structure. Walk through each top-level directory, list important files, and explain the architecture. Be thorough. In your final reply, include this exact token: {TOKEN}.",
   },
   {
-    provider: "antigravity",
+    provider: "gemini",
     model: "gemini-3-flash",
     label: "session-C",
     cwd: CWD_PROJECT,
     prompt: "Describe what the backend does in detail. Inspect the server code, routes, API definitions, and database models. Explain the main flows and dependencies. Be comprehensive. In your final reply, include this exact token: {TOKEN}.",
   },
   {
-    provider: "antigravity",
+    provider: "gemini",
     model: "gemini-3-flash",
     label: "session-D",
     cwd: CWD_TEST_WS,

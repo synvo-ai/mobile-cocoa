@@ -10,7 +10,7 @@ import {
   StopCircleIcon,
   TerminalIcon
 } from "@/components/icons/ChatActionIcons";
-import { ClaudeSendIcon, CodexEnterIcon, AntigravitySendIcon } from "@/components/icons/ProviderIcons";
+import { ClaudeSendIcon, CodexEnterIcon, GeminiSendIcon } from "@/components/icons/ProviderIcons";
 import { getCategoryIcon } from "@/components/icons/SkillCategoryIcons";
 import { ActionIconButton } from "@/components/reusable/ActionIconButton";
 import { Badge, BadgeText } from "@/components/ui/badge";
@@ -879,7 +879,7 @@ export function InputPanel({
                 <ButtonIcon
                   as={
                     (p: { size?: number }) => {
-                      const Icon = provider === "claude" ? ClaudeSendIcon : provider === "antigravity" ? AntigravitySendIcon : CodexEnterIcon;
+                      const Icon = provider === "claude" ? ClaudeSendIcon : provider === "gemini" ? GeminiSendIcon : CodexEnterIcon;
                       return <Icon {...p} stroke={isDark ? theme.colors.accent : theme.colors.textInverse} color={isDark ? theme.colors.accent : theme.colors.textInverse} />;
                     }
                   }

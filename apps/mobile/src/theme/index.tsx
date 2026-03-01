@@ -8,7 +8,7 @@ import { buildTypographyScale, type TypographyScaleRecord } from "@/theme/typogr
 import React, { createContext, useContext, useMemo } from "react";
 import { Dimensions, useColorScheme } from "react-native";
 
-export type Provider = "claude" | "antigravity" | "codex";
+export type Provider = "claude" | "gemini" | "codex";
 export type ColorMode = "dark" | "light";
 export type ColorModePreference = ColorMode | "system";
 

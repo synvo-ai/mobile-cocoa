@@ -57,7 +57,7 @@ Write the complete file. In your final reply, include this exact verification to
     {
         // PUZZLE: Brain teasers — Antigravity
         label: "Q02-BrainTeasers-Antigravity",
-        provider: "antigravity",
+        provider: "gemini",
         model: "gemini-3-pro-high",
         prompt: `Create a file called brain-teasers.js that solves these classic puzzles programmatically. For each puzzle, implement the solution and print the answer with a clear explanation:
 
@@ -126,7 +126,7 @@ Write the complete file. In your final reply, include this exact verification to
     {
         // UI: Interactive dashboard — Antigravity
         label: "Q05-Dashboard-Antigravity",
-        provider: "antigravity",
+        provider: "gemini",
         model: "gemini-3-pro-high",
         prompt: `Create a file called dashboard.html — an analytics dashboard UI as a single self-contained HTML file. Requirements:
 
@@ -320,7 +320,7 @@ async function main() {
     console.error("║  LOAD TEST: 5 Queries → Claude / Gemini / Codex          ║");
     console.error("╚════════════════════════════════════════════════════════════╝");
     console.error(`  Server:   ${SERVER_URL}`);
-    console.error(`  Providers: claude (sonnet4.5), antigravity (gemini-3-pro-high), codex (gpt-5.2-codex)`);
+    console.error(`  Providers: claude (sonnet4.5), gemini (gemini-3-pro-high), codex (gpt-5.2-codex)`);
     console.error(`  Timeout:  ${TIMEOUT_MS / 1000}s per session`);
     console.error(`  Stagger:  ${STAGGER_MS}ms between session starts`);
     console.error(`  CWD Base: ${CWD_BASE} (each session gets its own /1 .. /5)`);
@@ -471,7 +471,7 @@ async function main() {
     console.error(`  Avg session time:   ${avgTime}s`);
     console.error(`  Total output:       ${(totalOutput / 1024).toFixed(1)}KB`);
     console.error(`  Total SSE events:   ${totalEvents}`);
-    console.error(`  Providers:          claude, antigravity, codex`);
+    console.error(`  Providers:          claude, gemini, codex`);
     console.error("─────────────────────────────────────────────────────────────\n");
 
     if (allPassed) {

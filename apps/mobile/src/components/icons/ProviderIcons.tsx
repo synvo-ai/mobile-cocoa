@@ -1,5 +1,5 @@
 /**
- * Provider icons for chat UI (Antigravity, Claude).
+ * Provider icons for chat UI (Gemini, Claude).
  * Designed to match each brand’s visual identity.
  */
 import React from "react";
@@ -9,38 +9,38 @@ const size = 24;
 const viewBox = "0 0 24 24";
 
 /**
- * Antigravity (Google AI) icon.
+ * Gemini (Google AI) icon.
  * Uses official 2025-style multi-color gradient by default.
  * If a color is explicitly provided, falls back to monochrome for compatibility.
  */
-export function AntigravityIcon({ color = "currentColor", size: s = size }: { color?: string; size?: number }) {
-  const antigravityPath =
+export function GeminiIcon({ color = "currentColor", size: s = size }: { color?: string; size?: number }) {
+  const geminiPath =
     "M20.616 10.835a14.147 14.147 0 01-4.45-3.001 14.111 14.111 0 01-3.678-6.452.503.503 0 00-.975 0 14.134 14.134 0 01-3.679 6.452 14.155 14.155 0 01-4.45 3.001c-.65.28-1.318.505-2.002.678a.502.502 0 000 .975c.684.172 1.35.397 2.002.677a14.147 14.147 0 014.45 3.001 14.112 14.112 0 013.679 6.453.502.502 0 00.975 0c.172-.685.397-1.351.677-2.003a14.145 14.145 0 013.001-4.45 14.113 14.113 0 016.453-3.678.503.503 0 000-.975 13.245 13.245 0 01-2.003-.678z";
 
   if (color !== "currentColor") {
     return (
       <Svg width={s} height={s} viewBox={viewBox} fill="none">
-        <Path fill={color} d={antigravityPath} />
+        <Path fill={color} d={geminiPath} />
       </Svg>
     );
   }
 
   return (
     <Svg width={s} height={s} viewBox={viewBox} fill="none">
-      <Path fill="#3186FF" d={antigravityPath} />
-      <Path fill="url(#antigravity-fill-0)" d={antigravityPath} />
-      <Path fill="url(#antigravity-fill-1)" d={antigravityPath} />
-      <Path fill="url(#antigravity-fill-2)" d={antigravityPath} />
+      <Path fill="#3186FF" d={geminiPath} />
+      <Path fill="url(#gemini-fill-0)" d={geminiPath} />
+      <Path fill="url(#gemini-fill-1)" d={geminiPath} />
+      <Path fill="url(#gemini-fill-2)" d={geminiPath} />
       <Defs>
-        <LinearGradient id="antigravity-fill-0" x1="7" x2="11" y1="15.5" y2="12" gradientUnits="userSpaceOnUse">
+        <LinearGradient id="gemini-fill-0" x1="7" x2="11" y1="15.5" y2="12" gradientUnits="userSpaceOnUse">
           <Stop stopColor="#08B962" />
           <Stop offset="1" stopColor="#08B962" stopOpacity="0" />
         </LinearGradient>
-        <LinearGradient id="antigravity-fill-1" x1="8" x2="11.5" y1="5.5" y2="11" gradientUnits="userSpaceOnUse">
+        <LinearGradient id="gemini-fill-1" x1="8" x2="11.5" y1="5.5" y2="11" gradientUnits="userSpaceOnUse">
           <Stop stopColor="#F94543" />
           <Stop offset="1" stopColor="#F94543" stopOpacity="0" />
         </LinearGradient>
-        <LinearGradient id="antigravity-fill-2" x1="3.5" x2="17.5" y1="13.5" y2="12" gradientUnits="userSpaceOnUse">
+        <LinearGradient id="gemini-fill-2" x1="3.5" x2="17.5" y1="13.5" y2="12" gradientUnits="userSpaceOnUse">
           <Stop stopColor="#FABC12" />
           <Stop offset="0.46" stopColor="#FABC12" stopOpacity="0" />
         </LinearGradient>
@@ -49,8 +49,8 @@ export function AntigravityIcon({ color = "currentColor", size: s = size }: { co
   );
 }
 
-/** Upward send arrow for Antigravity – used on light-themed send button. */
-export function AntigravitySendIcon({ color = "currentColor", size: s = 20 }: { color?: string; size?: number }) {
+/** Upward send arrow for Gemini – used on light-themed send button. */
+export function GeminiSendIcon({ color = "currentColor", size: s = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">
       <Path
@@ -106,7 +106,7 @@ export function CodexIcon({ color = "currentColor", size: s = size }: { color?: 
   );
 }
 
-/** Send arrow for Codex – same as AntigravitySendIcon for consistency. */
+/** Send arrow for Codex – same as GeminiSendIcon for consistency. */
 export function CodexSendIcon({ color = "currentColor", size: s = 20 }: { color?: string; size?: number }) {
   return (
     <Svg width={s} height={s} viewBox="0 0 24 24" fill="none">

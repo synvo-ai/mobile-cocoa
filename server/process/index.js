@@ -1,6 +1,6 @@
 /**
  * Process management for AI provider via Pi RPC (pi-mono).
- * Supports Claude, Antigravity, and Codex through the unified Pi coding agent.
+ * Supports Claude, Gemini, and Codex through the unified Pi coding agent.
  */
 import {
   DEFAULT_PERMISSION_MODE,
@@ -27,7 +27,7 @@ export function shutdown(signal) {
   process.exit(0);
 }
 
-const VALID_PROVIDERS = ["codex", "antigravity", "claude"];
+const VALID_PROVIDERS = ["codex", "gemini", "claude"];
 
 function resolveProvider(fromPayload) {
   if (typeof fromPayload === "string" && VALID_PROVIDERS.includes(fromPayload)) {
@@ -39,7 +39,7 @@ function resolveProvider(fromPayload) {
 function getDefaultModelForProvider(provider) {
   if (provider === "claude") return "sonnet4.5";
   if (provider === "codex") return "gpt-5.1-codex-mini";
-  return "gemini-3.1-flash";
+  return "gemini-3.1-pro-preview";
 }
 
 function emitError(socket, message) {
@@ -78,7 +78,7 @@ export function formatSessionLogTimestamp() {
 
 /**
  * Creates an AI process manager for a socket connection.
- * Uses Pi RPC for all providers (claude, antigravity, codex).
+ * Uses Pi RPC for all providers (claude, gemini, codex).
  */
 export function createProcessManager(socket, { hasCompletedFirstRunRef, session_management, onPiSessionId, existingSessionPath, sessionId }) {
   let turnCounter = 0;

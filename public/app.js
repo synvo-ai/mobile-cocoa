@@ -12,8 +12,8 @@ const sidebarTree = document.getElementById("sidebar-tree");
 const sidebarWorkspaceName = document.getElementById("sidebar-workspace-name");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 
-/** Current AI provider ("claude" | "antigravity"). Fixed during chat; user cannot switch provider. */
-let currentProvider = "antigravity";
+/** Current AI provider ("claude" | "gemini"). Fixed during chat; user cannot switch provider. */
+let currentProvider = "gemini";
 
 /** Model options per provider. Used for model dropdown only (provider not selectable in chat). */
 const CLAUDE_MODELS = [
@@ -21,20 +21,21 @@ const CLAUDE_MODELS = [
   { value: "sonnet", label: "Sonnet 4.5" },
   { value: "opus", label: "Opus 4.5" },
 ];
-const ANTIGRAVITY_MODELS = [
+const GEMINI_MODELS = [
   { value: "gemini-3.1-pro-low", label: "Gemini 3.1 Pro Low" },
   { value: "gemini-3.1-flash", label: "Gemini 3.1 Flash" },
   { value: "gemini-3.1-pro-high", label: "Gemini 3.1 Pro High" },
+  { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro Preview" },
 ];
 const DEFAULT_CLAUDE_MODEL = "sonnet";
-const DEFAULT_ANTIGRAVITY_MODEL = "gemini-3.1-flash";
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-pro-preview";
 
 function getModelsForProvider(provider) {
-  return provider === "claude" ? CLAUDE_MODELS : ANTIGRAVITY_MODELS;
+  return provider === "claude" ? CLAUDE_MODELS : GEMINI_MODELS;
 }
 
 /** Current model. User can switch model only; provider is fixed. */
-let currentModel = DEFAULT_ANTIGRAVITY_MODEL;
+let currentModel = DEFAULT_GEMINI_MODEL;
 
 const socket = io();
 
@@ -189,10 +190,10 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
-const PROVIDER_ACCENT = { antigravity: "#1a73e8", claude: "#b3541e", codex: "#19c37d" };
+const PROVIDER_ACCENT = { gemini: "#1a73e8", claude: "#b3541e", codex: "#19c37d" };
 
 function getHighlightColorForProvider(provider) {
-  return PROVIDER_ACCENT[provider] || PROVIDER_ACCENT.antigravity;
+  return PROVIDER_ACCENT[provider] || PROVIDER_ACCENT.gemini;
 }
 
 /** Replace span background-color highlights with text color using the provider's theme accent. */
@@ -231,7 +232,7 @@ function createMessageElement(role, content, meta = {}) {
 
   const avatar = document.createElement("div");
   avatar.className = "avatar";
-  avatar.textContent = role === "assistant" ? (currentProvider === "antigravity" ? "A" : "C") : role === "user" ? "You" : "!";
+  avatar.textContent = role === "assistant" ? (currentProvider === "gemini" ? "G" : "C") : role === "user" ? "You" : "!";
 
   const bubble = document.createElement("div");
   bubble.className = "bubble";
@@ -572,8 +573,8 @@ setTypingIndicator(false);
 initSidebar();
 
 function initProviderSelector() {
-  document.body.classList.add(currentProvider === "antigravity" ? "provider-antigravity" : "provider-claude");
-  if (promptInput) promptInput.placeholder = currentProvider === "antigravity" ? "Ask Antigravity" : DEFAULT_PLACEHOLDER;
+  document.body.classList.add(currentProvider === "gemini" ? "provider-gemini" : "provider-claude");
+  if (promptInput) promptInput.placeholder = currentProvider === "gemini" ? "Ask Gemini" : DEFAULT_PLACEHOLDER;
   const container = inputForm || permissionModeSelect?.parentNode;
   if (!container) return;
   const wrap = document.createElement("span");
@@ -585,7 +586,7 @@ function initProviderSelector() {
   wrap.innerHTML = '<label class="input-bar-label">Model: <select id="model-select"></select></label>';
   const modelSel = wrap.querySelector("#model-select");
   const models = getModelsForProvider(currentProvider);
-  const defaultModel = currentProvider === "claude" ? DEFAULT_CLAUDE_MODEL : DEFAULT_ANTIGRAVITY_MODEL;
+  const defaultModel = currentProvider === "claude" ? DEFAULT_CLAUDE_MODEL : DEFAULT_GEMINI_MODEL;
   const validValues = models.map((m) => m.value);
   if (!validValues.includes(currentModel)) currentModel = defaultModel;
   modelSel.innerHTML = models.map((m) => `<option value="${m.value}">${m.label}</option>`).join("");

@@ -15,18 +15,18 @@ export function registerSessionsRoutes(app) {
         return idx >= 0 ? stem.slice(idx + 1) : stem;
     }
 
-    /** Map Pi CLI provider string to app provider (claude, antigravity, codex). */
+    /** Map Pi CLI provider string to app provider (claude, gemini, codex). */
     function mapProvider(providerStr) {
         if (!providerStr || typeof providerStr !== "string") return null;
         const s = providerStr.toLowerCase();
-        if (s.includes("gemini")) return "antigravity";
+        if (s.includes("gemini")) return "gemini";
         if (s.includes("claude") || s.includes("anthropic")) return "claude";
         if (s.includes("codex") || s.includes("openai")) return "codex";
         return null;
     }
 
     function normalizeProvider(providerStr) {
-        if (providerStr === "claude" || providerStr === "antigravity" || providerStr === "codex") {
+        if (providerStr === "claude" || providerStr === "gemini" || providerStr === "codex") {
             return providerStr;
         }
         return "codex";

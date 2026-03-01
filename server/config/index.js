@@ -102,9 +102,9 @@ export const SIDEBAR_REFRESH_INTERVAL_MS = parseInt(process.env.SIDEBAR_REFRESH_
 // Default Claude permission mode (default, acceptEdits, bypassPermissions, etc.)
 export const DEFAULT_PERMISSION_MODE = process.env.DEFAULT_PERMISSION_MODE || "bypassPermissions";
 
-// AI provider: "claude", "antigravity", or "codex" (defaults to codex provider in Pi mono mode).
+// AI provider: "claude", "gemini", or "codex" (defaults to codex provider in Pi mono mode).
 const rawDefaultProvider = typeof process.env.DEFAULT_PROVIDER === "string" ? process.env.DEFAULT_PROVIDER.toLowerCase() : "";
-export const DEFAULT_PROVIDER = ["claude", "antigravity", "codex"].includes(rawDefaultProvider) ? rawDefaultProvider : "codex";
+export const DEFAULT_PROVIDER = ["claude", "gemini", "codex"].includes(rawDefaultProvider) ? rawDefaultProvider : "codex";
 
 /**
  * Log directory for AI provider output.
@@ -154,7 +154,7 @@ export function ensureLlmCliIoRunDir() {
 /**
  * Get paths for a conversation turn's input.log and output.log.
  * Creates dirs: {run}/{provider}-{sessionId}/{turnId}/
- * @param {string} provider - provider name (e.g. "claude", "antigravity", "codex")
+ * @param {string} provider - provider name (e.g. "claude", "gemini", "codex")
  * @param {string} sessionId - session log dir name (e.g. yyyy-MM-dd_HH-mm-ss timestamp)
  * @param {string|number} turnId - conversation turn id
  * @returns {{ inputPath: string; outputPath: string; turnDir: string }}

@@ -1,5 +1,5 @@
 import {
-  ClaudeIcon, CodexIcon, AntigravityIcon
+  ClaudeIcon, CodexIcon, GeminiIcon
 } from "@/components/icons/ProviderIcons";
 import { ActionsheetOptionRow } from "@/components/reusable/ActionsheetOptionRow";
 import {
@@ -45,7 +45,7 @@ export function ModelPickerSheet({
   onProviderChange,
   onModelChange,
 }: ModelPickerSheetProps) {
-  const providers: Provider[] = ["claude", "antigravity", "codex"];
+  const providers: Provider[] = ["claude", "gemini", "codex"];
   const currentProvider = provider;
   const { bottom } = useSafeAreaInsets();
   const isDark = themeMode === "dark";
@@ -105,7 +105,7 @@ export function ModelPickerSheet({
             const opts = providerModelOptions[p];
             if (!opts || opts.length === 0) return null;
 
-            const ProviderIcon = p === "claude" ? ClaudeIcon : p === "antigravity" ? AntigravityIcon : CodexIcon;
+            const ProviderIcon = p === "claude" ? ClaudeIcon : p === "gemini" ? GeminiIcon : CodexIcon;
 
             const accent = theme.colors.accent;
             const isActiveModel = (entryModel: string) =>

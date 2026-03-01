@@ -20,7 +20,7 @@ import {
   PI_FALLBACK_MODEL,
 } from "../config/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
-import { getPreviewHost } from "../utils/index.js";
+import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
 import {
   decideApprovalFromAnswers,
   parseAskQuestionAnswersFromInput,

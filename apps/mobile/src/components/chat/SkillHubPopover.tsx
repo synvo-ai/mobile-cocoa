@@ -63,12 +63,12 @@ export function SkillHubPopover({
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     className="items-center justify-center p-2 rounded-full w-11 h-11 active:opacity-90"
                     style={{
-                        backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : theme.colors.surfaceMuted,
-                        borderColor: isDark ? theme.colors.accent : theme.colors.border,
-                        borderWidth: isDark ? 1.5 : 1,
+                        backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(15, 23, 42, 0.04)",
+                        borderColor: isDark ? "rgba(56, 189, 248, 0.3)" : "rgba(15, 23, 42, 0.1)",
+                        borderWidth: 1,
                     }}
                 >
-                    <SkillIcon size={20} />
+                    <SkillIcon size={20} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
                 </Pressable>
             )}
             placement="top left"

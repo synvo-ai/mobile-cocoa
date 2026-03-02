@@ -357,8 +357,8 @@ export function InputPanel({
             )}
           />
         </HStack>
-        <HStack space="sm" className="w-full flex-row items-center justify-between gap-2 px-1">
-          <Text size="xs" className={isDark ? "text-typography-400" : "text-typography-600"}>
+        <HStack space="md" className="w-full flex-row items-center justify-between px-1 mb-2">
+          <Text size="sm" className={isDark ? "text-typography-400" : "text-typography-600"}>
             YOLO confirm
           </Text>
           <Switch
@@ -367,83 +367,87 @@ export function InputPanel({
             accessibilityLabel="Toggle YOLO confirm mode"
             trackColor={{
               false: isDark ? "rgba(255, 255, 255, 0.25)" : "rgba(15, 23, 42, 0.2)",
-              true: isDark ? theme.colors.accent : `${theme.colors.info}55`,
+              true: isDark ? theme.colors.info : `${theme.colors.info}80`,
             }}
-            thumbColor={isAutoApproveToolConfirm ? theme.colors.textPrimary : isDark ? "rgba(226, 238, 252, 0.9)" : "#F8FAFC"}
+            thumbColor={isAutoApproveToolConfirm ? (isDark ? theme.colors.textPrimary : "#FFFFFF") : (isDark ? "rgba(226, 238, 252, 0.9)" : "#FFFFFF")}
           />
         </HStack>
-        <HStack space="sm" className="w-full flex-row items-center justify-between gap-2 flex-nowrap mt-1">
-          <SkillHubPopover
-            isDark={isDark}
-            theme={theme}
-            skillMenuVisible={skillMenuVisible}
-            setSkillMenuVisible={setSkillMenuVisible}
-            fetchEnabledSkills={fetchEnabledSkills}
-            enabledSkills={enabledSkills}
-            skillsLoading={skillsLoading}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            categories={categories}
-            selectedSkills={selectedSkills}
-            setSelectedSkills={setSelectedSkills}
-            onOpenSkillsConfig={onOpenSkillsConfig || (() => { })}
-          />
-          <ScaleWrapper>
-            <Pressable
-              onPress={() => {
-                triggerHaptic("selection");
-                onOpenModelPicker?.();
-              }}
-              disabled={!onOpenModelPicker}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityLabel="Select model"
-              className="flex-1 flex-row items-center gap-0.5 py-0.5 px-2 rounded-full min-h-11 min-w-0 max-w-36 justify-start active:opacity-90"
-              style={{
-                backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : theme.colors.surfaceMuted,
-                borderColor: isDark ? theme.colors.info : theme.colors.border,
-                borderWidth: isDark ? 1.5 : 1,
-              }}
-            >
-              <Text
-                size="sm"
-                bold
-                numberOfLines={2}
-                ellipsizeMode="tail"
-                className="flex-1 min-w-0"
-                style={{ color: isDark ? theme.colors.info : theme.colors.textPrimary }}
-              >
-                {currentModelLabel}
-              </Text>
-              <Box className="shrink-0 self-center pl-1">
-                <ChevronDownIcon size={12} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
-              </Box>
-            </Pressable>
-          </ScaleWrapper>
-          {(onOpenProcesses || onOpenDocker || onOpenWebPreview) && (
-            <SystemMenuPopover
+        <HStack className="w-full flex-row items-center justify-between mt-1">
+          <HStack space="sm" className="flex-row items-center gap-2">
+            <SkillHubPopover
               isDark={isDark}
               theme={theme}
-              terminalMenuVisible={terminalMenuVisible}
-              setTerminalMenuVisible={setTerminalMenuVisible}
-              onOpenProcesses={onOpenProcesses}
-              onOpenDocker={onOpenDocker}
-              onOpenWebPreview={onOpenWebPreview}
-              isCloudflareMode={isCloudflareMode}
-              onOpenPortForwarding={onOpenPortForwarding}
+              skillMenuVisible={skillMenuVisible}
+              setSkillMenuVisible={setSkillMenuVisible}
+              fetchEnabledSkills={fetchEnabledSkills}
+              enabledSkills={enabledSkills}
+              skillsLoading={skillsLoading}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              categories={categories}
+              selectedSkills={selectedSkills}
+              setSelectedSkills={setSelectedSkills}
+              onOpenSkillsConfig={onOpenSkillsConfig || (() => { })}
             />
-          )}
-          {onTerminateAgent && sessionRunning && (
-            <ActionIconButton
-              icon={StopCircleIcon}
-              onPress={() => {
-                triggerHaptic("heavy");
-                onTerminateAgent();
-              }}
-              accessibilityLabel="Terminate agent response"
-              className="w-11 h-11 rounded-xl"
-              tone="danger"
-            />
-          )}
+            <ScaleWrapper className="flex-shrink-1">
+              <Pressable
+                onPress={() => {
+                  triggerHaptic("selection");
+                  onOpenModelPicker?.();
+                }}
+                disabled={!onOpenModelPicker}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                accessibilityLabel="Select model"
+                className="flex-row items-center gap-1.5 px-3 rounded-full h-11 min-w-11 max-w-40 justify-center active:opacity-90"
+                style={{
+                  backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : theme.colors.surfaceMuted,
+                  borderColor: isDark ? theme.colors.info : theme.colors.border,
+                  borderWidth: isDark ? 1.5 : 1,
+                }}
+              >
+                {currentModelLabel ? (
+                  <Text
+                    size="sm"
+                    bold
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
+                    className="flex-shrink"
+                    style={{ color: isDark ? theme.colors.info : theme.colors.textPrimary }}
+                  >
+                    {currentModelLabel}
+                  </Text>
+                ) : null}
+                <Box className="shrink-0 flex-row items-center justify-center">
+                  <ChevronDownIcon size={14} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
+                </Box>
+              </Pressable>
+            </ScaleWrapper>
+            {(onOpenProcesses || onOpenDocker || onOpenWebPreview) && (
+              <SystemMenuPopover
+                isDark={isDark}
+                theme={theme}
+                terminalMenuVisible={terminalMenuVisible}
+                setTerminalMenuVisible={setTerminalMenuVisible}
+                onOpenProcesses={onOpenProcesses}
+                onOpenDocker={onOpenDocker}
+                onOpenWebPreview={onOpenWebPreview}
+                isCloudflareMode={isCloudflareMode}
+                onOpenPortForwarding={onOpenPortForwarding}
+              />
+            )}
+            {onTerminateAgent && sessionRunning && (
+              <ActionIconButton
+                icon={StopCircleIcon}
+                onPress={() => {
+                  triggerHaptic("heavy");
+                  onTerminateAgent();
+                }}
+                accessibilityLabel="Terminate agent response"
+                className="w-11 h-11 rounded-full px-0"
+                tone="danger"
+              />
+            )}
+          </HStack>
           {!(sessionRunning && !waitingForUserInput) && (
             <Reanimated.View style={sendStyle}>
               <Button
@@ -455,20 +459,20 @@ export function InputPanel({
                 onPressOut={handlePressOut}
                 isDisabled={disabled}
                 accessibilityLabel="Send message"
-                className="w-12 h-12 rounded-full active:opacity-80"
+                className="w-11 h-11 rounded-full items-center justify-center active:opacity-80 p-0 m-0"
                 style={
                   disabled
                     ? undefined
                     : {
-                      backgroundColor: isDark ? theme.colors.accentSoft : theme.colors.textPrimary,
-                      borderColor: isDark ? theme.colors.accent : "transparent",
-                      borderWidth: isDark ? 1.5 : 0,
+                      backgroundColor: theme.colors.info,
+                      borderColor: "transparent",
+                      borderWidth: 0,
                       ...Platform.select({
                         ios: {
-                          shadowColor: isDark ? theme.colors.accent : theme.colors.textPrimary,
-                          shadowOffset: isDark ? { width: 0, height: 0 } : { width: 0, height: 4 },
-                          shadowOpacity: isDark ? 0.5 : 0.3,
-                          shadowRadius: isDark ? 8 : 8,
+                          shadowColor: theme.colors.info,
+                          shadowOffset: { width: 0, height: 4 },
+                          shadowOpacity: 0.4,
+                          shadowRadius: 8,
                         },
                         android: { elevation: 8 },
                         default: {},
@@ -480,12 +484,12 @@ export function InputPanel({
                   as={
                     (p: { size?: number }) => {
                       const Icon = provider === "claude" ? ClaudeSendIcon : provider === "gemini" ? GeminiSendIcon : CodexEnterIcon;
-                      return <Icon {...p} stroke={isDark ? theme.colors.accent : theme.colors.textInverse} color={isDark ? theme.colors.accent : theme.colors.textInverse} />;
+                      return <Icon {...p} stroke="#FFFFFF" color="#FFFFFF" />;
                     }
                   }
                   size="md"
-                  color={isDark ? theme.colors.accent : theme.colors.textInverse}
-                  style={{ color: isDark ? theme.colors.accent : theme.colors.textInverse }}
+                  color="#FFFFFF"
+                  style={{ color: "#FFFFFF" }}
                 />
               </Button>
             </Reanimated.View>

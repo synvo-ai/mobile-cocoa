@@ -109,6 +109,19 @@
       "version": "f506f95f84ff344a3e522f2e58069b632a5b3539d978f00c935ee8bab25b03f0",
       "installedAt": "2026-03-02T20:01:55.918Z",
       "createdAt": "2026-03-02T20:01:55.918Z"
+    },
+    {
+      "id": "cloudflare-deploy",
+      "name": "cloudflare-deploy",
+      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/cloudflare-deploy",
+      "source": "find-skills",
+      "sourceType": "find-skills",
+      "sourceUrl": "https://github.com/openai/skills/tree/main/skills/.curated/cloudflare-deploy",
+      "repoUrl": "https://github.com/openai/skills",
+      "sourceRef": "main",
+      "version": "latest",
+      "installedAt": "2026-03-02T20:49:18.732Z",
+      "createdAt": "2026-03-02T20:49:18.732Z"
     }
   ],
   "skills": {

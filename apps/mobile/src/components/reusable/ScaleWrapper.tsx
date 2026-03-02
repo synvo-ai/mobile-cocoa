@@ -2,18 +2,20 @@ import React from "react";
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 
 interface ScaleWrapperProps {
-    children: React.ReactElement<any>;
+    children: React.ReactElement;
     scaleTo?: number;
+    className?: string;
+    style?: any;
 }
 
-export function ScaleWrapper({ children, scaleTo = 0.95 }: ScaleWrapperProps) {
+export function ScaleWrapper({ children, scaleTo = 0.95, className, style }: ScaleWrapperProps) {
     const scale = useSharedValue(1);
     const animatedStyle = useAnimatedStyle(() => ({
         transform: [{ scale: scale.value }],
     }));
 
     return (
-        <Reanimated.View style={animatedStyle}>
+        <Reanimated.View style={[animatedStyle, style]} className={className}>
             {React.cloneElement(children, {
                 onPressIn: (e: any) => {
                     scale.value = withTiming(scaleTo, { duration: 100 });

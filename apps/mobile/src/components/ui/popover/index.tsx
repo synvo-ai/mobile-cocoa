@@ -3,7 +3,7 @@ import { createPopover } from '@gluestack-ui/core/popover/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva, useStyleContext, withStyleContext } from '@gluestack-ui/utils/nativewind-utils';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { cssInterop } from 'nativewind';
+import { withUniwind } from 'uniwind';
 import React from 'react';
 import { Pressable, ScrollView, View, ViewStyle } from 'react-native';
 
@@ -13,20 +13,20 @@ const SCOPE = 'POPOVER';
 
 const MotionView = Animated.View;
 
+const StyledAnimatedPressable = withUniwind(AnimatedPressable);
+const StyledMotionView = withUniwind(MotionView);
+
 const UIPopover = createPopover({
   Root: withStyleContext(View, SCOPE),
-  Arrow: MotionView,
-  Backdrop: AnimatedPressable,
+  Arrow: StyledMotionView,
+  Backdrop: StyledAnimatedPressable,
   Body: ScrollView,
   CloseButton: Pressable,
-  Content: MotionView,
+  Content: StyledMotionView,
   Footer: View,
   Header: View,
-  AnimatePresence: React.Fragment,
+  AnimatePresence: (props: any) => props.children,
 });
-
-cssInterop(MotionView, { className: 'style' });
-cssInterop(AnimatedPressable, { className: 'style' });
 
 const popoverStyle = tva({
   base: 'group/popover w-full h-full justify-center items-center web:pointer-events-none',

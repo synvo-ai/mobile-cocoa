@@ -17,6 +17,7 @@
     "systematic-debugging",
     "verification-before-completion",
     "executing-plans",
-    "subagent-driven-development"
+    "subagent-driven-development",
+    "cloudflare-deploy"
   ]
 }

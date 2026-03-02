@@ -25,7 +25,7 @@ import { BlurView } from "expo-blur";
 import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Dimensions, Linking, Platform, StyleSheet, View as RNView } from "react-native";
-import Animated, { useAnimatedStyle, withSpring, LinearTransition, SlideInDown } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, withSpring, LinearTransition, FadeInDown, Easing } from "react-native-reanimated";
 import type { MarkdownProps } from "react-native-markdown-display";
 import Svg, { Polygon } from "react-native-svg";
 import {
@@ -874,8 +874,8 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
 
   return (
     <Animated.View
-      entering={SlideInDown.springify().damping(18).stiffness(200)}
-      layout={LinearTransition.springify()}
+      entering={FadeInDown.duration(250).easing(Easing.out(Easing.ease))}
+      layout={LinearTransition.duration(250).easing(Easing.out(Easing.ease))}
     >
       <Box
         style={[

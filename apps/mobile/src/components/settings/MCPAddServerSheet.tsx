@@ -74,8 +74,8 @@ export function MCPAddServerSheet({
       setEnvVars(
         editingServer.env
           ? Object.entries(editingServer.env)
-              .map(([k, v]) => `${k}=${v}`)
-              .join("\n")
+            .map(([k, v]) => `${k}=${v}`)
+            .join("\n")
           : ""
       );
       setCwd(editingServer.cwd || "");
@@ -83,8 +83,8 @@ export function MCPAddServerSheet({
       setHeaders(
         editingServer.headers
           ? Object.entries(editingServer.headers)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join("\n")
+            .map(([k, v]) => `${k}: ${v}`)
+            .join("\n")
           : ""
       );
     } else {
@@ -213,7 +213,7 @@ export function MCPAddServerSheet({
   if (!isOpen) return null;
 
   const safeStyle = {
-    paddingTop: 0,
+    paddingTop: Math.max(insets.top, 0),
     paddingBottom: Math.max(insets.bottom, 8),
   };
 

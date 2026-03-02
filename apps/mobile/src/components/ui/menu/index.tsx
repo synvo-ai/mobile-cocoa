@@ -3,11 +3,12 @@ import { createMenu } from '@gluestack-ui/core/menu/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva } from '@gluestack-ui/utils/nativewind-utils';
 import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
-import { cssInterop } from 'nativewind';
+import { withUniwind } from 'uniwind';
 import React from 'react';
 import { Pressable, Text, View, ViewStyle } from 'react-native';
 
 const MotionView = Animated.View;
+const StyledMotionView = withUniwind(MotionView);
 
 const menuStyle = tva({
   base: 'rounded-md bg-background-0 border border-outline-100 p-1 shadow-hard-5',
@@ -124,15 +125,13 @@ const Separator = React.forwardRef<
   );
 });
 export const UIMenu = createMenu({
-  Root: MotionView,
+  Root: StyledMotionView,
   Item: Item,
   Label: Text,
   Backdrop: BackdropPressable,
-  AnimatePresence: React.Fragment,
+  AnimatePresence: (props: any) => props.children,
   Separator: Separator,
 });
-
-cssInterop(MotionView, { className: 'style' });
 
 type IMenuProps = React.ComponentProps<typeof UIMenu> &
   VariantProps<typeof menuStyle> & { className?: string };

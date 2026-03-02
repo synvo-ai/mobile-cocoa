@@ -774,7 +774,7 @@ export function SkillConfigurationView({
 
   const addSkillModal = isAddSkillOpen ? (
     <Modal isOpen={isAddSkillOpen} onClose={closeAddSkillModal}>
-      <Box className="h-full" style={{ backgroundColor: pageSurface }}>
+      <Box className="h-full" style={[safeStyle, { backgroundColor: pageSurface }]}>
         <Box
           className="flex-row items-center justify-between px-4 py-3 border-b"
           style={{ borderBottomColor: panelBorder, backgroundColor: headerSurface }}

@@ -48,22 +48,18 @@ export function SystemMenuPopover({
                             if (triggerProps.onPress) { triggerProps.onPress(e); }
                         }}
                         accessibilityLabel="System menu"
-                        className="flex-row items-center justify-center gap-1 px-3 rounded-full min-h-11 active:opacity-80"
-                        style={isDark ? {
-                            backgroundColor: "rgba(255, 0, 255, 0.1)",
-                            borderColor: "#FF00FF",
-                            borderWidth: 1.5
-                        } : {
-                            backgroundColor: theme.colors.surfaceMuted,
-                            borderColor: theme.colors.border,
-                            borderWidth: 1
+                        className="flex-row items-center justify-center gap-1.5 px-3 rounded-full h-11 min-w-11 active:opacity-80"
+                        style={{
+                            backgroundColor: isDark ? "rgba(255, 255, 255, 0.05)" : "rgba(15, 23, 42, 0.04)",
+                            borderColor: isDark ? "rgba(56, 189, 248, 0.3)" : "rgba(15, 23, 42, 0.1)",
+                            borderWidth: 1,
                         }}
                     >
-                        <AttachPlusIcon size={20} color={isDark ? "#FF00FF" : theme.colors.textPrimary} />
+                        <AttachPlusIcon size={20} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
                         {terminalMenuVisible ? (
-                            <ChevronUpIcon size={12} color={isDark ? "#FF00FF" : theme.colors.textPrimary} />
+                            <ChevronUpIcon size={12} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
                         ) : (
-                            <ChevronDownIcon size={12} color={isDark ? "#FF00FF" : theme.colors.textPrimary} />
+                            <ChevronDownIcon size={12} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
                         )}
                     </Pressable>
                 </ScaleWrapper>

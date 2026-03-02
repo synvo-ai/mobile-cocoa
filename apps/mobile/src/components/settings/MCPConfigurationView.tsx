@@ -211,7 +211,7 @@ export function MCPConfigurationView({
             isOpen
             serverId={selectedServerId!}
             serverBaseUrl={serverBaseUrl}
-            onClose={onCloseServerDetail ?? (() => {})}
+            onClose={onCloseServerDetail ?? (() => { })}
             onEdit={() => {
               const server = servers.find((s) => s.id === selectedServerId);
               if (server) handleEditServer(server);

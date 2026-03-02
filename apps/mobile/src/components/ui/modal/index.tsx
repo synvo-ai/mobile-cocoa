@@ -23,7 +23,7 @@ const UIModal = createModal({
   CloseButton: Pressable,
   Footer: View,
   Header: View,
-  AnimatePresence: React.Fragment,
+  AnimatePresence: (props: any) => props.children,
 });
 
 const modalStyle = tva({

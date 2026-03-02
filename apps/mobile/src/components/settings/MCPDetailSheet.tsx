@@ -125,7 +125,7 @@ export function MCPDetailSheet({
   if (!isOpen) return null;
 
   const safeStyle = {
-    paddingTop: embedded ? 0 : Math.max(insets.top, 4),
+    paddingTop: Math.max(insets.top, 4),
     paddingBottom: Math.max(insets.bottom, 8),
   };
 

@@ -8,7 +8,7 @@ import {
     Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withSpring, Easing } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -41,7 +41,7 @@ const MessageBubble = React.memo(({ message }: { message: Message }) => {
 
     return (
         <Animated.View
-            entering={FadeInDown.springify().damping(18).stiffness(200)}
+            entering={FadeInDown.duration(250).easing(Easing.out(Easing.ease))}
             className={cn(
                 "my-1.5 max-w-[85%]", // messageWrapper
                 isUser ? "self-end" : "self-start"

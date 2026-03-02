@@ -40,7 +40,7 @@ export const UIActionsheet = createActionsheet({
   SectionList: SectionList,
   SectionHeaderText: H4,
   Icon: StyledUIIcon,
-  AnimatePresence: React.Fragment,
+  AnimatePresence: (props: any) => props.children,
 });
 
 const actionsheetStyle = tva({ base: 'w-full h-full web:pointer-events-none' });

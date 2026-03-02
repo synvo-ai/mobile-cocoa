@@ -186,12 +186,12 @@ const server = http.createServer((req, res) => {
         sseChunkCount++;
         const writeOk = res.write(chunk);
         // #region agent log
-        if (sseChunkCount <= 20 || sseChunkCount % 50 === 0) { fetch('http://127.0.0.1:7858/ingest/d7d38859-3779-4ab0-968f-91cf91a262e5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'099c89'},body:JSON.stringify({sessionId:'099c89',location:'proxy.js:sse-chunk',message:'SSE chunk forwarded',data:{chunkNum:sseChunkCount,chunkLen:chunk.length,writeOk,socketDestroyed:!!res.socket?.destroyed,writableEnded:res.writableEnded},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{}); }
+        if (sseChunkCount <= 5 || sseChunkCount % 50 === 0) { console.log(`[proxy][DBG-099c89] chunk #${sseChunkCount} len=${chunk.length} writeOk=${writeOk} t=${Date.now()}`); }
         // #endregion
       });
       proxyRes.on("end", () => {
         // #region agent log
-        fetch('http://127.0.0.1:7858/ingest/d7d38859-3779-4ab0-968f-91cf91a262e5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'099c89'},body:JSON.stringify({sessionId:'099c89',location:'proxy.js:sse-end',message:'SSE upstream ended',data:{totalChunks:sseChunkCount},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+        console.log(`[proxy][DBG-099c89] SSE upstream ended, totalChunks=${sseChunkCount} t=${Date.now()}`);
         // #endregion
         res.end();
       });

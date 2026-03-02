@@ -53,9 +53,14 @@ export function createFetchSseClient(options: FetchSseOptions): EventSourceLike 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal: effectiveSignal,
+    // @ts-ignore - React Native option to enable streaming
+    reactNative: { textStreaming: true },
   })
     .then(async (response) => {
       if (closed || aborted) return;
+      // #region agent log
+      console.log("[DBG-099c89] fetch SSE response", { ok: response.ok, status: response.status, hasBody: !!response.body });
+      // #endregion
       if (!response.ok) {
         emit("error", { status: response.status, statusText: response.statusText });
         return;
@@ -63,6 +68,9 @@ export function createFetchSseClient(options: FetchSseOptions): EventSourceLike 
       emit("open");
 
       const reader = response.body?.getReader();
+      // #region agent log
+      console.log("[DBG-099c89] fetch SSE reader", { hasReader: !!reader });
+      // #endregion
       if (!reader) {
         emit("error", new Error("No response body"));
         return;
@@ -70,13 +78,19 @@ export function createFetchSseClient(options: FetchSseOptions): EventSourceLike 
 
       const decoder = new TextDecoder();
       let buffer = "";
+      let readCount = 0;
 
       try {
         while (true) {
           if (closed || aborted) break;
           const { value, done } = await reader.read();
           if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          readCount++;
+          const decoded = decoder.decode(value, { stream: true });
+          // #region agent log
+          if (readCount <= 5 || readCount % 20 === 0) { console.log("[DBG-099c89] fetch SSE read", { readNum: readCount, chunkLen: decoded.length, ts: Date.now() }); }
+          // #endregion
+          buffer += decoded;
 
           // Parse SSE: events are separated by double newline
           const parts = buffer.split("\n\n");

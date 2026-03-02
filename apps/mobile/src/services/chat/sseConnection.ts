@@ -30,10 +30,20 @@ export function createSseClient(
   sessionId: string,
   skipReplayForSession: string | null
 ): { source: EventSourceLike; applySkipReplay: boolean } {
-  if (isCloudflareMode()) {
+  const cfMode = isCloudflareMode();
+  // #region agent log
+  console.log("[DBG-099c89] createSseClient", { cfMode, serverUrl: serverUrl.substring(0, 50) });
+  // #endregion
+  if (cfMode) {
     const { url, body, applySkipReplay } = resolveStreamUrlPost(serverUrl, sessionId, skipReplayForSession);
+    // #region agent log
+    console.log("[DBG-099c89] Using POST fetch SSE client", { url: url.substring(0, 80) });
+    // #endregion
     return { source: createFetchSseClient({ url, body }), applySkipReplay };
   }
+  // #region agent log
+  console.log("[DBG-099c89] Using GET EventSource SSE client");
+  // #endregion
   const { url, applySkipReplay } = resolveStreamUrl(serverUrl, sessionId, skipReplayForSession);
   const Ctor = resolveEventSourceCtor();
   return { source: new Ctor(url), applySkipReplay };

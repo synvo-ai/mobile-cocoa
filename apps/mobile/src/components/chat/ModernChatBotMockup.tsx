@@ -41,7 +41,7 @@ const MessageBubble = React.memo(({ message }: { message: Message }) => {
 
     return (
         <Animated.View
-            entering={FadeInDown.duration(250).easing(Easing.out(Easing.ease))}
+            entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))}
             className={cn(
                 "my-1.5 max-w-[85%]", // messageWrapper
                 isUser ? "self-end" : "self-start"

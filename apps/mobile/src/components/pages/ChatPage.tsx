@@ -173,7 +173,6 @@ export type ChatPageModals = {
     isAutoApproveToolConfirm: boolean;
     onAutoApproveToolConfirmChange: (next: boolean) => void;
     connectionMode: string;
-    onConnectionModeChange: (mode: any) => void;
     workspacePath: string | null;
   };
 };

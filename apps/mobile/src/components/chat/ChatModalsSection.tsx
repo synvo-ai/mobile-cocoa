@@ -144,7 +144,6 @@ export function ChatModalsSection({
         isAutoApproveToolConfirm={modals.generalSettings.isAutoApproveToolConfirm}
         onAutoApproveToolConfirmChange={modals.generalSettings.onAutoApproveToolConfirmChange}
         connectionMode={modals.generalSettings.connectionMode as any}
-        onConnectionModeChange={modals.generalSettings.onConnectionModeChange}
         workspacePath={modals.generalSettings.workspacePath}
       />
     </>

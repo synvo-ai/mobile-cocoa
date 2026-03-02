@@ -127,8 +127,8 @@ const ModalBackdrop = React.forwardRef<
   return (
     <UIModal.Backdrop
       ref={ref}
-      entering={FadeIn.duration(250)}
-      exiting={FadeOut.duration(250)}
+      entering={FadeIn.duration(400)}
+      exiting={FadeOut.duration(300)}
       {...props}
       className={modalBackdropStyle({
         class: className,
@@ -146,8 +146,8 @@ const ModalContent = React.forwardRef<
   return (
     <UIModal.Content
       ref={ref}
-      entering={ZoomIn.duration(250).springify().damping(18).stiffness(250)}
-      exiting={FadeOut.duration(250)}
+      entering={ZoomIn.duration(400).springify().damping(24).stiffness(120)}
+      exiting={FadeOut.duration(300)}
       {...props}
       className={modalContentStyle({
         parentVariants: {

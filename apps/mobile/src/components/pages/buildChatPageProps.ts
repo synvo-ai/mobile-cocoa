@@ -22,7 +22,6 @@ export type BuildChatPagePropsInput = {
   onWorkspaceSelectedFromPicker: (path?: string) => void;
   serverConfig: Pick<IServerConfig, "getBaseUrl" | "resolvePreviewUrl">;
   connectionMode: string;
-  onConnectionModeChange: (mode: any) => void;
 };
 
 export function buildChatPageProps({
@@ -39,7 +38,6 @@ export function buildChatPageProps({
   onWorkspaceSelectedFromPicker,
   serverConfig,
   connectionMode,
-  onConnectionModeChange,
 }: BuildChatPagePropsInput): ChatPageProps {
   const currentSessionLabel = (sseState.sessionId ?? "").split("-")[0] || "—";
 
@@ -165,7 +163,6 @@ export function buildChatPageProps({
         isAutoApproveToolConfirm: chatActionState.isAutoApproveToolConfirm,
         onAutoApproveToolConfirmChange: chatActionState.onAutoApproveToolConfirmChange,
         connectionMode: connectionMode,
-        onConnectionModeChange: onConnectionModeChange,
         workspacePath: workspaceState.workspacePath,
       },
     },

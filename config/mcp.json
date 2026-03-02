@@ -1,7 +1,0 @@
-{
-    "_comment": "MCP server configuration — edit this file to change MCP paths and defaults. No code changes required.",
-    "serversFile": "server/mcp/servers.json",
-    "enabledFile": "server/mcp/enabled.json",
-    "defaultType": "stdio",
-    "testTimeoutMs": 10000
-}

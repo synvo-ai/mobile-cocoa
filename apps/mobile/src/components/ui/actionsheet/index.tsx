@@ -340,8 +340,8 @@ const ActionsheetBackdrop = React.forwardRef<
 >(function ActionsheetBackdrop({ className, ...props }, ref) {
   return (
     <UIActionsheet.Backdrop
-      entering={FadeIn}
-      exiting={FadeOut}
+      entering={FadeIn.duration(400)}
+      exiting={FadeOut.duration(300)}
       {...props}
       className={actionsheetBackdropStyle({
         class: className,

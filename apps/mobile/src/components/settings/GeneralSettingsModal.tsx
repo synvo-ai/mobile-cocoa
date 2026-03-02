@@ -1,4 +1,4 @@
-import { CloseIcon, GlobeIcon, SettingsIcon, TerminalIcon } from "@/components/icons/ChatActionIcons";
+import { CloseIcon } from "@/components/icons/ChatActionIcons";
 import { Box } from "@/components/ui/box";
 import { Modal } from "@/components/ui/modal";
 import { Pressable } from "@/components/ui/pressable";
@@ -10,9 +10,14 @@ import { HStack } from "@/components/ui/hstack";
 import { triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
 import React from "react";
-import { BlurView } from "expo-blur";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { type ConnectionMode } from "@/services/server/config";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { type ConnectionMode, getDefaultServerConfig } from "@/services/server/config";
+
+const CONNECTION_MODE_LABELS: Record<ConnectionMode, { label: string; description: string }> = {
+    cloudflare: { label: "Cloudflare Tunnel", description: "Proxy through Cloudflare for remote access" },
+    tailscale: { label: "Tailscale", description: "Direct connection on a Tailscale private network" },
+    direct: { label: "Direct / Local", description: "Direct connection (localhost or LAN IP)" },
+};
 
 export interface GeneralSettingsModalProps {
     isOpen: boolean;
@@ -20,7 +25,6 @@ export interface GeneralSettingsModalProps {
     isAutoApproveToolConfirm: boolean;
     onAutoApproveToolConfirmChange: (next: boolean) => void;
     connectionMode: ConnectionMode;
-    onConnectionModeChange: (mode: ConnectionMode) => void;
     workspacePath: string | null;
 }
 
@@ -30,7 +34,6 @@ export function GeneralSettingsModal({
     isAutoApproveToolConfirm,
     onAutoApproveToolConfirmChange,
     connectionMode,
-    onConnectionModeChange,
     workspacePath,
 }: GeneralSettingsModalProps) {
     const theme = useTheme();
@@ -45,118 +48,108 @@ export function GeneralSettingsModal({
     const accentColor = isDark ? "#60A5FA" : "#2563EB";
 
     const piPath = workspacePath ? `${workspacePath}/.pi` : "—";
-
-    const renderConnectionOption = (mode: ConnectionMode, label: string, description: string) => {
-        const isSelected = connectionMode === mode;
-        return (
-            <Pressable
-                onPress={() => {
-                    triggerHaptic("selection");
-                    onConnectionModeChange(mode);
-                }}
-                className="flex-row items-center justify-between p-4 rounded-xl border mb-2"
-                style={{
-                    backgroundColor: isSelected ? (isDark ? "rgba(96, 165, 250, 0.1)" : "rgba(37, 99, 235, 0.05)") : cardSurface,
-                    borderColor: isSelected ? accentColor : panelBorder,
-                }}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: isSelected }}
-            >
-                <VStack space="xs" className="flex-1">
-                    <Text size="sm" bold={true} style={{ color: isSelected ? accentColor : titleColor }}>{label}</Text>
-                    <Text size="xs" style={{ color: mutedColor }}>{description}</Text>
-                </VStack>
-                <Box
-                    className="w-5 h-5 rounded-full border-2 items-center justify-center"
-                    style={{ borderColor: isSelected ? accentColor : panelBorder }}
-                >
-                    {isSelected && <Box className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: accentColor }} />}
-                </Box>
-            </Pressable>
-        );
-    };
+    const activeConnection = CONNECTION_MODE_LABELS[connectionMode];
+    const serverUrl = getDefaultServerConfig().getBaseUrl();
 
     const content = (
-        <Box className="flex-1 overflow-hidden" style={{ backgroundColor: surfaceBase }}>
-            <Box
-                className="flex-row items-center justify-between py-4 px-5 border-b"
-                style={{ borderBottomColor: panelBorder }}
-            >
-                <Text className="text-lg font-semibold" style={{ color: titleColor }}>
-                    General Settings
-                </Text>
-                <Pressable
-                    onPress={onClose}
-                    hitSlop={12}
-                    accessibilityLabel="Close settings"
-                    className="p-2 min-w-11 min-h-11 items-center justify-center"
+        <SafeAreaView style={{ flex: 1, backgroundColor: surfaceBase }} edges={["top", "left", "right"]}>
+            <Box className="flex-1 overflow-hidden" style={{ backgroundColor: surfaceBase }}>
+                <Box
+                    className="flex-row items-center justify-between py-4 px-5 border-b"
+                    style={{ borderBottomColor: panelBorder }}
                 >
-                    <CloseIcon size={20} color={mutedColor} />
-                </Pressable>
-            </Box>
+                    <Text className="text-lg font-semibold" style={{ color: titleColor }}>
+                        General Settings
+                    </Text>
+                    <Pressable
+                        onPress={onClose}
+                        hitSlop={12}
+                        accessibilityLabel="Close settings"
+                        className="p-2 min-w-11 min-h-11 items-center justify-center"
+                    >
+                        <CloseIcon size={20} color={mutedColor} />
+                    </Pressable>
+                </Box>
 
-            <ScrollView
-                className="flex-1"
-                contentContainerStyle={{
-                    paddingHorizontal: 20,
-                    paddingTop: 16,
-                    paddingBottom: Math.max(insets.bottom, 24),
-                }}
-                showsVerticalScrollIndicator={false}
-            >
-                <VStack space="xl">
-                    {/* YOLO Mode Section */}
-                    <VStack space="md">
-                        <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Automation & Permissions
-                        </Text>
-                        <HStack className="items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
-                            <VStack space="xs" className="flex-1">
-                                <Text size="md" bold style={{ color: titleColor }}>YOLO Mode</Text>
-                                <Text size="xs" style={{ color: mutedColor }}>Skip confirmations for AI tool execution</Text>
-                            </VStack>
-                            <Switch
-                                value={isAutoApproveToolConfirm}
-                                onValueChange={(val: boolean) => {
-                                    triggerHaptic("light");
-                                    onAutoApproveToolConfirmChange(val);
-                                }}
-                                trackColor={{
-                                    false: isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)",
-                                    true: accentColor,
-                                }}
-                            />
-                        </HStack>
-                    </VStack>
-
-                    {/* Connection Method Section */}
-                    <VStack space="md">
-                        <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Connection Method
-                        </Text>
-                        {renderConnectionOption("cloudflare", "Cloudflare Tunnel", "Proxy through Cloudflare for remote access")}
-                        {renderConnectionOption("tailscale", "Tailscale", "Direct connection on a Tailscale private network")}
-                        {renderConnectionOption("direct", "Direct / Local", "Direct connection (localhost or LAN IP)")}
-                    </VStack>
-
-                    {/* Environment Info Section */}
-                    <VStack space="md">
-                        <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
-                            Environment Info
-                        </Text>
-                        <VStack space="sm" className="p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
-                            <Text size="xs" bold style={{ color: mutedColor }}>Pi Workspace Path</Text>
-                            <Box className="p-2 rounded bg-black/5 dark:bg-white/5">
-                                <Text size="xs" style={{ color: titleColor, fontFamily: "System" }}>{piPath}</Text>
-                            </Box>
-                            <Text size="xs" style={{ color: mutedColor, fontStyle: "italic", marginTop: 4 }}>
-                                This is the absolute path to your active .pi configuration directory.
+                <ScrollView
+                    className="flex-1"
+                    contentContainerStyle={{
+                        paddingHorizontal: 20,
+                        paddingTop: 16,
+                        paddingBottom: Math.max(insets.bottom, 24),
+                    }}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <VStack space="xl">
+                        {/* YOLO Mode Section */}
+                        <VStack space="md">
+                            <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Automation & Permissions
                             </Text>
+                            <HStack className="items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
+                                <VStack space="xs" className="flex-1">
+                                    <Text size="md" bold style={{ color: titleColor }}>YOLO Mode</Text>
+                                    <Text size="xs" style={{ color: mutedColor }}>Skip confirmations for AI tool execution</Text>
+                                </VStack>
+                                <Switch
+                                    value={isAutoApproveToolConfirm}
+                                    onValueChange={(val: boolean) => {
+                                        triggerHaptic("light");
+                                        onAutoApproveToolConfirmChange(val);
+                                    }}
+                                    trackColor={{
+                                        false: isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)",
+                                        true: accentColor,
+                                    }}
+                                />
+                            </HStack>
+                        </VStack>
+
+                        {/* Connection Method Section — read-only, derived from config */}
+                        <VStack space="md">
+                            <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Connection Method
+                            </Text>
+                            <VStack space="sm" className="p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
+                                <HStack className="items-center" space="sm">
+                                    <Box
+                                        className="w-2.5 h-2.5 rounded-full"
+                                        style={{ backgroundColor: accentColor }}
+                                    />
+                                    <Text size="md" bold style={{ color: titleColor }}>{activeConnection.label}</Text>
+                                </HStack>
+                                <Text size="xs" style={{ color: mutedColor }}>{activeConnection.description}</Text>
+
+                                <Text size="xs" bold style={{ color: mutedColor, marginTop: 8 }}>Remote Host URL</Text>
+                                <Box className="p-2 rounded bg-black/5 dark:bg-white/5">
+                                    <Text size="xs" style={{ color: titleColor, fontFamily: "System" }}>{serverUrl}</Text>
+                                </Box>
+
+                                <Text size="xs" style={{ color: mutedColor, fontStyle: "italic", marginTop: 4 }}>
+                                    Set via EXPO_PUBLIC_CONNECTION_MODE environment variable.
+                                </Text>
+                            </VStack>
+                        </VStack>
+
+                        {/* Environment Info Section */}
+                        <VStack space="md">
+                            <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                Environment Info
+                            </Text>
+                            <VStack space="sm" className="p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
+                                <Text size="xs" bold style={{ color: mutedColor }}>Pi Workspace Path</Text>
+                                <Box className="p-2 rounded bg-black/5 dark:bg-white/5">
+                                    <Text size="xs" style={{ color: titleColor, fontFamily: "System" }}>{piPath}</Text>
+                                </Box>
+                                <Text size="xs" style={{ color: mutedColor, fontStyle: "italic", marginTop: 4 }}>
+                                    This is the absolute path to your active .pi configuration directory.
+                                </Text>
+                            </VStack>
                         </VStack>
                     </VStack>
-                </VStack>
-            </ScrollView>
-        </Box>
+                </ScrollView>
+            </Box>
+        </SafeAreaView>
     );
 
     return (

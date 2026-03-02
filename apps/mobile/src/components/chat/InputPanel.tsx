@@ -78,7 +78,6 @@ export interface InputPanelProps {
   onOpenPortForwarding?: () => void;
   isCloudflareMode?: boolean;
   serverBaseUrl?: string;
-  onOpenGeneralSettings?: () => void;
 }
 
 export function InputPanel({
@@ -103,7 +102,6 @@ export function InputPanel({
   onOpenPortForwarding,
   isCloudflareMode,
   serverBaseUrl,
-  onOpenGeneralSettings,
 }: InputPanelProps) {
   const theme = useTheme();
   const [prompt, setPrompt] = useState("");
@@ -421,9 +419,6 @@ export function InputPanel({
                 onOpenWebPreview={onOpenWebPreview}
                 isCloudflareMode={isCloudflareMode}
                 onOpenPortForwarding={onOpenPortForwarding}
-                isAutoApproveToolConfirm={isAutoApproveToolConfirm}
-                onAutoApproveToolConfirmChange={onAutoApproveToolConfirmChange}
-                onOpenGeneralSettings={onOpenGeneralSettings}
               />
             )}
             {onTerminateAgent && sessionRunning && (

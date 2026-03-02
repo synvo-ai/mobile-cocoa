@@ -2,7 +2,6 @@ import { AttachPlusIcon, ChevronDownIcon, ChevronUpIcon, DockerIcon, GlobeIcon, 
 import { Popover, PopoverBackdrop, PopoverContent } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
-import { Switch } from "@/components/ui/switch";
 import { HStack } from "@/components/ui/hstack";
 import { VStack } from "@/components/ui/vstack";
 import { Box } from "@/components/ui/box";
@@ -22,9 +21,6 @@ interface SystemMenuPopoverProps {
     onOpenWebPreview?: () => void;
     isCloudflareMode?: boolean;
     onOpenPortForwarding?: () => void;
-    isAutoApproveToolConfirm: boolean;
-    onAutoApproveToolConfirmChange: (next: boolean) => void;
-    onOpenGeneralSettings?: () => void;
 }
 
 export function SystemMenuPopover({
@@ -37,9 +33,6 @@ export function SystemMenuPopover({
     onOpenWebPreview,
     isCloudflareMode,
     onOpenPortForwarding,
-    isAutoApproveToolConfirm,
-    onAutoApproveToolConfirmChange,
-    onOpenGeneralSettings,
 }: SystemMenuPopoverProps) {
     return (
         <Popover
@@ -66,14 +59,15 @@ export function SystemMenuPopover({
                         }}
                     >
                         <AttachPlusIcon size={20} color={isDark ? theme.colors.info : theme.colors.textPrimary} />
-                        <ChevronUpIcon
-                            size={12}
-                            color={isDark ? theme.colors.info : theme.colors.textPrimary}
-                            style={{
-                                transform: [{ rotate: terminalMenuVisible ? '0deg' : '180deg' }],
-                                opacity: 0.7
-                            }}
-                        />
+                        <RNView style={{
+                            transform: [{ rotate: terminalMenuVisible ? '0deg' : '180deg' }],
+                            opacity: 0.7
+                        }}>
+                            <ChevronUpIcon
+                                size={12}
+                                color={isDark ? theme.colors.info : theme.colors.textPrimary}
+                            />
+                        </RNView>
                     </Pressable>
                 </ScaleWrapper>
             )}
@@ -161,29 +155,6 @@ export function SystemMenuPopover({
                             )}
                         </HStack>
 
-                        <Box className="h-px w-full bg-black/10 dark:bg-white/10 my-1" />
-
-                        <HStack className="items-center justify-between px-2 py-1">
-                            <VStack space="xs">
-                                <Text size="sm" bold={true} style={{ color: theme.colors.textPrimary }}>YOLO Mode</Text>
-                                <Text size="xs" style={{ color: theme.colors.textMuted, fontSize: 10 }}>Skip tool confirmations</Text>
-                            </VStack>
-                            <Switch
-                                value={isAutoApproveToolConfirm}
-                                onValueChange={(val) => {
-                                    triggerHaptic("light");
-                                    onAutoApproveToolConfirmChange(val);
-                                }}
-                                accessibilityLabel="Toggle YOLO mode"
-                                trackColor={{
-                                    false: isDark ? "rgba(255, 255, 255, 0.2)" : "rgba(0, 0, 0, 0.1)",
-                                    true: isDark ? theme.colors.info : "#0EA5E9",
-                                }}
-                                thumbColor={isAutoApproveToolConfirm ? "#FFFFFF" : isDark ? "#A1A1AA" : "#F4F4F5"}
-                                style={{ transform: [{ scale: 0.85 }] }}
-                            />
-                        </HStack>
-
                         {isCloudflareMode && onOpenPortForwarding && (
                             <Pressable
                                 onPress={() => {
@@ -199,22 +170,6 @@ export function SystemMenuPopover({
                                 <Text size="sm" style={{ color: theme.colors.textPrimary, fontWeight: "500" }}>Port Forwarding</Text>
                             </Pressable>
                         )}
-
-                        <Box className="h-px w-full bg-black/10 dark:bg-white/10 my-1" />
-
-                        <Pressable
-                            onPress={() => {
-                                triggerHaptic("selection");
-                                setTerminalMenuVisible(false);
-                                onOpenGeneralSettings?.();
-                            }}
-                            className="flex-row items-center gap-3 px-2 py-2 rounded-xl active:bg-black/5"
-                        >
-                            <Box className="w-8 h-8 rounded-lg items-center justify-center bg-background-500/10">
-                                <SettingsIcon size={18} color={theme.colors.textPrimary} />
-                            </Box>
-                            <Text size="sm" style={{ color: theme.colors.textPrimary, fontWeight: "500" }}>General Settings</Text>
-                        </Pressable>
                     </VStack>
                 </BlurView>
             </PopoverContent>

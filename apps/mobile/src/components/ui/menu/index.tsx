@@ -143,8 +143,8 @@ const Menu = React.forwardRef<React.ComponentRef<typeof UIMenu>, IMenuProps>(
     return (
       <UIMenu
         ref={ref}
-        entering={FadeIn.duration(100)}
-        exiting={FadeOut.duration(100)}
+        entering={FadeIn.duration(350)}
+        exiting={FadeOut.duration(250)}
         className={menuStyle({
           class: className,
         })}

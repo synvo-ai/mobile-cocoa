@@ -9,7 +9,7 @@ import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import { triggerHaptic } from "@/designSystem";
 import { CATEGORY_COLORS, CATEGORY_COLORS_LIGHT, type Category } from "@/utils/skillColors";
-import React from "react";
+import React, { useState } from "react";
 import { Dimensions, ScrollView, View as RNView } from "react-native";
 
 interface SkillHubPopoverProps {
@@ -44,6 +44,7 @@ export function SkillHubPopover({
     onOpenSkillsConfig,
 }: SkillHubPopoverProps) {
     const maxSkillCategoryHeight = 180;
+    const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
 
     return (
         <Popover
@@ -129,6 +130,9 @@ export function SkillHubPopover({
                     <>
                         <RNView style={{ marginBottom: 12, paddingHorizontal: 4, zIndex: 10, position: "relative" }}>
                             <Menu
+                                isOpen={categoryMenuOpen}
+                                onOpen={() => setCategoryMenuOpen(true)}
+                                onClose={() => setCategoryMenuOpen(false)}
                                 placement="bottom"
                                 offset={5}
                                 style={{
@@ -190,6 +194,7 @@ export function SkillHubPopover({
                                         onPress={() => {
                                             triggerHaptic("selection");
                                             setSelectedCategory(category);
+                                            setCategoryMenuOpen(false);
                                         }}
                                         style={({ pressed }) => [{
                                             paddingHorizontal: 14,

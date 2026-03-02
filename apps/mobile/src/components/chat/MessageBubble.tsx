@@ -874,8 +874,8 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
 
   return (
     <Animated.View
-      entering={FadeInDown.duration(250).easing(Easing.out(Easing.ease))}
-      layout={LinearTransition.duration(250).easing(Easing.out(Easing.ease))}
+      entering={FadeInDown.duration(400).easing(Easing.out(Easing.cubic))}
+      layout={LinearTransition.duration(400).easing(Easing.out(Easing.cubic))}
     >
       <Box
         style={[

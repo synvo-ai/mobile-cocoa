@@ -6,7 +6,11 @@
     "logHost": "localhost",
     "sidebarRefreshIntervalMs": 3000,
     "defaultProvider": "gemini",
-    "loopbackHosts": ["localhost", "127.0.0.1", "::1"],
+    "loopbackHosts": [
+      "localhost",
+      "127.0.0.1",
+      "::1"
+    ],
     "sseHost": "localhost:3456",
     "logsDirName": "logs",
     "llmCliIoSubdir": "llm-cli-input-output",
@@ -40,7 +44,10 @@
       "defaultServerUrl": "http://localhost:3456",
       "tunnelProxyPort": 9443,
       "androidEmulatorHost": "10.0.2.2",
-      "localhostAliases": ["localhost", "127.0.0.1"]
+      "localhostAliases": [
+        "localhost",
+        "127.0.0.1"
+      ]
     },
     "scripts": {
       "smokeSessionSwitch": {
@@ -203,12 +210,5 @@
       "writing-plans": "Prompt",
       "writing-skills": "Prompt"
     }
-  },
-  "mcp": {
-    "_comment": "MCP server configuration fallback — matches mcp.json structure.",
-    "serversFile": "server/mcp/servers.json",
-    "enabledFile": "server/mcp/enabled.json",
-    "defaultType": "stdio",
-    "testTimeoutMs": 10000
   }
 }

@@ -34,7 +34,7 @@ export function ThinkingSection({
 
     return (
         <Animated.View
-            layout={LinearTransition.springify().damping(18).stiffness(200)}
+            layout={LinearTransition.springify().damping(24).stiffness(120)}
             className="my-2 rounded-xl border border-l-4 overflow-hidden"
             style={{
                 borderColor: theme.colors.border,
@@ -64,7 +64,7 @@ export function ThinkingSection({
             </Pressable>
             {expanded && (
                 <Animated.View
-                    entering={SlideInDown.springify().damping(18).stiffness(200)}
+                    entering={SlideInDown.springify().damping(24).stiffness(120)}
                     className="px-4 pb-3"
                 >
                     {renderContent(content)}

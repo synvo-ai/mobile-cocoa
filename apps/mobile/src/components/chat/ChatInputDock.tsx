@@ -29,7 +29,6 @@ type ChatInputDockProps = {
   serverBaseUrl: string;
   isAutoApproveToolConfirm: boolean;
   onAutoApproveToolConfirmChange: (next: boolean) => void;
-  onOpenGeneralSettings?: () => void;
 };
 
 export function ChatInputDock({
@@ -53,7 +52,6 @@ export function ChatInputDock({
   serverBaseUrl,
   isAutoApproveToolConfirm,
   onAutoApproveToolConfirmChange,
-  onOpenGeneralSettings,
 }: ChatInputDockProps) {
   return (
     <InputPanel
@@ -78,7 +76,6 @@ export function ChatInputDock({
       permissionMode={isAutoApproveToolConfirm ? "auto_edit" : "prompt"}
       isAutoApproveToolConfirm={isAutoApproveToolConfirm}
       onAutoApproveToolConfirmChange={onAutoApproveToolConfirmChange}
-      onOpenGeneralSettings={onOpenGeneralSettings}
     />
   );
 }

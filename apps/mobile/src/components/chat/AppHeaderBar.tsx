@@ -1,4 +1,5 @@
 import { layoutGlassHeaderStyleDark, SHELL_HORIZONTAL_PADDING } from "@/components/styles/appStyles";
+import { SettingsIcon } from "@/components/icons/ChatActionIcons";
 import { Box } from "@/components/ui/box";
 import { HStack } from "@/components/ui/hstack";
 import {
@@ -15,6 +16,7 @@ import { Image, StyleSheet } from "react-native";
 interface AppHeaderBarProps {
   visible: boolean;
   onOpenExplorer: () => void;
+  onOpenGeneralSettings?: () => void;
 }
 
 interface HeaderButtonProps {
@@ -72,6 +74,7 @@ function HeaderLogo() {
 export function AppHeaderBar({
   visible,
   onOpenExplorer,
+  onOpenGeneralSettings,
 }: AppHeaderBarProps) {
   const theme = useTheme();
   const isDark = theme.mode === "dark";
@@ -90,7 +93,7 @@ export function AppHeaderBar({
       className="relative z-10 pb-2 overflow-hidden"
     >
       {isDark && <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />}
-      <HStack className="relative h-20 flex-row items-center justify-between px-0 -mt-2" pointerEvents="box-none">
+      <HStack className="relative h-20 flex-row items-center justify-between px-0 -mt-4" pointerEvents="box-none">
         <HeaderButton
           icon={<Box style={{ marginLeft: -10 }}><HeaderLogo /></Box>}
           onPress={onOpenExplorer}
@@ -101,6 +104,19 @@ export function AppHeaderBar({
           isDark={isDark}
         />
         <Box className="min-w-0 flex-1 shrink justify-center items-center px-2" />
+        {onOpenGeneralSettings && (
+          <Box className="mt-4">
+            <HeaderButton
+              icon={<SettingsIcon size={24} color={isDark ? theme.colors.textPrimary : theme.colors.textPrimary} />}
+              onPress={onOpenGeneralSettings}
+              accessibilityLabel="General Settings"
+              delay={200}
+              size={44}
+              plain={true}
+              isDark={isDark}
+            />
+          </Box>
+        )}
       </HStack>
     </Box>
   );

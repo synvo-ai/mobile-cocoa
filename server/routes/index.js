@@ -13,7 +13,6 @@ import { registerConfigRoutes } from "./config.js";
 import { registerDockerRoutes } from "./docker.js";
 import { registerGitRoutes } from "./git.js";
 import { registerHealthPageRoutes } from "./healthPage.js";
-import { registerMCPRoutes } from "./mcp.js";
 import { registerPortRoutes } from "./ports.js";
 import { registerProcessesRoutes } from "./processes.js";
 import { registerSessionManagementStoreRoutes } from "./sessionManagementStore.js";
@@ -32,7 +31,6 @@ export async function setupRoutes(app) {
   registerPortRoutes(app);
   registerSessionsRoutes(app);
   registerSkillsRoutes(app);
-  registerMCPRoutes(app);
   registerWorkspaceRoutes(app);
   registerGitRoutes(app);
   registerProcessesRoutes(app);

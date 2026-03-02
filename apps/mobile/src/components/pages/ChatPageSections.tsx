@@ -9,16 +9,19 @@ import { ActivityIndicator, type LayoutChangeEvent } from "react-native";
 export type ChatHeaderSectionProps = {
   onOpenExplorer: () => void;
   sidebarVisible: boolean;
+  onOpenGeneralSettings?: () => void;
 };
 
 export function ChatHeaderSection({
   onOpenExplorer,
   sidebarVisible,
+  onOpenGeneralSettings,
 }: ChatHeaderSectionProps) {
   return (
     <AppHeaderBar
       visible={!sidebarVisible}
       onOpenExplorer={onOpenExplorer}
+      onOpenGeneralSettings={onOpenGeneralSettings}
     />
   );
 }
@@ -75,7 +78,6 @@ export type ChatInputDockSectionProps = {
   onOpenPortForwarding: () => void;
   isCloudflareMode?: boolean;
   onOpenModelPicker: () => void;
-  onOpenGeneralSettings: () => void;
   onInputDockLayout: (height: number) => void;
 };
 
@@ -89,7 +91,6 @@ export function ChatInputDockSection({
   onOpenPortForwarding,
   isCloudflareMode,
   onOpenModelPicker,
-  onOpenGeneralSettings,
   onInputDockLayout,
 }: ChatInputDockSectionProps) {
   if (!input.visible) {
@@ -123,7 +124,6 @@ export function ChatInputDockSection({
         onOpenSkillsConfig={onOpenSkillsConfig}
         onOpenDocker={onOpenDocker}
         onOpenPortForwarding={onOpenPortForwarding}
-        onOpenGeneralSettings={onOpenGeneralSettings}
         isCloudflareMode={isCloudflareMode}
         serverBaseUrl={input.serverBaseUrl}
       />

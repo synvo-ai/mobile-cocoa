@@ -160,8 +160,8 @@ const PopoverContent = React.forwardRef<
   return (
     <UIPopover.Content
       ref={ref}
-      entering={FadeIn.duration(50).delay(50)}
-      exiting={FadeOut.duration(50)}
+      entering={FadeIn.duration(350).delay(50)}
+      exiting={FadeOut.duration(250)}
       {...props}
       className={popoverContentStyle({
         parentVariants: {
@@ -183,8 +183,8 @@ const PopoverArrow = React.forwardRef<
   return (
     <UIPopover.Arrow
       ref={ref}
-      entering={FadeIn.duration(50).delay(50)}
-      exiting={FadeOut.duration(50)}
+      entering={FadeIn.duration(350).delay(50)}
+      exiting={FadeOut.duration(250)}
       {...props}
       className={popoverArrowStyle({
         class: className,
@@ -204,8 +204,8 @@ const PopoverBackdrop = React.forwardRef<
     <UIPopover.Backdrop
       ref={ref}
       {...props}
-      entering={FadeIn.duration(50).delay(50)}
-      exiting={FadeOut.duration(50)}
+      entering={FadeIn.duration(350).delay(50)}
+      exiting={FadeOut.duration(250)}
       className={popoverBackdropStyle({
         class: className,
       })}

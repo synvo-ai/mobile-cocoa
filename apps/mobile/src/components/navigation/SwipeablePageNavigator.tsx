@@ -19,6 +19,8 @@ import Animated, {
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
+    withDelay,
+    withSpring,
     withTiming,
 } from "react-native-reanimated";
 
@@ -29,7 +31,7 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const VELOCITY_THRESHOLD = 500;
 // iOS-like spring timing config
 const TIMING_CONFIG = {
-    duration: 320,
+    duration: 400,
     easing: Easing.bezier(0.25, 0.1, 0.25, 1),
 };
 
@@ -62,6 +64,19 @@ export function SwipeablePageNavigator({
     // 0 = closed (overlay offscreen right), 1 = open (overlay fully visible)
     const progress = useSharedValue(isOpen ? 1 : 0);
     const isGestureActive = useSharedValue(false);
+    const bounceTranslate = useSharedValue(0);
+
+    // Initial bounce effect to draw attention
+    useEffect(() => {
+        bounceTranslate.value = withDelay(
+            1000,
+            withSpring(-24, { damping: 16, stiffness: 100 }, (finished) => {
+                if (finished) {
+                    bounceTranslate.value = withSpring(0, { damping: 20, stiffness: 80 });
+                }
+            })
+        );
+    }, []);
 
     // Sync with programmatic open/close
     useEffect(() => {
@@ -79,10 +94,11 @@ export function SwipeablePageNavigator({
     }, [onClose]);
 
     // ── Swipe-to-open gesture on the main page (swipe LEFT) ──
+    // We bind this to the floating inset indicator handle on the right side.
     const openGesture = Gesture.Pan()
         .enabled(swipeToOpenEnabled && !isOpen)
         .activeOffsetX([-15, 15])
-        .failOffsetY([-10, 10])
+        .failOffsetY([-20, 20])
         .onStart(() => {
             isGestureActive.value = true;
             // Eagerly open so the overlay page content renders during the swipe
@@ -155,23 +171,29 @@ export function SwipeablePageNavigator({
         };
     });
 
-    // Shadow overlay on main page as overlay slides in
-    const shadowOverlayStyle = useAnimatedStyle(() => {
-        const opacity = interpolate(progress.value, [0, 1], [0, 0.35]);
-        return { opacity };
-    });
+    // Handle styling - fade out when completely open, opaque when touched, slight transparency otherwise
+    const handleOpacityStyle = useAnimatedStyle(() => {
+        const baseOpacity = interpolate(progress.value, [0, 0.05], [isGestureActive.value ? 1 : 0.5, 0]);
+        return {
+            opacity: swipeToOpenEnabled ? baseOpacity : 0,
+            transform: [{ translateX: bounceTranslate.value }],
+        };
+    }, [swipeToOpenEnabled]);
 
     return (
         <Animated.View style={styles.container}>
-            {/* Main page with parallax + open gesture */}
+            {/* Main page with parallax */}
+            <Animated.View style={[styles.page, mainPageStyle]}>
+                {mainPage}
+            </Animated.View>
+
+            {/* Inset Handle for open gesture to prevent triggering OS back swipe */}
             <GestureDetector gesture={openGesture}>
-                <Animated.View style={[styles.page, mainPageStyle]}>
-                    {mainPage}
-                    {/* Shadow overlay on top of main page */}
-                    <Animated.View
-                        style={[styles.shadowOverlay, shadowOverlayStyle]}
-                        pointerEvents="none"
-                    />
+                <Animated.View
+                    style={[styles.handleTouchArea, handleOpacityStyle]}
+                    pointerEvents={swipeToOpenEnabled && !isOpen ? "auto" : "none"}
+                >
+                    <Animated.View style={styles.handleVisual} />
                 </Animated.View>
             </GestureDetector>
 
@@ -188,18 +210,37 @@ export function SwipeablePageNavigator({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#000",
+        backgroundColor: "transparent",
     },
     page: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: "transparent",
     },
-    shadowOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: "#000",
-    },
     overlayPage: {
         ...StyleSheet.absoluteFillObject,
         backgroundColor: "transparent",
+        zIndex: 20,
+    },
+    handleTouchArea: {
+        position: 'absolute',
+        right: 0, // Docked exactly to the edge
+        top: 160, // Avoid top header buttons (like Settings, safe area makes header taller)
+        bottom: 120, // Avoid bottom input actions
+        width: 48, // Wide enough catch area reaching inward
+        justifyContent: 'center',
+        alignItems: 'flex-end', // Aligns the visual pill to the right edge
+        paddingRight: 4, // A tiny 4px inset to let it breathe off the absolute edge
+        zIndex: 10,
+    },
+    handleVisual: {
+        width: 5,
+        height: 48,
+        backgroundColor: 'rgba(160, 160, 160, 0.7)',
+        borderRadius: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 3,
     },
 });

@@ -18,6 +18,7 @@ const projectRoot = path.resolve(__dirname, "../..");
 const MODELS_CONFIG_PATH = path.join(projectRoot, "config", "models.json");
 const PI_CONFIG_PATH = path.join(projectRoot, "config", "pi.json");
 const SKILLS_CONFIG_PATH = path.join(projectRoot, "config", "skills.json");
+const MCP_CONFIG_PATH = path.join(projectRoot, "config", "mcp.json");
 const DEFAULTS_CONFIG_PATH = path.join(projectRoot, "config", "defaults.json");
 const SERVER_CONFIG_PATH = path.join(projectRoot, "config", "server.json");
 
@@ -72,12 +73,13 @@ function isInsideRoot(rootDir, targetPath) {
   return rel === "" || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel));
 }
 
-// Baseline defaults used when models/pi/skills config files are missing or invalid.
+// Baseline defaults used when models/pi/skills/mcp config files are missing or invalid.
 const FALLBACKS = asObject(loadConfigFile(DEFAULTS_CONFIG_PATH, { label: "config/defaults.json" }));
 const SERVER_DEFAULTS = asObject(FALLBACKS.server);
 const MODELS_DEFAULTS = asObject(FALLBACKS.models);
 const PI_DEFAULTS = asObject(FALLBACKS.pi);
 const SKILLS_DEFAULTS = asObject(FALLBACKS.skills);
+const MCP_DEFAULTS = asObject(FALLBACKS.mcp);
 
 // User-specific server overrides — config/server.json (higher priority than defaults.json, no .env needed)
 const SERVER_OVERRIDES = asObject(loadConfigFile(SERVER_CONFIG_PATH, { label: "config/server.json", optional: true }));
@@ -191,6 +193,18 @@ export function loadSkillsConfig() {
   } catch (err) {
     console.warn("[skills-config] Could not load config/skills.json — using defaults.json fallback:", err?.message);
     return SKILLS_DEFAULTS;
+  }
+}
+
+// ── External MCP config ─────────────────────────────────────────────────────
+/** Load and parse the MCP config from disk. Falls back to defaults config. */
+export function loadMCPConfig() {
+  try {
+    const raw = fs.readFileSync(MCP_CONFIG_PATH, "utf8");
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn("[mcp-config] Could not load config/mcp.json — using defaults.json fallback:", err?.message);
+    return MCP_DEFAULTS;
   }
 }
 
@@ -316,7 +330,7 @@ export function setWorkspaceCwd(newPath) {
   }
 }
 
-export { MODELS_CONFIG_PATH, PI_CONFIG_PATH, SKILLS_CONFIG_PATH, DEFAULT_PROVIDER_FROM_CONFIG };
+export { MODELS_CONFIG_PATH, PI_CONFIG_PATH, SKILLS_CONFIG_PATH, MCP_CONFIG_PATH, DEFAULT_PROVIDER_FROM_CONFIG };
 
 // Export project paths
 export { projectRoot, __dirname };

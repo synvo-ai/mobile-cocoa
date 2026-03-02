@@ -19,6 +19,7 @@ import {
   loadSkillsConfig,
   PI_FALLBACK_MODEL,
 } from "../config/index.js";
+import { buildMCPConfigForPi } from "../mcp/index.js";
 import { resolveAgentDir, syncEnabledSkillsFolder } from "../skills/index.js";
 import { getActiveOverlay, getPreviewHost } from "../utils/index.js";
 import {
@@ -327,6 +328,20 @@ export function createPiRpcSession({
     const skillPaths = syncEnabledSkillsFolder(skillsDir, skillsAgentDir, skillsEnabledDir);
     if (skillPaths.length > 0) {
       args.push("--skill", skillsEnabledDir);
+    }
+
+    // Register enabled MCP servers: write config file and pass to Pi
+    const mcpConfig = buildMCPConfigForPi();
+    if (mcpConfig.mcpServers && Object.keys(mcpConfig.mcpServers).length > 0) {
+      const mcpDir = path.join(projectRoot, "server", "mcp");
+      const mcpConfigPath = path.join(mcpDir, "runtime.json");
+      try {
+        fs.mkdirSync(mcpDir, { recursive: true });
+        fs.writeFileSync(mcpConfigPath, JSON.stringify(mcpConfig, null, 2), "utf8");
+        args.push("--mcp-config", mcpConfigPath);
+      } catch (err) {
+        console.warn("[PiRpcSession] Failed to write MCP config:", err?.message);
+      }
     }
 
     // Resolve agent dir: workspace .pi/agent first, then project root .pi/agent.

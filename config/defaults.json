@@ -203,5 +203,12 @@
       "writing-plans": "Prompt",
       "writing-skills": "Prompt"
     }
+  },
+  "mcp": {
+    "_comment": "MCP server configuration fallback — matches mcp.json structure.",
+    "serversFile": "server/mcp/servers.json",
+    "enabledFile": "server/mcp/enabled.json",
+    "defaultType": "stdio",
+    "testTimeoutMs": 10000
   }
 }

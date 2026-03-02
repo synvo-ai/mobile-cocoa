@@ -36,7 +36,7 @@ import { getFileName } from "@/utils/path";
 import { CATEGORY_COLORS, CATEGORY_COLORS_LIGHT, type Category } from "@/utils/skillColors";
 import { BlurView } from "expo-blur";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AccessibilityInfo, Animated, Dimensions, Keyboard, Modal, Platform, ScrollView, StyleSheet, TouchableWithoutFeedback, View as RNView } from "react-native";
+import { AccessibilityInfo, ActivityIndicator, Animated, Dimensions, Keyboard, Modal, Platform, ScrollView, StyleSheet, TouchableWithoutFeedback, View as RNView } from "react-native";
 import Reanimated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from "react-native-reanimated";
 import Svg, { Polygon } from "react-native-svg";
 
@@ -429,7 +429,11 @@ export function InputPanel({
               />
             )}
           </HStack>
-          {!(sessionRunning && !waitingForUserInput) && (
+          {disabled ? (
+            <Box className="w-11 h-11 rounded-full items-center justify-center">
+              <ActivityIndicator size="small" color={theme.colors.info} />
+            </Box>
+          ) : (
             <Reanimated.View style={sendStyle}>
               <Button
                 action="primary"
@@ -441,25 +445,21 @@ export function InputPanel({
                 isDisabled={disabled}
                 accessibilityLabel="Send message"
                 className="w-11 h-11 rounded-full items-center justify-center active:opacity-80 p-0 m-0"
-                style={
-                  disabled
-                    ? undefined
-                    : {
-                      backgroundColor: theme.colors.info,
-                      borderColor: "transparent",
-                      borderWidth: 0,
-                      ...Platform.select({
-                        ios: {
-                          shadowColor: theme.colors.info,
-                          shadowOffset: { width: 0, height: 4 },
-                          shadowOpacity: 0.4,
-                          shadowRadius: 8,
-                        },
-                        android: { elevation: 8 },
-                        default: {},
-                      }),
-                    }
-                }
+                style={{
+                  backgroundColor: theme.colors.info,
+                  borderColor: "transparent",
+                  borderWidth: 0,
+                  ...Platform.select({
+                    ios: {
+                      shadowColor: theme.colors.info,
+                      shadowOffset: { width: 0, height: 4 },
+                      shadowOpacity: 0.4,
+                      shadowRadius: 8,
+                    },
+                    android: { elevation: 8 },
+                    default: {},
+                  }),
+                }}
               >
                 <ButtonIcon
                   as={

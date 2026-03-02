@@ -187,6 +187,9 @@ function createSseSocketAdapter(sessionId, session, host = DEFAULT_SSE_HOST) {
       for (const response of subscribers) {
         try {
           if (response.writableEnded) continue;
+          // #region agent log
+          fetch('http://127.0.0.1:7858/ingest/d7d38859-3779-4ab0-968f-91cf91a262e5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'099c89'},body:JSON.stringify({sessionId:'099c89',location:'process/index.js:emit',message:'SSE adapter write',data:{event,payloadLen:payload.length,subscriberCount:subscribers.size,isEnd:!!endPayload},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+          // #endregion
           if (endPayload) {
             response.write(endPayload);
             response.end();

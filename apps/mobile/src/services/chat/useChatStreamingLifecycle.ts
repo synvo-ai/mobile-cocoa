@@ -16,13 +16,13 @@ import {
     SSE_MAX_RETRIES,
     attachSseHandlers,
     computeRetryDelay,
+    createSseClient,
     detachSseHandlers,
-    resolveEventSourceCtor,
     type SseEventHandlers,
 } from "./sseConnection";
 import { createStreamFlusher } from "./streamFlusher";
 import { processRawSseLine } from "./sseMessageParser";
-import { OUTPUT_BUFFER_MAX_SIZE, resolveStreamUrl } from "./sseMessageProcessor";
+import { OUTPUT_BUFFER_MAX_SIZE } from "./sseMessageProcessor";
 import type { UseSessionCache } from "./useSessionCache";
 
 
@@ -264,11 +264,14 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       }
     };
 
-    const { url: streamUrl, applySkipReplay } = resolveStreamUrl(serverUrl, activeSessionId, skipReplayForSessionRef.current);
+    const { source: sse, applySkipReplay } = createSseClient(
+      serverUrl,
+      activeSessionId,
+      skipReplayForSessionRef.current
+    );
     if (applySkipReplay) {
       skipReplayForSessionRef.current = null;
     }
-    const sse = new (resolveEventSourceCtor())(streamUrl);
     // Mutable ref so that scheduleRetry always cleans up the *current* SSE instance,
     // not the original one captured by closure (fixes zombie connection bug).
     const currentSseRef = { current: sse };
@@ -363,6 +366,9 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       retryCountRef.current = 0;
       clearRetryTimeout();
       if (__DEV__) console.log("[sse] connected", { sessionId: connectionSessionIdRef.current });
+      // #region agent log
+      console.log("[DBG-099c89] SSE open", { ts: Date.now(), sessionId: connectionSessionIdRef.current });
+      // #endregion
       setConnected(true);
     };
 
@@ -391,12 +397,11 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
         detachSseHandlers(currentSseRef.current, sseHandlers);
         currentSseRef.current.close();
 
-        const { url: retryUrl } = resolveStreamUrl(
+        const { source: retrySse } = createSseClient(
           serverUrl,
           connectionSessionIdRef.current,
           connectionSessionIdRef.current
         );
-        const retrySse = new (resolveEventSourceCtor())(retryUrl);
         currentSseRef.current = retrySse;
         activeSseRef.current = { id: connectionSessionIdRef.current, source: retrySse };
 
@@ -420,8 +425,13 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       scheduleRetry();
     };
 
+    let msgCount = 0;
     const messageHandler = (event: SseMessageEvent) => {
       if (event.data == null) return;
+      msgCount++;
+      // #region agent log
+      if (msgCount <= 10 || msgCount % 20 === 0) { console.log("[DBG-099c89] SSE msg", { ts: Date.now(), msgNum: msgCount, dataLen: typeof event.data === "string" ? event.data.length : 0 }); }
+      // #endregion
 
       const dataStr = event.data;
       const dataStrLen = typeof dataStr === "string" ? dataStr.length : 0;
@@ -583,8 +593,18 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
       }
     };
 
-    const endHandler = (event: any) => handleStreamEnd(event, 0);
-    const doneHandler = (event: any) => handleStreamEnd(event ?? {}, 0);
+    const endHandler = (event: any) => {
+      // #region agent log
+      console.log("[DBG-099c89] SSE end event", { ts: Date.now(), totalMsgs: msgCount });
+      // #endregion
+      handleStreamEnd(event, 0);
+    };
+    const doneHandler = (event: any) => {
+      // #region agent log
+      console.log("[DBG-099c89] SSE done event", { ts: Date.now(), totalMsgs: msgCount });
+      // #endregion
+      handleStreamEnd(event ?? {}, 0);
+    };
 
     const sseHandlers: SseEventHandlers = {
       open: openHandler,

@@ -161,7 +161,7 @@ export function processSseMessage(
 }
 
 /**
- * Resolve the SSE stream URL for a session.
+ * Resolve the SSE stream URL for a session (GET-based, for EventSource).
  */
 export function resolveStreamUrl(
   serverUrl: string,
@@ -172,6 +172,24 @@ export function resolveStreamUrl(
   const applySkipReplay = skipReplayForSession === sessionId;
   return {
     url: applySkipReplay ? `${baseUrl}&skipReplay=1` : baseUrl,
+    applySkipReplay,
+  };
+}
+
+/**
+ * Resolve the SSE stream URL and body for POST-based streaming.
+ * Used for Cloudflare Quick Tunnel (GET buffers SSE until connection close).
+ */
+export function resolveStreamUrlPost(
+  serverUrl: string,
+  sessionId: string,
+  skipReplayForSession: string | null
+): { url: string; body: { activeOnly: boolean; skipReplay: boolean }; applySkipReplay: boolean } {
+  const url = `${serverUrl}/api/sessions/${sessionId}/stream`;
+  const applySkipReplay = skipReplayForSession === sessionId;
+  return {
+    url,
+    body: { activeOnly: true, skipReplay: applySkipReplay },
     applySkipReplay,
   };
 }

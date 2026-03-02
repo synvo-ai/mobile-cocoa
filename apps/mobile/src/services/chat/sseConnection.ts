@@ -3,9 +3,14 @@
  *
  * Extracted from useChatStreamingLifecycle to keep the hook focused on React state management.
  * These are pure functions / factory helpers with no React dependencies.
+ *
+ * Uses POST-based SSE when in Cloudflare mode (Quick Tunnel buffers GET-based SSE).
  */
 import EventSource from "react-native-sse";
+import { isCloudflareMode } from "@/services/server/config";
 import type { EventSourceCtor, EventSourceLike, SseMessageEvent } from "./hooksTypes";
+import { createFetchSseClient } from "./sseFetchClient";
+import { resolveStreamUrl, resolveStreamUrlPost } from "./sseMessageProcessor";
 
 export const SSE_MAX_RETRIES = 5;
 const SSE_RETRY_BASE_MS = 1000;
@@ -14,6 +19,24 @@ const SSE_RETRY_BASE_MS = 1000;
 export function resolveEventSourceCtor(): EventSourceCtor {
   return ((EventSource as unknown as { default?: EventSourceCtor }).default ??
     (EventSource as EventSourceCtor)) as EventSourceCtor;
+}
+
+/**
+ * Create an SSE client (EventSource or fetch-based POST).
+ * Uses POST when in Cloudflare mode to avoid Quick Tunnel buffering.
+ */
+export function createSseClient(
+  serverUrl: string,
+  sessionId: string,
+  skipReplayForSession: string | null
+): { source: EventSourceLike; applySkipReplay: boolean } {
+  if (isCloudflareMode()) {
+    const { url, body, applySkipReplay } = resolveStreamUrlPost(serverUrl, sessionId, skipReplayForSession);
+    return { source: createFetchSseClient({ url, body }), applySkipReplay };
+  }
+  const { url, applySkipReplay } = resolveStreamUrl(serverUrl, sessionId, skipReplayForSession);
+  const Ctor = resolveEventSourceCtor();
+  return { source: new Ctor(url), applySkipReplay };
 }
 
 export type SseEventHandlers = {

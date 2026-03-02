@@ -14,10 +14,9 @@ import {
   SSE_MAX_RETRIES,
   attachSseHandlers,
   computeRetryDelay,
+  createSseClient,
   detachSseHandlers,
-  resolveEventSourceCtor,
 } from "./sseConnection";
-import { resolveStreamUrl } from "./sseMessageProcessor";
 
 export interface SseLifecycleState {
   hasStreamEndedRef: { current: boolean };
@@ -102,12 +101,11 @@ export function createRetryScheduler(
       detachSseHandlers(ctx.currentSseRef.current, sseHandlers);
       ctx.currentSseRef.current.close();
 
-      const { url: retryUrl } = resolveStreamUrl(
+      const { source: retrySse } = createSseClient(
         ctx.serverUrl,
         ctx.connectionSessionIdRef.current,
         ctx.connectionSessionIdRef.current
       );
-      const retrySse = new (resolveEventSourceCtor())(retryUrl);
       ctx.currentSseRef.current = retrySse;
       ctx.activeSseRef.current = { id: ctx.connectionSessionIdRef.current, source: retrySse };
 

@@ -67,7 +67,7 @@ run("proxy", "node", ["server/utils/proxy.js"], { inherit: false });
 
 // 2. Dev server (port 3456) — background (OVERLAY_NETWORK=tunnel so server knows traffic goes via proxy)
 setTimeout(() => {
-  run("dev", npm, ["run", "dev"], { inherit: false, env: { ...process.env, OVERLAY_NETWORK: "tunnel" } });
+  run("dev", npm, ["run", "dev"], { inherit: false, env: { ...process.env, OVERLAY_NETWORK: "tunnel", DEBUG_SSE: "1" } });
 }, 1500);
 
 // 3. Cloudflare tunnel — foreground so user sees the URL; capture and print Expo command

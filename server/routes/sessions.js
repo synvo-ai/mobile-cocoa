@@ -362,11 +362,25 @@ export function registerSessionsRoutes(app) {
         }
     });
 
-    // GET /api/sessions/:sessionId/stream
-    router.get("/:sessionId/stream", async (req, res) => {
+    /** Shared stream handler for GET and POST. POST is used for Cloudflare Quick Tunnel (GET buffers SSE). */
+    function getStreamOptions(req) {
+        if (req.method === "POST" && req.body && typeof req.body === "object") {
+            return {
+                activeOnly: parseBooleanQueryParam(req.body.activeOnly),
+                skipReplay: parseBooleanQueryParam(req.body.skipReplay),
+            };
+        }
+        return {
+            activeOnly: parseBooleanQueryParam(req.query.activeOnly),
+            skipReplay: parseBooleanQueryParam(req.query.skipReplay),
+        };
+    }
+
+    async function handleStream(req, res) {
         const sessionId = requireValidSessionIdParam(req, res);
         if (!sessionId) return;
         const session = resolveSession(sessionId);
+        const { activeOnly, skipReplay } = getStreamOptions(req);
 
         // Setup SSE headers
         res.setHeader("Content-Type", "text/event-stream");
@@ -374,11 +388,12 @@ export function registerSessionsRoutes(app) {
         res.setHeader("Connection", "keep-alive");
         res.setHeader("X-Accel-Buffering", "no");
         res.flushHeaders?.();
+        // Disable Nagle's algorithm so each write() is sent immediately (critical for proxy/tunnel path)
+        if (req.socket) req.socket.setNoDelay(true);
 
         if (!session) {
             // Session not in registry (e.g. server restarted). Try to replay history from disk
             // before closing the connection so the client can restore its message history.
-            const skipReplay = parseBooleanQueryParam(req.query.skipReplay);
             if (!skipReplay && !isTempSessionId(sessionId)) {
                 const filePath = resolveSessionFilePath(sessionId);
                 replayHistoryToResponse(filePath, res);
@@ -387,9 +402,6 @@ export function registerSessionsRoutes(app) {
             res.end();
             return;
         }
-
-        const activeOnly = parseBooleanQueryParam(req.query.activeOnly);
-        const skipReplay = parseBooleanQueryParam(req.query.skipReplay);
         const processRunning = session.processManager.processRunning?.() || false;
         // Replay history from disk unless client already has it (skipReplay=1 when resuming with preseeded messages)
         if (!skipReplay && !isTempSessionId(sessionId)) {
@@ -459,7 +471,13 @@ export function registerSessionsRoutes(app) {
             // Use session ref directly (survives migrate to Pi's native session_id)
             session.subscribers.delete(res);
         });
-    });
+    }
+
+    // GET /api/sessions/:sessionId/stream (kept for backward compatibility)
+    router.get("/:sessionId/stream", handleStream);
+
+    // POST /api/sessions/:sessionId/stream — used for Cloudflare Quick Tunnel (GET buffers SSE)
+    router.post("/:sessionId/stream", handleStream);
 
     app.use("/api/sessions", router);
 }

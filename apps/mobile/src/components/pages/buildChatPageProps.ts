@@ -60,7 +60,7 @@ export function buildChatPageProps({
       waitingForUserInput: sseState.waitingForUserInput,
     },
     header: {
-      workspaceName: workspaceState.workspacePath ? basename(workspaceState.workspacePath) : "—",
+      workspaceName: workspaceState.workspacePath || "—",
       sessionIdLabel: currentSessionLabel,
       onOpenExplorer: openSidebar,
       sidebarVisible,
@@ -108,8 +108,6 @@ export function buildChatPageProps({
       onRemoveCodeRef: chatActionState.onRemoveCodeRef,
       onTerminateAgent: sseState.terminateAgent,
       onOpenWebPreview: chatActionState.onOpenWebPreview,
-      isAutoApproveToolConfirm: chatActionState.isAutoApproveToolConfirm,
-      onAutoApproveToolConfirmChange: chatActionState.onAutoApproveToolConfirmChange,
     },
     modals: {
       askQuestion: {
@@ -160,8 +158,6 @@ export function buildChatPageProps({
         resolvePreviewUrl: serverConfig.resolvePreviewUrl,
       },
       generalSettings: {
-        isAutoApproveToolConfirm: chatActionState.isAutoApproveToolConfirm,
-        onAutoApproveToolConfirmChange: chatActionState.onAutoApproveToolConfirmChange,
         connectionMode: connectionMode,
         workspacePath: workspaceState.workspacePath,
       },

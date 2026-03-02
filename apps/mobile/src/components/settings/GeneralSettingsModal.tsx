@@ -2,12 +2,14 @@ import { CloseIcon } from "@/components/icons/ChatActionIcons";
 import { Box } from "@/components/ui/box";
 import { Modal } from "@/components/ui/modal";
 import { Pressable } from "@/components/ui/pressable";
+import { ScrollView } from "@/components/ui/scroll-view";
 import { Text } from "@/components/ui/text";
 import { VStack } from "@/components/ui/vstack";
 import { HStack } from "@/components/ui/hstack";
 import { triggerHaptic } from "@/designSystem";
 import { useTheme } from "@/theme/index";
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { TextInput, ActivityIndicator, Keyboard } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { type ConnectionMode, getDefaultServerConfig } from "@/services/server/config";
 
@@ -43,7 +45,55 @@ export function GeneralSettingsModal({
 
     const piPath = workspacePath ? `${workspacePath}/.pi` : "—";
     const activeConnection = CONNECTION_MODE_LABELS[connectionMode];
-    const serverUrl = getDefaultServerConfig().getBaseUrl();
+    const serverConfig = getDefaultServerConfig();
+    const serverUrl = serverConfig.getBaseUrl();
+
+    // ── System Prompt State ──────────────────────────────────────────────────
+    const [systemPrompt, setSystemPrompt] = useState("");
+    const [savedPrompt, setSavedPrompt] = useState("");
+    const [loadingPrompt, setLoadingPrompt] = useState(false);
+    const [savingPrompt, setSavingPrompt] = useState(false);
+    const [promptStatus, setPromptStatus] = useState<"idle" | "saved" | "error">("idle");
+
+    const hasChanges = systemPrompt !== savedPrompt;
+
+    // Load system prompt when modal opens
+    useEffect(() => {
+        if (!isOpen) return;
+        setLoadingPrompt(true);
+        setPromptStatus("idle");
+        fetch(`${serverUrl}/api/system-prompt`)
+            .then((r) => r.json())
+            .then((data) => {
+                const prompt = typeof data.prompt === "string" ? data.prompt : "";
+                setSystemPrompt(prompt);
+                setSavedPrompt(prompt);
+            })
+            .catch(() => setPromptStatus("error"))
+            .finally(() => setLoadingPrompt(false));
+    }, [isOpen, serverUrl]);
+
+    const saveSystemPrompt = useCallback(() => {
+        Keyboard.dismiss();
+        setSavingPrompt(true);
+        setPromptStatus("idle");
+        triggerHaptic("light");
+        fetch(`${serverUrl}/api/system-prompt`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ prompt: systemPrompt }),
+        })
+            .then((r) => r.json())
+            .then((data) => {
+                const saved = typeof data.prompt === "string" ? data.prompt : systemPrompt;
+                setSavedPrompt(saved);
+                setSystemPrompt(saved);
+                setPromptStatus("saved");
+                setTimeout(() => setPromptStatus("idle"), 2000);
+            })
+            .catch(() => setPromptStatus("error"))
+            .finally(() => setSavingPrompt(false));
+    }, [serverUrl, systemPrompt]);
 
     const content = (
         <SafeAreaView style={{ flex: 1, backgroundColor: surfaceBase }} edges={["top", "left", "right"]}>
@@ -73,8 +123,73 @@ export function GeneralSettingsModal({
                         paddingBottom: Math.max(insets.bottom, 24),
                     }}
                     showsVerticalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
                 >
                     <VStack space="xl">
+
+                        {/* System Prompt Section */}
+                        <VStack space="md">
+                            <Text size="sm" bold style={{ color: mutedColor, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                                System Prompt
+                            </Text>
+                            <VStack space="sm" className="p-4 rounded-xl border" style={{ backgroundColor: cardSurface, borderColor: panelBorder }}>
+                                <Text size="xs" style={{ color: mutedColor }}>
+                                    Custom instructions appended to every session. Changes take effect on the next session start.
+                                </Text>
+                                {loadingPrompt ? (
+                                    <Box className="items-center justify-center py-6">
+                                        <ActivityIndicator size="small" color={accentColor} />
+                                    </Box>
+                                ) : (
+                                    <TextInput
+                                        value={systemPrompt}
+                                        onChangeText={setSystemPrompt}
+                                        multiline
+                                        numberOfLines={6}
+                                        textAlignVertical="top"
+                                        placeholder="e.g. Always respond in concise bullet points…"
+                                        placeholderTextColor={isDark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)"}
+                                        style={{
+                                            color: titleColor,
+                                            backgroundColor: isDark ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.04)",
+                                            borderRadius: 8,
+                                            padding: 12,
+                                            minHeight: 120,
+                                            fontSize: 13,
+                                            fontFamily: "System",
+                                            borderWidth: 1,
+                                            borderColor: hasChanges ? accentColor : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                                        }}
+                                    />
+                                )}
+                                <HStack className="items-center justify-between" style={{ marginTop: 4 }}>
+                                    <Text size="xs" style={{
+                                        color: promptStatus === "saved" ? "#22C55E" : promptStatus === "error" ? "#EF4444" : "transparent",
+                                    }}>
+                                        {promptStatus === "saved" ? "✓ Saved" : promptStatus === "error" ? "Failed to save" : "—"}
+                                    </Text>
+                                    <Pressable
+                                        onPress={saveSystemPrompt}
+                                        disabled={!hasChanges || savingPrompt}
+                                        style={{
+                                            backgroundColor: hasChanges ? accentColor : (isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.06)"),
+                                            paddingHorizontal: 16,
+                                            paddingVertical: 8,
+                                            borderRadius: 8,
+                                            opacity: hasChanges && !savingPrompt ? 1 : 0.5,
+                                        }}
+                                    >
+                                        {savingPrompt ? (
+                                            <ActivityIndicator size="small" color="#fff" />
+                                        ) : (
+                                            <Text size="xs" bold style={{ color: hasChanges ? "#fff" : mutedColor }}>
+                                                Save
+                                            </Text>
+                                        )}
+                                    </Pressable>
+                                </HStack>
+                            </VStack>
+                        </VStack>
 
                         {/* Connection Method Section — read-only, derived from config */}
                         <VStack space="md">

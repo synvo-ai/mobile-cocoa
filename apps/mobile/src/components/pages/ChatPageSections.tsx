@@ -30,13 +30,14 @@ export type ChatConversationSectionProps = {
   conversation: ChatPageConversation;
   inputDockHeight: number;
   isHidden?: boolean;
+  workspaceName?: string;
 };
 
 function ChatSectionFrame({ children }: { children: React.ReactNode }) {
   return <Box className="flex-1 mt-0">{children}</Box>;
 }
 
-export function ChatConversationSection({ conversation, inputDockHeight, isHidden }: ChatConversationSectionProps) {
+export function ChatConversationSection({ conversation, inputDockHeight, isHidden, workspaceName }: ChatConversationSectionProps) {
   return (
     <ChatSectionFrame>
       {!isHidden && (
@@ -54,8 +55,9 @@ export function ChatConversationSection({ conversation, inputDockHeight, isHidde
             tailBoxMaxHeight={conversation.tailBoxMaxHeight}
             scrollViewRef={conversation.scrollViewRef}
             onContentSizeChange={conversation.onContentSizeChange}
+            workspaceName={workspaceName}
             style={{ flex: 1, minHeight: 0, opacity: conversation.isSessionLoading ? 0 : 1 }}
-            contentContainerStyle={[{ paddingHorizontal: 12 }, { paddingBottom: inputDockHeight + 36 }]}
+            contentContainerStyle={[{ paddingHorizontal: 12 }, { paddingBottom: inputDockHeight + 36 }, { flexGrow: 1 }]}
           />
           {conversation.isSessionLoading && (
             <Box className="absolute inset-0 items-center justify-center pointer-events-none" style={{ backgroundColor: "transparent" }}>
@@ -115,8 +117,6 @@ export function ChatInputDockSection({
         onTerminateAgent={input.onTerminateAgent}
         onOpenProcesses={onOpenProcesses}
         onOpenWebPreview={input.onOpenWebPreview}
-        isAutoApproveToolConfirm={input.isAutoApproveToolConfirm}
-        onAutoApproveToolConfirmChange={input.onAutoApproveToolConfirmChange}
         provider={context.provider}
         model={context.model}
         modelOptions={context.modelOptions}

@@ -99,8 +99,6 @@ export type ChatPageInputDock = {
   onRemoveCodeRef: (index: number) => void;
   onTerminateAgent: () => void;
   onOpenWebPreview: () => void;
-  isAutoApproveToolConfirm: boolean;
-  onAutoApproveToolConfirmChange: (next: boolean) => void;
 };
 
 export type ChatPageAskQuestion = {
@@ -171,8 +169,6 @@ export type ChatPageModals = {
   sessionManagement: ChatPageSessionManagement;
   preview: ChatPagePreview;
   generalSettings: {
-    isAutoApproveToolConfirm: boolean;
-    onAutoApproveToolConfirmChange: (next: boolean) => void;
     connectionMode: string;
     workspacePath: string | null;
   };

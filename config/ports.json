@@ -4,6 +4,14 @@
       "port": 3456,
       "label": "Dev Server",
       "builtin": true
+    },
+    {
+      "port": 3000,
+      "label": "Port 3000"
+    },
+    {
+      "port": 3001,
+      "label": "Port 3001"
     }
   ]
 }

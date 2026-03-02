@@ -9,10 +9,10 @@
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import { TUNNEL_PROXY_PORT, PROXY_LOOPBACK_HOST } from "../server/config/index.js";
+import { TUNNEL_PROXY_PORT, PROXY_LOOPBACK_HOST } from "../config/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ROOT = join(__dirname, "..");
+const ROOT = join(__dirname, "..", "..");
 
 const isWindows = process.platform === "win32";
 const npm = isWindows ? "npm.cmd" : "npm";

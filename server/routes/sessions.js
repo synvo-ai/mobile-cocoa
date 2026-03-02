@@ -372,6 +372,7 @@ export function registerSessionsRoutes(app) {
         res.setHeader("Content-Type", "text/event-stream");
         res.setHeader("Cache-Control", "no-cache");
         res.setHeader("Connection", "keep-alive");
+        res.setHeader("X-Accel-Buffering", "no");
         res.flushHeaders?.();
 
         if (!session) {
@@ -387,8 +388,8 @@ export function registerSessionsRoutes(app) {
             return;
         }
 
-            const activeOnly = parseBooleanQueryParam(req.query.activeOnly);
-            const skipReplay = parseBooleanQueryParam(req.query.skipReplay);
+        const activeOnly = parseBooleanQueryParam(req.query.activeOnly);
+        const skipReplay = parseBooleanQueryParam(req.query.skipReplay);
         const processRunning = session.processManager.processRunning?.() || false;
         // Replay history from disk unless client already has it (skipReplay=1 when resuming with preseeded messages)
         if (!skipReplay && !isTempSessionId(sessionId)) {

@@ -141,8 +141,6 @@ export function ChatModalsSection({
       <GeneralSettingsModal
         isOpen={modalStates.generalSettings.isOpen}
         onClose={modalStates.generalSettings.close}
-        isAutoApproveToolConfirm={modals.generalSettings.isAutoApproveToolConfirm}
-        onAutoApproveToolConfirmChange={modals.generalSettings.onAutoApproveToolConfirmChange}
         connectionMode={modals.generalSettings.connectionMode as any}
         workspacePath={modals.generalSettings.workspacePath}
       />

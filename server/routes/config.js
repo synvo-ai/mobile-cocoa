@@ -5,7 +5,8 @@ import os from "os";
 import {
   ENABLE_DOCKER_MANAGER, getOverlayNetwork, getWorkspaceCwd,
   loadModelsConfig,
-  setWorkspaceCwd, SIDEBAR_REFRESH_INTERVAL_MS, WORKSPACE_ALLOWED_ROOT
+  setWorkspaceCwd, SIDEBAR_REFRESH_INTERVAL_MS, WORKSPACE_ALLOWED_ROOT,
+  getCustomSystemPrompt, setCustomSystemPrompt,
 } from "../config/index.js";
 
 function toMb(value) {
@@ -76,5 +77,19 @@ export function registerConfigRoutes(app) {
     } else {
       res.status(400).json({ error: result.error });
     }
+  });
+
+  // ── System Prompt API ────────────────────────────────────────────────────
+  app.get("/api/system-prompt", (_, res) => {
+    res.json({ prompt: getCustomSystemPrompt() });
+  });
+
+  app.post("/api/system-prompt", (req, res) => {
+    const rawPrompt = req.body?.prompt;
+    if (typeof rawPrompt !== "string") {
+      return res.status(400).json({ error: "prompt must be a string" });
+    }
+    const saved = setCustomSystemPrompt(rawPrompt);
+    res.json({ prompt: saved });
   });
 }

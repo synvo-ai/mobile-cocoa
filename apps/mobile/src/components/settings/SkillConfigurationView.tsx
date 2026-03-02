@@ -21,9 +21,7 @@ import {
   type SkillCreateRequest,
   type SkillInstallRequest,
   type SkillMetadata,
-  type SkillSource,
   createSkill,
-  getSkillSources,
   getSkills,
   getSkillsEnabled,
   installSkill,
@@ -100,8 +98,7 @@ export function SkillConfigurationView({
   const [isAddSkillOpen, setIsAddSkillOpen] = useState(false);
   const [addFlowTab, setAddFlowTab] = useState<AddFlowTab>("catalog");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchSource, setSearchSource] = useState<"find-skills" | "github">("find-skills");
-  const [searchSources, setSearchSources] = useState<SkillSource[]>([]);
+  const searchSource = "find-skills" as const;
   const [searchResults, setSearchResults] = useState<SearchSkillResult[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -139,36 +136,8 @@ export function SkillConfigurationView({
   }, [serverBaseUrl]);
 
   const loadSources = useCallback(() => {
-    if (!serverBaseUrl) return Promise.resolve();
-
-    return getSkillSources(serverBaseUrl)
-      .then((data) => {
-        const sources = data?.sources ?? [];
-        setSearchSources(sources);
-        const preferredFindSkills = sources.find((source) => source.source === "find-skills" && source.enabled);
-        if (preferredFindSkills) {
-          setSearchSource("find-skills");
-          return;
-        }
-
-        const first = sources.find((source) => source.enabled);
-        if (first) {
-          setSearchSource(first.source === "github" ? "github" : "find-skills");
-        }
-      })
-      .catch(() => {
-        setSearchSources([
-          {
-            source: "find-skills",
-            label: "find-skills catalog",
-            enabled: true,
-            status: "ok",
-            health: "ready",
-          },
-        ]);
-        setSearchSource("find-skills");
-      });
-  }, [serverBaseUrl]);
+    return Promise.resolve();
+  }, []);
 
   const handleSkillToggle = useCallback(
     (skillId: string, enabled: boolean) => {
@@ -196,12 +165,7 @@ export function SkillConfigurationView({
       return Promise.resolve();
     }
 
-    if (searchSource !== "find-skills") {
-      setSearchResults([]);
-      setSearchError("Search is currently supported only for find-skills.");
-      setSearchLoading(false);
-      return Promise.resolve();
-    }
+
 
     setSearchLoading(true);
     setSearchError(null);
@@ -297,10 +261,7 @@ export function SkillConfigurationView({
           return;
         }
 
-        const payload: SkillInstallRequest =
-          searchSource === "github" && item.repoUrl
-            ? { source: "github", repoUrl: item.repoUrl, autoEnable: true }
-            : { source: "find-skills", skillId: id, autoEnable: true };
+        const payload: SkillInstallRequest = { source: "find-skills", skillId: id, autoEnable: true };
 
         const result = await installSkill(serverBaseUrl, payload);
         showAlert("Skill added", result.message || `${item.name} installed`);
@@ -318,7 +279,7 @@ export function SkillConfigurationView({
         });
       }
     },
-    [handleSkillToggle, installedSkillIds, refreshSkills, searchSource, serverBaseUrl, enabledSkillIds]
+    [handleSkillToggle, installedSkillIds, refreshSkills, serverBaseUrl, enabledSkillIds]
   );
 
   const handleCreateSubmit = useCallback(async () => {
@@ -773,8 +734,8 @@ export function SkillConfigurationView({
   );
 
   const addSkillModal = isAddSkillOpen ? (
-    <Modal isOpen={isAddSkillOpen} onClose={closeAddSkillModal}>
-      <Box className="h-full" style={[safeStyle, { backgroundColor: pageSurface }]}>
+    <Modal isOpen={isAddSkillOpen} onClose={closeAddSkillModal} size="full">
+      <Box className="h-full w-full" style={[safeStyle, { backgroundColor: pageSurface }]}>
         <Box
           className="flex-row items-center justify-between px-4 py-3 border-b"
           style={{ borderBottomColor: panelBorder, backgroundColor: headerSurface }}
@@ -818,34 +779,7 @@ export function SkillConfigurationView({
         <ScrollView className="flex-1 px-4 py-4" contentContainerStyle={{ paddingBottom: 48 }}>
           {addFlowTab === "catalog" ? (
             <>
-              <Text className="text-xs text-typography-600 mb-2">Source</Text>
-              <Box className="mb-3 flex-row gap-2">
-                {searchSources.map((sourceItem) => {
-                  const isActive = searchSource === sourceItem.source;
-                  const isSupported = sourceItem.source === "find-skills";
-                  return (
-                    <Pressable
-                      key={sourceItem.source}
-                      onPress={() => {
-                        if (!sourceItem.enabled || !isSupported) return;
-                        setSearchSource(sourceItem.source === "github" ? "github" : "find-skills");
-                      }}
-                      className="px-3 py-2 rounded-full"
-                      style={{
-                        backgroundColor: isActive ? activePill : (isDark ? "rgba(255,255,255,0.06)" : "rgba(15,23,42,0.08)"),
-                        borderColor: isActive ? `${activeTabColor}99` : panelBorder,
-                        borderWidth: 1,
-                        opacity: sourceItem.enabled ? 1 : 0.5,
-                      }}
-                    >
-                      <Text style={{ color: isActive ? activeTabColor : mutedColor }}>
-                        {sourceItem.label}
-                        {sourceItem.source !== "find-skills" ? " (search coming soon)" : ""}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </Box>
+
 
               <Input className="h-11 mb-2">
                 <InputField

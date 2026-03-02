@@ -2,7 +2,6 @@ import type { ModelOption } from "@/core/modelOptions";
 import type { Message } from "@/core";
 import { getDefaultModelForProvider, getModelOptionsForProvider } from "@/services/server/modelsApi";
 import { ColorMode, ColorModePreference } from "@/theme";
-import { getBackendPermissionMode } from "@/utils/permission";
 
 export type ModalSessionItem = {
   id: string;
@@ -40,8 +39,4 @@ export function getModel(provider: string): string {
  */
 export function getModelOptions(provider: string): ModelOption[] {
   return getModelOptionsForProvider(provider);
-}
-
-export function getSubmitPermissionConfig() {
-  return getBackendPermissionMode();
 }

@@ -3,6 +3,8 @@ import { PermissionDenialBanner } from "@/components/common/PermissionDenialBann
 import type { Provider as BrandProvider } from "@/core/modelOptions";
 import { EntranceAnimation } from "@/designSystem";
 import type { Message, PermissionDenial } from "@/services/chat/hooks";
+import { Box } from "@/components/ui/box";
+import { Text } from "@/components/ui/text";
 import React, { memo, useMemo } from "react";
 import { ScrollView, type StyleProp, type ViewStyle } from "react-native";
 
@@ -21,6 +23,7 @@ type ChatMessageListProps = {
   onContentSizeChange: () => void;
   style?: StyleProp<ViewStyle>;
   contentContainerStyle?: StyleProp<ViewStyle>;
+  workspaceName?: string;
 };
 
 type ChatMessageRowProps = {
@@ -103,6 +106,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   onContentSizeChange,
   style,
   contentContainerStyle,
+  workspaceName,
 }: ChatMessageListProps) {
   const renderedMessages = useMemo(
     () =>
@@ -159,10 +163,26 @@ export const ChatMessageList = memo(function ChatMessageList({
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
       bounces={false}
-      overScrollMode="never"
       onContentSizeChange={onContentSizeChange}
     >
-      {renderedMessages}
+      {messages.length === 0 ? (
+        <Box className="flex-1 items-center justify-center p-8 mb-20">
+          <Text size="2xl" bold className="text-typography-900 mb-2 text-center">
+            Welcome to Mobile Cocoa
+          </Text>
+          <Text size="md" className="text-typography-500 mb-8 text-center px-4">
+            Vibe coding everywhere,{"\n"}
+            logic weaving through the air.
+          </Text>
+          {workspaceName && (
+            <Text size="xs" className="text-typography-400 text-center opacity-70">
+              {workspaceName}
+            </Text>
+          )}
+        </Box>
+      ) : (
+        renderedMessages
+      )}
       <EntranceAnimation variant="fade" duration={200}>
         {chatListFooter}
       </EntranceAnimation>

@@ -80,17 +80,28 @@ function isPortAllowed(port) {
   return allowedPorts.has(port);
 }
 
+// ── Cookie helper ────────────────────────────────────────────────────────────
+
+function parseCookiePort(req) {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return NaN;
+  const match = cookieHeader.match(/(?:^|;\s*)_tp=(\d+)/);
+  return match ? parseInt(match[1], 10) : NaN;
+}
+
 // ── HTTP proxy ───────────────────────────────────────────────────────────────
 
 const server = http.createServer((req, res) => {
   const targetPortHeader = req.headers["x-target-port"];
   let targetPort = DEFAULT_TARGET_PORT;
   let requestUrl = req.url;
+  let shouldSetCookie = false;
 
   if (targetPortHeader) {
     const parsed = parseInt(String(targetPortHeader), 10);
     if (isValidPort(parsed)) {
       targetPort = parsed;
+      shouldSetCookie = true;
     } else {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: `Invalid X-Target-Port: ${targetPortHeader}` }));
@@ -104,8 +115,15 @@ const server = http.createServer((req, res) => {
         const parsed = parseInt(queryTargetPort, 10);
         if (isValidPort(parsed)) {
           targetPort = parsed;
+          shouldSetCookie = true;
           parsedUrl.searchParams.delete("_targetPort");
           requestUrl = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+        }
+      } else {
+        // Fallback: check _tp cookie for sub-resource requests (images, CSS, JS)
+        const cookiePort = parseCookiePort(req);
+        if (isValidPort(cookiePort)) {
+          targetPort = cookiePort;
         }
       }
     } catch {
@@ -136,10 +154,15 @@ const server = http.createServer((req, res) => {
   proxyOptions.headers["x-tunnel-proxy"] = "1";
 
   const proxyReq = http.request(proxyOptions, (proxyRes) => {
-    res.writeHead(proxyRes.statusCode, {
+    const responseHeaders = {
       ...proxyRes.headers,
       "x-proxied-port": String(targetPort),
-    });
+    };
+    // Set _tp cookie so sub-resource requests (images, CSS, JS) route to the same port
+    if (shouldSetCookie && targetPort !== DEFAULT_TARGET_PORT) {
+      responseHeaders["set-cookie"] = `_tp=${targetPort}; Path=/; SameSite=Lax; Max-Age=86400`;
+    }
+    res.writeHead(proxyRes.statusCode, responseHeaders);
     proxyRes.pipe(res, { end: true });
   });
 
@@ -185,6 +208,12 @@ server.on("upgrade", (req, socket, head) => {
           targetPort = parsed;
           parsedUrl.searchParams.delete("_targetPort");
           requestUrl = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+        }
+      } else {
+        // Fallback: check _tp cookie for WebSocket connections from the same page
+        const cookiePort = parseCookiePort(req);
+        if (isValidPort(cookiePort)) {
+          targetPort = cookiePort;
         }
       }
     } catch {

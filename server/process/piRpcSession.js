@@ -323,6 +323,12 @@ export function createPiRpcSession({
       "--append-system-prompt", skillTagPrompt,
     ];
 
+    // Append the user-editable custom system prompt (if set)
+    const customPrompt = typeof piCfg.customSystemPrompt === "string" ? piCfg.customSystemPrompt.trim() : "";
+    if (customPrompt) {
+      args.push("--append-system-prompt", customPrompt);
+    }
+
     // Register enabled skills: sync symlinks from skills-library into skills_enabled
     const skillsCfg = loadSkillsConfig();
     const skillsDir = path.join(projectRoot, skillsCfg.skillsLibraryDir);

@@ -124,8 +124,8 @@ export function PreviewWebViewModal({
       thenApply(normalized);
       return;
     }
-    pendingUrlChoice.current = { normalized, thenApply };
-    setUrlChoiceVisible(true);
+    const resolved = resolvePreviewUrl(normalized);
+    thenApply(resolved);
   };
 
   const handleUrlChoiceVpn = () => {
@@ -186,26 +186,14 @@ export function PreviewWebViewModal({
           } catch { }
         }
 
-        const willShowChoice = !!normalized && !!resolvePreviewUrl && isLocalhostUrl(normalized);
-        if (willShowChoice) {
-          setTabs([{ id: genTabId(), url: "", loadKey: 0 }]);
+        const willResolve = !!normalized && !!resolvePreviewUrl && isLocalhostUrl(normalized);
+        if (willResolve) {
+          const resolved = resolvePreviewUrl(normalized);
+          setTabs([{ id: genTabId(), url: resolved, loadKey: Date.now() }]);
           setActiveIndex(0);
-          setUrlInputValue(normalized);
+          setUrlInputValue(resolved);
           setError(null);
-          setLoading(false);
-          pendingUrlChoice.current = {
-            normalized,
-            thenApply: (resolved: string) => {
-              setTabs((prev) => {
-                const next = [...prev];
-                if (next[0]) next[0] = { ...next[0], url: resolved, loadKey: Date.now() };
-                return next;
-              });
-              setUrlInputValue(resolved);
-              setLoading(true);
-            },
-          };
-          setUrlChoiceVisible(true);
+          setLoading(true);
         } else if (normalized) {
           setTabs([{ id: genTabId(), url: normalized, loadKey: Date.now() }]);
           setActiveIndex(0);

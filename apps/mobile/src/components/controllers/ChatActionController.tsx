@@ -114,7 +114,7 @@ export const ChatActionController = memo(function ChatActionController({
 
   const onRetryPermission = useCallback(() => {
     const lastUserMessage = [...messagesRef.current].reverse().find((message) => message.role === "user");
-    retryAfterPermission(undefined, undefined, lastUserMessage?.content);
+    retryAfterPermission(undefined, lastUserMessage?.content);
   }, [retryAfterPermission]);
 
   const onCommitByAI = useCallback(
@@ -152,8 +152,6 @@ export const ChatActionController = memo(function ChatActionController({
       onPermissionDecision,
       onAskQuestionCancel,
       onRetryPermission,
-      isAutoApproveToolConfirm: false,
-      onAutoApproveToolConfirmChange: () => { },
       onCommitByAI,
       onOpenWebPreview,
       onOpenPreviewInApp,

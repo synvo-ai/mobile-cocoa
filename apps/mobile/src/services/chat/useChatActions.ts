@@ -268,7 +268,7 @@ export function useChatActions(params: UseChatActionsParams) {
   }, [setPendingAskQuestion, setWaitingForUserInput]);
 
   const retryAfterPermission = useCallback(
-    async (permissionMode?: string, _approvalMode?: string, retryPrompt?: string) => {
+    async (permissionMode?: string, retryPrompt?: string) => {
       const denials = permissionDenials ?? [];
       const allowedTools = getAllowedToolsFromDenials(denials);
       const prompt =

@@ -64,6 +64,7 @@ export function ChatPageShell({
                   conversation={conversation}
                   inputDockHeight={shouldShowInputDock ? inputDockHeight : 0}
                   isHidden={isAnyOverlayOpen}
+                  workspaceName={header.workspaceName}
                 />
               </Box>
               <ChatInputDockSection

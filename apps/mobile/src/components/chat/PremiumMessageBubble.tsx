@@ -24,19 +24,22 @@ export function PremiumMessageBubble({ isUser, width, height, children }: Premiu
                 position: "absolute",
                 top: 0,
                 left: 0,
-                backgroundColor: isDark ? theme.colors.surfaceMuted : "rgba(37, 99, 235, 0.9)", // Vibrant blue for user in light mode
+                backgroundColor: theme.colors.surfaceMuted,
                 borderTopLeftRadius: 24,
                 borderTopRightRadius: 24,
                 borderBottomLeftRadius: 24,
                 borderBottomRightRadius: 6,
-                borderWidth: isDark ? 1 : 0,
-                borderColor: isDark ? theme.colors.borderSubtle : "transparent",
+                borderWidth: isDark ? 1 : 1,
+                borderColor: isDark ? theme.colors.borderSubtle : theme.colors.border,
                 shadowColor: theme.colors.shadow,
                 shadowOffset: { width: 0, height: 4 },
                 shadowOpacity: isDark ? 0.3 : 0.1,
                 shadowRadius: 10,
                 elevation: 2,
-            }} />
+                overflow: "hidden"
+            }}>
+                <BlurView intensity={isDark ? 20 : 30} tint={isDark ? "dark" : "light"} style={StyleSheet.absoluteFill} />
+            </Box>
         );
     }
 

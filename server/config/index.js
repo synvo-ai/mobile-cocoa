@@ -171,6 +171,25 @@ export function loadPiConfig() {
   }
 }
 
+/** Write the full Pi config object back to disk. */
+export function savePiConfig(cfg) {
+  fs.writeFileSync(PI_CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+}
+
+/** Return the user-editable custom system prompt from pi.json (empty string if unset). */
+export function getCustomSystemPrompt() {
+  const cfg = loadPiConfig();
+  return typeof cfg.customSystemPrompt === "string" ? cfg.customSystemPrompt : "";
+}
+
+/** Persist a user-editable custom system prompt to pi.json. */
+export function setCustomSystemPrompt(prompt) {
+  const cfg = loadPiConfig();
+  cfg.customSystemPrompt = typeof prompt === "string" ? prompt : "";
+  savePiConfig(cfg);
+  return cfg.customSystemPrompt;
+}
+
 export const PI_FALLBACK_MODEL = asStringSafe(PI_DEFAULTS.fallbackModel,
   asStringSafe(SERVER_DEFAULTS.pi?.fallbackModel, ""));
 export const PI_PROVIDER_FALLBACK = asStringSafe(PI_DEFAULTS.providerFallback,

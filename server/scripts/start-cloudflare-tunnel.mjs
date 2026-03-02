@@ -14,7 +14,7 @@
  * Requires: cloudflared installed (e.g. brew install cloudflared).
  */
 import { spawn } from "child_process";
-import { CLOUDFLARE_TUNNEL_TARGET_TEMPLATE, TUNNEL_PROXY_PORT } from "../server/config/index.js";
+import { CLOUDFLARE_TUNNEL_TARGET_TEMPLATE, TUNNEL_PROXY_PORT } from "../config/index.js";
 
 const TARGET = process.env.CLOUDFLARE_TUNNEL_TARGET || CLOUDFLARE_TUNNEL_TARGET_TEMPLATE;
 

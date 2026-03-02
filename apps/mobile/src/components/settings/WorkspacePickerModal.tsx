@@ -1,6 +1,6 @@
 import {
-    AttachPlusIcon, ChevronLeftIcon,
-    ChevronRightIcon
+  AttachPlusIcon, ChevronLeftIcon,
+  ChevronRightIcon
 } from "@/components/icons/ChatActionIcons";
 import { FolderIcon } from "@/components/icons/WorkspaceTreeIcons";
 import { ModalScaffold } from "@/components/reusable/ModalScaffold";
@@ -223,27 +223,33 @@ export function WorkspacePickerModal({
   }, [pickerRoot, currentPath, allowedRoot]);
 
   const handleSelectWorkspace = useCallback(
-    (path: string) => {
+    (relativePath: string) => {
+      // Resolve relative child paths to absolute using the browse root
+      const rootNorm = pickerRoot.replace(/\/$/, "");
+      const absolutePath =
+        !relativePath || relativePath === rootNorm || relativePath.startsWith("/")
+          ? relativePath
+          : `${rootNorm}/${relativePath}`;
       setSelectingWorkspace(true);
       triggerHaptic("selection");
       fetch(`${serverBaseUrl}/api/workspace-path`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ path }),
+        body: JSON.stringify({ path: absolutePath }),
       })
         .then((res) => {
           if (!res.ok)
             return res.json().then((d) =>
               Promise.reject(new Error(d?.error ?? res.statusText))
             );
-          onWorkspaceSelected?.(path);
+          onWorkspaceSelected?.(absolutePath);
           onClose();
           onRefreshWorkspace?.();
         })
         .catch((e) => setPickerError(e?.message ?? "Failed to set workspace"))
         .finally(() => setSelectingWorkspace(false));
     },
-    [serverBaseUrl, onClose, onRefreshWorkspace, onWorkspaceSelected]
+    [serverBaseUrl, onClose, onRefreshWorkspace, onWorkspaceSelected, pickerRoot]
   );
 
   const pickerLoading = loadingPaths.has("") || selectingWorkspace;
@@ -828,9 +834,9 @@ function createStyles(theme: ReturnType<typeof useTheme>) {
     },
     currentFolderCardActive: {
       borderColor: isDark ? CYAN : LIGHT_600,
-      backgroundColor: isDark ? "rgba(0, 25, 45, 0.7)" : "rgba(255, 255, 255, 0.7)",
-      shadowOpacity: isDark ? 0.5 : 0.1,
-      shadowRadius: 12,
+      backgroundColor: isDark ? CYAN_15 : "rgba(255, 255, 255, 0.9)",
+      shadowOpacity: isDark ? 0.6 : 0.15,
+      shadowRadius: 16,
     },
 
     // Child rows
@@ -851,10 +857,10 @@ function createStyles(theme: ReturnType<typeof useTheme>) {
     },
     childCardActive: {
       borderColor: isDark ? CYAN : LIGHT_600,
-      backgroundColor: isDark ? "rgba(0, 25, 45, 0.7)" : LIGHT_100,
+      backgroundColor: isDark ? CYAN_15 : LIGHT_200,
       shadowColor: isDark ? CYAN : LIGHT_600,
-      shadowOpacity: isDark ? 0.4 : 0.1,
-      shadowRadius: 10,
+      shadowOpacity: isDark ? 0.5 : 0.15,
+      shadowRadius: 12,
     },
     childCardRow: {
       flexDirection: "row",

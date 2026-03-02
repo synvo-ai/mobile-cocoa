@@ -121,6 +121,7 @@ export function ChatModalsSection({
         pending={modals.askQuestion.pendingAskQuestion}
         onSubmit={modals.askQuestion.onSubmitAskQuestion}
         onCancel={modals.askQuestion.onCancelAskQuestion}
+        onPermissionDecision={modals.askQuestion.onPermissionDecision}
       />
       <PreviewWebViewModal
         isOpen={modals.preview.previewVisible}

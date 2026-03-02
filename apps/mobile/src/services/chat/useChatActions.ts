@@ -243,6 +243,27 @@ export function useChatActions(params: UseChatActionsParams) {
     [sessionId, pendingAskQuestion, serverUrl, setPendingAskQuestion, setWaitingForUserInput]
   );
 
+  const submitPermissionDecision = useCallback(
+    async (approved: boolean) => {
+      if (!sessionId || !pendingAskQuestion) return;
+
+      try {
+        await fetch(`${serverUrl}/api/sessions/${sessionId}/input`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ approved: Boolean(approved) }),
+        });
+      } catch (error) {
+        console.error("Failed to submit permission decision", error);
+      }
+
+      setPendingAskQuestion(null);
+      setWaitingForUserInput(false);
+      setPermissionDenials(null);
+    },
+    [serverUrl, sessionId, pendingAskQuestion, setPermissionDenials, setPendingAskQuestion, setWaitingForUserInput]
+  );
+
   const dismissAskQuestion = useCallback(() => {
     setPendingAskQuestion(null);
     setWaitingForUserInput(false);
@@ -412,6 +433,7 @@ export function useChatActions(params: UseChatActionsParams) {
   return {
     submitPrompt,
     submitAskQuestionAnswer,
+    submitPermissionDecision,
     dismissAskQuestion,
     retryAfterPermission,
     dismissPermission,

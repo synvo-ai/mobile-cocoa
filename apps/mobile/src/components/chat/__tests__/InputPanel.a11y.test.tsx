@@ -70,6 +70,8 @@ function renderPanel() {
       sessionRunning={false}
       waitingForUserInput={false}
       permissionMode="default"
+      isAutoApproveToolConfirm
+      onAutoApproveToolConfirmChange={jest.fn()}
       onSubmit={jest.fn()}
       pendingCodeRefs={[]}
       onRemoveCodeRef={jest.fn()}

@@ -85,6 +85,8 @@ Configures Pi CLI behavior: path, permissions, provider mapping, routing rules, 
 
 Configures skill discovery and categorization.
 
+**Related work log**: [Add Skill (Discover, Install, Create) UI + API (March 3)](./march3/skill-discovery-install-create-ui.md)
+
 ### Key Fields
 
 | Field | Description |

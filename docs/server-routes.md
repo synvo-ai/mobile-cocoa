@@ -100,6 +100,8 @@ Enabled only when `ENABLE_DOCKER_MANAGER` is set.
 
 ### Skills Routes — [`skills.js`](file:///Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/routes/skills.js)
 
+**Related work log**: [Add Skill (Discover, Install, Create) UI + API (March 3)](./march3/skill-discovery-install-create-ui.md)
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/skills` | GET | Discover all skills in the skills library |

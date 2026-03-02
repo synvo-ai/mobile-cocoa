@@ -20,6 +20,7 @@ import { Button, ButtonIcon } from "@/components/ui/button";
 import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
+import { Switch } from "@/components/ui/switch";
 import { Textarea, TextareaInput } from "@/components/ui/textarea";
 import { VStack } from "@/components/ui/vstack";
 import { Popover, PopoverBackdrop, PopoverContent } from "@/components/ui/popover";
@@ -100,6 +101,8 @@ export interface InputPanelProps {
   waitingForUserInput: boolean;
   permissionMode: string | null;
   onSubmit: (prompt: string, permissionMode?: string) => void;
+  isAutoApproveToolConfirm: boolean;
+  onAutoApproveToolConfirmChange: (next: boolean) => void;
   pendingCodeRefs?: PendingCodeRef[];
   onRemoveCodeRef?: (index: number) => void;
   onTerminateAgent?: () => void;
@@ -122,6 +125,8 @@ export function InputPanel({
   waitingForUserInput,
   permissionMode,
   onSubmit,
+  isAutoApproveToolConfirm,
+  onAutoApproveToolConfirmChange,
   pendingCodeRefs = [],
   onRemoveCodeRef,
   onTerminateAgent,
@@ -387,6 +392,21 @@ export function InputPanel({
               "w-2 h-2 rounded-full self-center",
               connected ? "bg-success-500 opacity-100" : "bg-background-400 opacity-50"
             )}
+          />
+        </HStack>
+        <HStack space="sm" className="w-full flex-row items-center justify-between gap-2 px-1">
+          <Text size="xs" className={isDark ? "text-typography-400" : "text-typography-600"}>
+            YOLO confirm
+          </Text>
+          <Switch
+            value={isAutoApproveToolConfirm}
+            onValueChange={onAutoApproveToolConfirmChange}
+            accessibilityLabel="Toggle YOLO confirm mode"
+            trackColor={{
+              false: isDark ? "rgba(255, 255, 255, 0.25)" : "rgba(15, 23, 42, 0.2)",
+              true: isDark ? theme.colors.accent : `${theme.colors.info}55`,
+            }}
+            thumbColor={isAutoApproveToolConfirm ? theme.colors.textPrimary : isDark ? "rgba(226, 238, 252, 0.9)" : "#F8FAFC"}
           />
         </HStack>
         <HStack space="sm" className="w-full flex-row items-center justify-between gap-2 flex-nowrap mt-1">

@@ -3,7 +3,6 @@ import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 import type { CodeRefPayload } from "@/components/file/FileViewerModal";
 import type { Provider as BrandProvider } from "@/core/modelOptions";
 import { triggerHaptic } from "@/designSystem";
-import { getSubmitPermissionConfig } from "@/features/app/appConfig";
 import { useChat, type Message } from "@/services/chat/hooks";
 
 type SseApi = ReturnType<typeof useChat>;
@@ -17,6 +16,8 @@ export type ChatActionControllerProps = {
   submitPermissionDecision: SseApi["submitPermissionDecision"];
   dismissAskQuestion: SseApi["dismissAskQuestion"];
   retryAfterPermission: SseApi["retryAfterPermission"];
+  isAutoApproveToolConfirm: boolean;
+  onAutoApproveToolConfirmChange: (next: boolean) => void;
   closeFileViewer: () => void;
   resetSession: () => void;
   onSubmitSideEffects: () => void;
@@ -33,6 +34,7 @@ export type ChatActionControllerState = {
   onAskQuestionCancel: () => void;
   onRetryPermission: () => void;
   onCommitByAI: (userRequest: string) => void;
+  isAutoApproveToolConfirm: boolean;
   onAutoApproveToolConfirmChange: (next: boolean) => void;
   onOpenWebPreview: () => void;
   onOpenPreviewInApp: (url: string) => void;
@@ -41,7 +43,7 @@ export type ChatActionControllerState = {
 };
 
 export const ChatActionController = memo(function ChatActionController({
-  provider,
+  provider: _provider,
   sessionId: _sessionId,
   messages,
   submitPrompt,
@@ -49,6 +51,8 @@ export const ChatActionController = memo(function ChatActionController({
   submitPermissionDecision,
   dismissAskQuestion,
   retryAfterPermission,
+  isAutoApproveToolConfirm,
+  onAutoApproveToolConfirmChange,
   closeFileViewer,
   resetSession,
   onSubmitSideEffects,
@@ -59,15 +63,16 @@ export const ChatActionController = memo(function ChatActionController({
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
 
+  const approvalMode = isAutoApproveToolConfirm ? "auto_edit" : "prompt";
+
   const onSubmitPrompt = useCallback(
     (prompt: string) => {
-      const backend = getSubmitPermissionConfig();
       submitPrompt(
         prompt,
         undefined,
         undefined,
         pendingCodeRefs.length ? pendingCodeRefs : undefined,
-        backend.approvalMode
+        approvalMode
       );
 
       if (pendingCodeRefs.length) {
@@ -80,6 +85,7 @@ export const ChatActionController = memo(function ChatActionController({
       onSubmitSideEffects,
       submitPrompt,
       pendingCodeRefs,
+      approvalMode,
     ]
   );
 
@@ -112,10 +118,9 @@ export const ChatActionController = memo(function ChatActionController({
   );
 
   const onRetryPermission = useCallback(() => {
-    const backend = getSubmitPermissionConfig();
     const lastUserMessage = [...messagesRef.current].reverse().find((message) => message.role === "user");
-    retryAfterPermission(undefined, backend.approvalMode, lastUserMessage?.content);
-  }, [retryAfterPermission]);
+    retryAfterPermission(undefined, approvalMode, lastUserMessage?.content);
+  }, [approvalMode, retryAfterPermission]);
 
   const onCommitByAI = useCallback(
     (userRequest: string) => {
@@ -152,6 +157,8 @@ export const ChatActionController = memo(function ChatActionController({
       onPermissionDecision,
       onAskQuestionCancel,
       onRetryPermission,
+      isAutoApproveToolConfirm,
+      onAutoApproveToolConfirmChange,
       onCommitByAI,
       onOpenWebPreview,
       onOpenPreviewInApp,
@@ -164,8 +171,11 @@ export const ChatActionController = memo(function ChatActionController({
       onAddCodeReference,
       onRemoveCodeRef,
       onAskQuestionSubmit,
+      onPermissionDecision,
       onAskQuestionCancel,
       onRetryPermission,
+      onAutoApproveToolConfirmChange,
+      isAutoApproveToolConfirm,
       onCommitByAI,
       onOpenWebPreview,
       onOpenPreviewInApp,

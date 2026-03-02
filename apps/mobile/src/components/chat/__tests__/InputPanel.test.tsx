@@ -83,6 +83,8 @@ describe('chat/InputPanel', () => {
         connected
         sessionRunning={false}
         waitingForUserInput={false}
+        isAutoApproveToolConfirm
+        onAutoApproveToolConfirmChange={jest.fn()}
         permissionMode={null}
         onSubmit={onSubmit}
       />
@@ -104,6 +106,8 @@ describe('chat/InputPanel', () => {
         connected
         sessionRunning={false}
         waitingForUserInput={false}
+        isAutoApproveToolConfirm
+        onAutoApproveToolConfirmChange={jest.fn()}
         permissionMode={null}
         onSubmit={jest.fn()}
         onOpenSkillsConfig={onOpenSkillsConfig}

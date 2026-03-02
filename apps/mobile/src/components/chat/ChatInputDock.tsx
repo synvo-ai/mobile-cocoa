@@ -54,11 +54,10 @@ export function ChatInputDock({
   onAutoApproveToolConfirmChange,
 }: ChatInputDockProps) {
   return (
-      <InputPanel
+    <InputPanel
       connected={connected}
       sessionRunning={sessionRunning}
       waitingForUserInput={waitingForUserInput}
-      permissionMode="auto_edit"
       onSubmit={onSubmit}
       pendingCodeRefs={pendingCodeRefs}
       onRemoveCodeRef={onRemoveCodeRef}
@@ -74,6 +73,7 @@ export function ChatInputDock({
       onOpenPortForwarding={onOpenPortForwarding}
       isCloudflareMode={isCloudflareMode}
       serverBaseUrl={serverBaseUrl}
+      permissionMode={isAutoApproveToolConfirm ? "auto_edit" : "prompt"}
       isAutoApproveToolConfirm={isAutoApproveToolConfirm}
       onAutoApproveToolConfirmChange={onAutoApproveToolConfirmChange}
     />

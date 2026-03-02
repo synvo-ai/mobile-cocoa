@@ -43,12 +43,17 @@ function useApprovalNeededSideEffect({
   pendingAskQuestion,
   waitingForUserInput,
   permissionDenials,
+  sessionStatuses,
+  activeSessionId,
 }: {
   pendingAskQuestion: SessionSideEffectManagerInput["sseState"]["pendingAskQuestion"];
   waitingForUserInput: SessionSideEffectManagerInput["sseState"]["waitingForUserInput"];
   permissionDenials: SessionSideEffectManagerInput["sseState"]["permissionDenials"];
+  sessionStatuses: SessionSideEffectManagerInput["sseState"]["sessionStatuses"];
+  activeSessionId: string | null;
 }): void {
   const prevApprovalNeededRef = useRef(false);
+  const prevBackgroundWaitingRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const approvalNeeded =
@@ -69,6 +74,27 @@ function useApprovalNeededSideEffect({
 
     prevApprovalNeededRef.current = approvalNeeded;
   }, [pendingAskQuestion, waitingForUserInput, permissionDenials]);
+
+  useEffect(() => {
+    const waitingSet = new Set(
+      sessionStatuses
+        .filter((session) => session.waitingForPermission === true)
+        .filter((session) => session.id !== activeSessionId)
+        .map((session) => session.id)
+    );
+
+    const newlyWaiting = [...waitingSet].filter((sessionId) => !prevBackgroundWaitingRef.current.has(sessionId));
+
+    if (newlyWaiting.length > 0) {
+      const title =
+        waitingSet.size === 1
+          ? `Session ${newlyWaiting[0]} is waiting for permission`
+          : `${waitingSet.size} sessions are waiting for permission`;
+      void notifyApprovalNeeded(title);
+    }
+
+    prevBackgroundWaitingRef.current = waitingSet;
+  }, [activeSessionId, sessionStatuses]);
 }
 
 export function useSessionSideEffects({
@@ -105,6 +131,8 @@ export function useSessionSideEffects({
     pendingAskQuestion,
     waitingForUserInput,
     permissionDenials,
+    sessionStatuses,
+    activeSessionId: sessionId,
   });
 
   useSessionManagementSync({

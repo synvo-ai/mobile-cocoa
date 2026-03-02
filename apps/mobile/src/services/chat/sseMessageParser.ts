@@ -15,7 +15,7 @@ export type SseAction =
   | { kind: "skip" }
   | { kind: "providerEvent"; data: Record<string, unknown> }
   | { kind: "agentEnd" }
-  | { kind: "sessionStarted"; sessionId: string | null; permissionMode: string | null; allowedTools: string[]; useContinue: boolean }
+  | { kind: "sessionStarted"; sessionId: string | null; permissionMode: string | null; allowedTools: string[]; useContinue: boolean; approvalMode: string | null }
   | { kind: "sessionRekey"; sessionId: string }
   | { kind: "assistantText"; text: string };
 
@@ -36,6 +36,7 @@ function parseSseLine(clean: string): SseAction | SseAction[] {
         permissionMode: (parsed.permissionMode as string | null) ?? null,
         allowedTools: (Array.isArray(parsed.allowedTools) ? parsed.allowedTools : []) as string[],
         useContinue: Boolean(parsed.useContinue),
+        approvalMode: parsed.approvalMode != null ? String(parsed.approvalMode) : null,
       };
     }
 

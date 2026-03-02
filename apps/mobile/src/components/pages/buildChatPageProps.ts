@@ -106,12 +106,15 @@ export function buildChatPageProps({
       onRemoveCodeRef: chatActionState.onRemoveCodeRef,
       onTerminateAgent: sseState.terminateAgent,
       onOpenWebPreview: chatActionState.onOpenWebPreview,
+      isAutoApproveToolConfirm: chatActionState.isAutoApproveToolConfirm,
+      onAutoApproveToolConfirmChange: chatActionState.onAutoApproveToolConfirmChange,
     },
     modals: {
       askQuestion: {
         pendingAskQuestion: sseState.pendingAskQuestion,
         onSubmitAskQuestion: chatActionState.onAskQuestionSubmit,
         onCancelAskQuestion: chatActionState.onAskQuestionCancel,
+        onPermissionDecision: chatActionState.onPermissionDecision,
       },
       skills: {
         serverBaseUrl: serverConfig.getBaseUrl(),

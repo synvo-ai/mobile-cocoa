@@ -115,6 +115,8 @@ export function ChatInputDockSection({
         onTerminateAgent={input.onTerminateAgent}
         onOpenProcesses={onOpenProcesses}
         onOpenWebPreview={input.onOpenWebPreview}
+        isAutoApproveToolConfirm={input.isAutoApproveToolConfirm}
+        onAutoApproveToolConfirmChange={input.onAutoApproveToolConfirmChange}
         provider={context.provider}
         model={context.model}
         modelOptions={context.modelOptions}

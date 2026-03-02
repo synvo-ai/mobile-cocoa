@@ -240,6 +240,7 @@ export function useChat(options: UseChatOptions = {}) {
   const {
     submitPrompt,
     submitAskQuestionAnswer,
+    submitPermissionDecision,
     dismissAskQuestion,
     retryAfterPermission,
     dismissPermission,
@@ -274,6 +275,7 @@ export function useChat(options: UseChatOptions = {}) {
     sessionId,
     submitPrompt,
     submitAskQuestionAnswer,
+    submitPermissionDecision,
     dismissAskQuestion,
     retryAfterPermission,
     dismissPermission,

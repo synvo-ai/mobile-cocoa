@@ -7,6 +7,7 @@ export type SessionStatus = {
   model: string | null;
   lastAccess: number;
   status: "running" | "idling";
+  waitingForPermission?: boolean;
   title: string;
 };
 
@@ -32,6 +33,7 @@ const normalizeSessionStatus = (status: unknown): SessionStatus["status"] =>
 const normalizeSession = (session: SessionStatus): SessionStatus => ({
   ...session,
   status: normalizeSessionStatus(session.status),
+  waitingForPermission: session.waitingForPermission === true,
 });
 
 const areSessionStatusesEqual = (a: SessionStatus[], b: SessionStatus[]): boolean => {
@@ -47,6 +49,7 @@ const areSessionStatusesEqual = (a: SessionStatus[], b: SessionStatus[]): boolea
       left.model !== right.model ||
       left.lastAccess !== right.lastAccess ||
       left.status !== right.status ||
+      (left.waitingForPermission ?? false) !== (right.waitingForPermission ?? false) ||
       left.title !== right.title
     ) {
       return false;

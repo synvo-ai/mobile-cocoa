@@ -16,7 +16,6 @@ type ModelOption = {
   value: string;
   label: string;
 };
-// ... (omitting types for brevity in thought, but I must include them in actual tool call if they are between the match lines)
 
 type ModalSessionItem = {
   id: string;
@@ -97,12 +96,15 @@ export type ChatPageInputDock = {
   onRemoveCodeRef: (index: number) => void;
   onTerminateAgent: () => void;
   onOpenWebPreview: () => void;
+  isAutoApproveToolConfirm: boolean;
+  onAutoApproveToolConfirmChange: (next: boolean) => void;
 };
 
 export type ChatPageAskQuestion = {
   pendingAskQuestion: PendingAskUserQuestion | null;
   onSubmitAskQuestion: (answers: Array<{ header: string; selected: string[] }>) => void;
   onCancelAskQuestion: () => void;
+  onPermissionDecision: (approved: boolean) => void;
 };
 
 type ChatPageSkillsConfig = {

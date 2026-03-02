@@ -1,6 +1,7 @@
 import { ModalScaffold } from "@/components/reusable/ModalScaffold";
 import { Box } from "@/components/ui/box";
 import { Button, ButtonText } from "@/components/ui/button";
+import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { ScrollView } from "@/components/ui/scroll-view";
 import { Text } from "@/components/ui/text";
@@ -13,6 +14,7 @@ export interface AskQuestionModalProps {
   pending: PendingAskUserQuestion | null;
   onSubmit: (answers: Array<{ header: string; selected: string[] }>) => void;
   onCancel?: () => void;
+  onPermissionDecision: (approved: boolean) => void;
 }
 
 function useSelections(questions: AskUserQuestionItem[]) {
@@ -48,11 +50,13 @@ function useSelections(questions: AskUserQuestionItem[]) {
   return { getSelected, toggle, buildAnswers };
 }
 
-export function AskQuestionModal({ pending, onSubmit, onCancel }: AskQuestionModalProps) {
+export function AskQuestionModal({ pending, onSubmit, onCancel, onPermissionDecision }: AskQuestionModalProps) {
   const theme = useTheme();
   const questions = pending?.questions ?? [];
   const { getSelected, toggle, buildAnswers } = useSelections(questions);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const requestMethod = String(pending?.requestMethod ?? "").toLowerCase();
+  const isConfirmRequest = requestMethod === "confirm";
 
   useEffect(() => {
     setCurrentIndex(0);
@@ -62,6 +66,22 @@ export function AskQuestionModal({ pending, onSubmit, onCancel }: AskQuestionMod
     onSubmit(buildAnswers());
   }, [buildAnswers, onSubmit]);
 
+  const handlePermissionDecision = useCallback(
+    (approved: boolean) => {
+      onPermissionDecision(approved);
+    },
+    [onPermissionDecision]
+  );
+
+  const handlePermissionCancel = useCallback(() => {
+    handlePermissionDecision(false);
+    onCancel?.();
+  }, [handlePermissionDecision, onCancel]);
+
+  const requestHeader = questions[0]?.header || "";
+  const requestQuestion = questions[0]?.question || "";
+  const requestQuestionText = requestQuestion || requestHeader || "The agent is asking for your permission.";
+
   const canSubmit = questions.every((_, i) => (getSelected(i).length ?? 0) > 0);
   const isMultiCard = questions.length > 1;
   const q = questions[currentIndex];
@@ -70,6 +90,48 @@ export function AskQuestionModal({ pending, onSubmit, onCancel }: AskQuestionMod
   const isLast = currentIndex === questions.length - 1;
 
   if (!pending || questions.length === 0) return null;
+
+  if (isConfirmRequest) {
+    return (
+      <ModalScaffold
+        isOpen
+        onClose={handlePermissionCancel}
+        size="full"
+        title="Permission request"
+        contentClassName="w-full h-full max-w-none border-0 bg-transparent p-0 justify-end"
+        bodyClassName="m-0 p-0 grow-0"
+        showCloseButton={false}
+        bodyProps={{ scrollEnabled: false }}
+      >
+        <EntranceAnimation variant="slideUp" duration={320}>
+          <Box
+            className="rounded-t-2xl border border-b-0 border-outline-200 bg-surface px-5 pb-6 pt-4 shadow-lg"
+            style={{ backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }}
+          >
+            <Text size="lg" bold className="text-typography-900 mb-2">
+              Permission request
+            </Text>
+            <Text size="md" className="text-typography-700 mb-4">
+              {requestQuestionText}
+            </Text>
+            <HStack space="sm" className="w-full mt-2 items-center justify-end gap-3">
+              <Button action="outline" variant="outline" size="md" onPress={handlePermissionCancel} className="rounded-xl px-6 py-3">
+                <ButtonText className="text-typography-500">Reject</ButtonText>
+              </Button>
+              <Button action="primary" variant="solid" size="md" onPress={() => handlePermissionDecision(true)} className="rounded-xl px-6 py-3">
+                <ButtonText className="text-typography-0">Allow</ButtonText>
+              </Button>
+            </HStack>
+            {onCancel ? (
+              <Button action="default" variant="outline" size="sm" onPress={handlePermissionCancel} className="rounded-xl px-4 mt-3">
+                <ButtonText className="text-typography-500">Cancel</ButtonText>
+              </Button>
+            ) : null}
+          </Box>
+        </EntranceAnimation>
+      </ModalScaffold>
+    );
+  }
 
   const renderQuestion = (qIndex: number) => {
     const question = questions[qIndex];

@@ -12,16 +12,27 @@ import { SLIM_EVENT_THRESHOLD_BYTES } from "../config/constants.js";
  * @returns {Array | null} Parsed answers array or null
  */
 export function parseAskQuestionAnswersFromInput(raw) {
-    if (typeof raw !== "string" || !raw.trim()) return null;
+    if (raw == null) return null;
     try {
-        const top = JSON.parse(raw);
-        const content = top?.message?.content;
+        const parsed =
+            typeof raw === "string"
+                ? raw.trim()
+                    ? JSON.parse(raw)
+                    : null
+                : raw;
+        if (!parsed) return null;
+
+        if (typeof parsed.approved === "boolean") {
+            return parsed.approved;
+        }
+
+        const content = parsed?.message?.content;
         if (!Array.isArray(content) || content.length === 0) return null;
         const first = content[0];
         const inner = typeof first?.content === "string" ? first.content : null;
         if (!inner) return null;
-        const parsed = JSON.parse(inner);
-        return Array.isArray(parsed) ? parsed : null;
+        const nested = JSON.parse(inner);
+        return Array.isArray(nested) ? nested : null;
     } catch (_) {
         return null;
     }
@@ -35,6 +46,9 @@ export function parseAskQuestionAnswersFromInput(raw) {
  * @returns {boolean} True if approved
  */
 export function decideApprovalFromAnswers(answers, fallbackRaw) {
+    if (typeof answers === "boolean") {
+        return answers;
+    }
     const selected = Array.isArray(answers)
         ? answers.flatMap((a) => (Array.isArray(a?.selected) ? a.selected : []))
         : [];
@@ -57,6 +71,7 @@ export function decideApprovalFromAnswers(answers, fallbackRaw) {
  */
 export function toAskUserQuestionPayload(request) {
     const id = request.id;
+    const method = request.method;
     const title = request.title ?? "Approval";
     const message = request.message ?? title;
     const options = request.options ?? ["Allow", "Deny"];
@@ -78,6 +93,7 @@ export function toAskUserQuestionPayload(request) {
         tool_use_id: id,
         uuid: id,
         tool_input: { questions },
+        requestMethod: method,
     };
 }
 

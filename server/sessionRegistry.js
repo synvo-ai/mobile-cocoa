@@ -29,6 +29,7 @@ function createSessionRecord(sessionId, provider, model, options = {}) {
     provider,
     model,
     sessionLogTimestamp,
+    waitingForPermission: false,
     /** File path for replay; survives migrateSessionId (file stays at original path). */
     existingSessionPath,
   };

@@ -34,12 +34,19 @@ function isBashTool(name: string | undefined): boolean {
 function normalizeAskUserQuestionPayload(data: Record<string, unknown>): PendingAskUserQuestion | null {
   const toolUseId = String(data.tool_use_id ?? "");
   const input = data.tool_input as Record<string, unknown> | undefined;
+  const requestMethod =
+    data.requestMethod ??
+    data.request_method ??
+    input?.requestMethod ??
+    input?.request_method ??
+    data.method;
   const questions = input?.questions as Array<{ question?: string; header: string; options: Array<{ label: string; description?: string }>; multiSelect?: boolean }> | undefined;
   if (!toolUseId || !Array.isArray(questions) || questions.length === 0) return null;
   const uuid = data.uuid ?? input?.uuid;
   return {
     tool_use_id: toolUseId,
     uuid: uuid != null ? String(uuid) : undefined,
+    requestMethod: requestMethod != null ? String(requestMethod) : undefined,
     questions: questions.map((q) => ({
       question: q.question,
       header: q.header ?? "",
@@ -65,6 +72,7 @@ function processPermissionDenials(
         tool_use_id: (d as Record<string, unknown>).tool_use_id,
         tool_input: input,
         uuid: topLevelData.uuid ?? input.uuid,
+        requestMethod: (d as Record<string, unknown>).requestMethod ?? (d as Record<string, unknown>).request_method ?? input.requestMethod ?? input.request_method ?? input.method,
       };
     }
     return false;

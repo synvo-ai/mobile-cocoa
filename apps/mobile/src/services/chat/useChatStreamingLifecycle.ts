@@ -495,6 +495,7 @@ export function useChatStreamingLifecycle(params: UseChatStreamingLifecycleParam
                 permissionMode: action.permissionMode,
                 allowedTools: action.allowedTools,
                 useContinue: action.useContinue,
+                approvalMode: action.approvalMode,
               };
               break;
             case "sessionRekey":

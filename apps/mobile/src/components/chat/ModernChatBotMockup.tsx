@@ -1,26 +1,25 @@
 import React, { useState, useCallback, useRef } from 'react';
 import {
-    View,
-    Text,
-    TextInput,
     FlatList,
-    KeyboardAvoidingView,
     Platform,
-    StyleSheet,
-    Pressable,
+    TextInput,
+    LayoutAnimation,
+    UIManager,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-    FadeInUp,
-    Layout,
-    useSharedValue,
-    useAnimatedStyle,
-    withSpring,
-    withTiming,
-    ZoomIn,
-} from 'react-native-reanimated';
+import { Motion } from '@legendapp/motion';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
+
+import { Box } from '@/components/ui/box';
+import { Text } from '@/components/ui/text';
+import { KeyboardAvoidingView } from '@/components/ui/keyboard-avoiding-view';
+import { cn } from '@/utils/cn';
+
+// Enable LayoutAnimation for Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // --- Types ---
 export type Message = {
@@ -35,84 +34,72 @@ const INITIAL_MESSAGES: Message[] = [
     { id: '1', text: 'Hello! I am your modern Chat Bot. How can I assist you today?', isUser: false, timestamp: new Date() },
 ];
 
-// --- Subview: Message Bubble ---
-// Modular extraction of the message bubble for clean architecture.
+// --- Subview: Modular Message Bubble ---
 const MessageBubble = React.memo(({ message }: { message: Message }) => {
     const isUser = message.isUser;
 
     return (
-        <Animated.View
-            // iOS Spring Animation for appearing: sliding up & fading in
-            entering={FadeInUp.springify().mass(0.8).stiffness(200).damping(18)}
-            // Smoothly re-layout when new messages bounce in
-            layout={Layout.springify().mass(0.8).stiffness(200).damping(18)}
-            style={[
-                styles.messageWrapper,
-                isUser ? styles.messageWrapperUser : styles.messageWrapperBot,
-            ]}
+        <Motion.View
+            initial={{ opacity: 0, y: 15, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+            className={cn(
+                "my-1.5 max-w-[85%]", // messageWrapper
+                isUser ? "self-end" : "self-start"
+            )}
         >
-            <View
-                style={[
-                    styles.messageBubble,
-                    isUser ? styles.messageBubbleUser : styles.messageBubbleBot,
-                ]}
+            <Box
+                className={cn(
+                    "px-4 py-3 rounded-[22px] overflow-hidden", // messageBubble
+                    isUser
+                        ? "bg-blue-500 rounded-br-[6px]" // User Bubble
+                        : "bg-white rounded-bl-[6px] border border-neutral-200 shadow-sm" // Bot Bubble
+                )}
             >
-                <Text style={[styles.messageText, isUser ? styles.messageTextUser : styles.messageTextBot]}>
+                <Text
+                    className={cn(
+                        "text-base leading-[22px]",
+                        isUser ? "text-white" : "text-black"
+                    )}
+                >
                     {message.text}
                 </Text>
-            </View>
-        </Animated.View>
+            </Box>
+        </Motion.View>
     );
 });
 
 // --- Subview: Tactile Send Button ---
 const SendButton = ({ onPress, disabled }: { onPress: () => void; disabled: boolean }) => {
-    const scale = useSharedValue(1);
-
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: scale.value }],
-            opacity: disabled ? withTiming(0.5) : withTiming(1),
-        };
-    });
-
-    const handlePressIn = () => {
-        if (disabled) return;
-        // Subtle scale down effect
-        scale.value = withSpring(0.92, { damping: 10, stiffness: 300 });
-    };
-
-    const handlePressOut = () => {
-        if (disabled) return;
-        // Spring back to normal
-        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
-    };
-
     const handlePress = () => {
         if (disabled) return;
-        // Light haptic feedback on successful press
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         onPress();
     };
 
     return (
-        <Pressable
-            onPressIn={handlePressIn}
-            onPressOut={handlePressOut}
+        <Motion.Pressable
             onPress={handlePress}
             disabled={disabled}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            whileTap={{ scale: disabled ? 1 : 0.92 }}
+            animate={{ opacity: disabled ? 0.5 : 1 }}
+            transition={{ default: { type: 'spring', damping: 10, stiffness: 300 } }}
+            className="ml-3 bg-blue-500 rounded-[18px] py-2 px-4 justify-center items-center mb-[-2px]"
         >
-            <Animated.View style={[styles.sendButton, animatedStyle]}>
-                <Animated.Text entering={ZoomIn} style={styles.sendButtonText}>
-                    Send
-                </Animated.Text>
-            </Animated.View>
-        </Pressable>
+            <Motion.Text
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 250 }}
+                className="text-white text-[15px] font-semibold"
+            >
+                Send
+            </Motion.Text>
+        </Motion.Pressable>
     );
 };
 
-// --- Main Chat Page ---
+// --- Main Chat Page Container ---
 export default function ModernChatBotPage() {
     const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
     const [inputText, setInputText] = useState('');
@@ -130,52 +117,57 @@ export default function ModernChatBotPage() {
             timestamp: new Date(),
         };
 
-        // Chat uses an inverted list, so we prepend the new message
+        // Smooth layout changes when dynamically adding messages onto the list
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+
         setMessages((prev) => [newMessage, ...prev]);
         setInputText('');
 
-        // Simulate bot response after a brief delay
         setTimeout(() => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             const botMessage: Message = {
                 id: (Date.now() + 1).toString(),
-                text: "I received your message! Smooth animations are looking great.",
+                text: "I received your message! Animations are fully powered by legendapp/motion and core React Native.",
                 isUser: false,
                 timestamp: new Date(),
             };
+
+            LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
             setMessages((prev) => [botMessage, ...prev]);
         }, 1200);
     }, [inputText]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+        <SafeAreaView className="flex-1 bg-neutral-100" edges={['top', 'left', 'right']}>
             <KeyboardAvoidingView
-                style={styles.keyboardView}
+                className="flex-1"
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
-                {/* Messages List */}
                 <FlatList
                     ref={flatListRef}
                     data={messages}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => <MessageBubble message={item} />}
                     showsVerticalScrollIndicator={false}
-                    // Inverted provides standard chat scrolling behavior (bottom-up)
                     inverted
-                    // Add bottom padding to prevent the last message from hiding under the input dock
-                    contentContainerStyle={[styles.listContent, { paddingTop: 20, paddingBottom: insets.bottom + 90 }]}
+                    contentContainerStyle={{
+                        paddingHorizontal: 16,
+                        paddingTop: 20,
+                        paddingBottom: insets.bottom + 90
+                    }}
                 />
 
-                {/* Sticky Input Dock with iOS Blur Effect */}
+                {/* Sticky iOS Blur Input Dock */}
                 <BlurView
                     intensity={85}
                     tint="light"
-                    style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 16) }]}
+                    className="absolute bottom-0 left-0 right-0 px-4 pt-3 border-t border-neutral-300"
+                    style={{ paddingBottom: Math.max(insets.bottom, 16) }}
                 >
-                    <View style={styles.inputWrapper}>
+                    <Box className="flex-row items-end bg-white rounded-[24px] px-4 py-2 border border-neutral-300">
                         <TextInput
-                            style={styles.textInput}
+                            className="flex-1 max-h-[120px] min-h-[24px] text-base leading-5 py-1 text-black"
                             placeholder="Message..."
                             placeholderTextColor="#8E8E93"
                             value={inputText}
@@ -184,109 +176,9 @@ export default function ModernChatBotPage() {
                             maxLength={1000}
                         />
                         <SendButton onPress={handleSend} disabled={inputText.trim().length === 0} />
-                    </View>
+                    </Box>
                 </BlurView>
             </KeyboardAvoidingView>
         </SafeAreaView>
     );
 }
-
-// --- Styles ---
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F2F2F7', // iOS Standard System Grouped Background 
-    },
-    keyboardView: {
-        flex: 1,
-    },
-    listContent: {
-        paddingHorizontal: 16,
-    },
-    messageWrapper: {
-        marginVertical: 6,
-        maxWidth: '85%',
-    },
-    messageWrapperUser: {
-        alignSelf: 'flex-end',
-    },
-    messageWrapperBot: {
-        alignSelf: 'flex-start',
-    },
-    messageBubble: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 22,
-        overflow: 'hidden',
-    },
-    messageBubbleUser: {
-        backgroundColor: '#007AFF', // iOS Blue
-        borderBottomRightRadius: 6,
-    },
-    messageBubbleBot: {
-        backgroundColor: '#FFFFFF', // Clean white for bot
-        borderBottomLeftRadius: 6,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: '#E5E5EA',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 3,
-        elevation: 1,
-    },
-    messageText: {
-        fontSize: 16,
-        lineHeight: 22,
-    },
-    messageTextUser: {
-        color: '#FFFFFF',
-    },
-    messageTextBot: {
-        color: '#000000',
-    },
-    inputContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        paddingHorizontal: 16,
-        paddingTop: 12,
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderColor: '#C6C6C8',
-    },
-    inputWrapper: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 24,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: '#C6C6C8',
-    },
-    textInput: {
-        flex: 1,
-        maxHeight: 120,
-        minHeight: 24,
-        fontSize: 16,
-        lineHeight: 20,
-        paddingTop: 4,
-        paddingBottom: 4,
-        color: '#000000',
-    },
-    sendButton: {
-        marginLeft: 12,
-        backgroundColor: '#007AFF',
-        borderRadius: 18,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: -2, // Aligns perfectly when input grows
-    },
-    sendButtonText: {
-        color: '#FFFFFF',
-        fontSize: 15,
-        fontWeight: '600',
-    },
-});

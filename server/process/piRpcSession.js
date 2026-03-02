@@ -53,9 +53,11 @@ export function createPiRpcSession({
   let stdoutBuffer = "";
   let turnRunning = false;
   let pendingExtensionUiRequest = null;
+  let turnApprovalMode = null;
   /** Path to the JSONL session log. Set when a turn begins; cleared when it ends. */
   let piIoOutputPath = null;
   let turnCompleted = false;
+  const AUTO_APPROVE_MODES = new Set(["auto_edit"]);
 
   /** Append a single line to the JSONL log synchronously so it's on disk immediately. */
   function appendToSessionLog(data) {
@@ -97,6 +99,30 @@ export function createPiRpcSession({
     piIoOutputPath = null;
   }
 
+  function normalizeApprovalMode(rawMode) {
+    if (typeof rawMode !== "string") {
+      return null;
+    }
+    const normalized = rawMode.trim().toLowerCase();
+    if (!normalized) return null;
+    if (AUTO_APPROVE_MODES.has(normalized)) return normalized;
+    return normalized === "prompt" || normalized === "manual" ? normalized : null;
+  }
+
+  function shouldAutoApproveConfirm() {
+    if (turnApprovalMode === "auto_edit") {
+      return true;
+    }
+    const piCfgForApprove = loadPiConfig();
+    return piCfgForApprove.autoApproveToolConfirm === true || piCfgForApprove.autoApproveToolConfirm === 1;
+  }
+
+  function setWaitingForPermission(waitingForPermission) {
+    if (sessionManagement && typeof sessionManagement === "object") {
+      sessionManagement.waitingForPermission = Boolean(waitingForPermission);
+    }
+  }
+
   function openPiIoOutputStream() {
     if (!existingSessionPath || typeof existingSessionPath !== "string") return;
     try {
@@ -110,6 +136,7 @@ export function createPiRpcSession({
     turnCompleted = true;
     turnRunning = false;
     pendingExtensionUiRequest = null;
+    setWaitingForPermission(false);
     if (options.markCompleted && exitCode === 0) {
       hasCompletedFirstRunRef.value = true;
     }
@@ -158,6 +185,7 @@ export function createPiRpcSession({
   function close() {
     closeIoOutputStream();
     pendingExtensionUiRequest = null;
+    setWaitingForPermission(false);
     turnCompleted = true;
     if (!piProcess) return;
     globalSpawnChildren.delete(piProcess);
@@ -173,17 +201,16 @@ export function createPiRpcSession({
     // Forward most events as-is (native Pi RPC protocol)
     if (type === "extension_ui_request") {
       const method = parsed.method;
+      const normalizedMethod = typeof method === "string" ? method.toLowerCase() : "";
       // Dialog methods (select, confirm, input, editor) need user response
-      if (["select", "confirm", "input", "editor"].includes(method)) {
-        // Auto-approve tool execution confirmations to prevent blocking when modal
-        // is not shown or user cannot respond (e.g. terminal-runner bash approval).
-        const piCfgForApprove = loadPiConfig();
-        const autoApprove = piCfgForApprove.autoApproveToolConfirm === true || piCfgForApprove.autoApproveToolConfirm === 1;
-        if (autoApprove && method === "confirm") {
+      if (["select", "confirm", "input", "editor"].includes(normalizedMethod)) {
+        // Auto-approve confirm tool execution when requested for this turn.
+        if (normalizedMethod === "confirm" && shouldAutoApproveConfirm()) {
           sendCommand({ type: "extension_ui_response", id: parsed.id, confirmed: true });
           return;
         }
         pendingExtensionUiRequest = { id: parsed.id, method, request: parsed };
+        setWaitingForPermission(true);
         const askPayload = toAskUserQuestionPayload(parsed);
         emitOutputLine(JSON.stringify(askPayload) + "\n");
       }
@@ -411,9 +438,11 @@ export function createPiRpcSession({
     });
   }
 
-  async function startTurn({ prompt, clientProvider, model }) {
+  async function startTurn({ prompt, clientProvider, model, approvalMode }) {
     turnCompleted = false;
     turnRunning = true;
+    turnApprovalMode = normalizeApprovalMode(approvalMode);
+    setWaitingForPermission(false);
     closeIoOutputStream();
     await ensurePiProcess({
       clientProvider,
@@ -433,7 +462,7 @@ export function createPiRpcSession({
       permissionMode: null,
       allowedTools: [],
       useContinue: !!hasCompletedFirstRunRef?.value,
-      approvalMode: null,
+      approvalMode: turnApprovalMode,
     }) + "\n");
 
     sendCommand({ type: "prompt", message: prompt });
@@ -443,9 +472,10 @@ export function createPiRpcSession({
     if (!piProcess || !pendingExtensionUiRequest) return false;
 
     const inputText = typeof data === "string" ? data : JSON.stringify(data);
-    const answers = parseAskQuestionAnswersFromInput(inputText);
+    const answers = parseAskQuestionAnswersFromInput(data);
     const pending = pendingExtensionUiRequest;
     pendingExtensionUiRequest = null;
+    setWaitingForPermission(false);
 
     const response = { type: "extension_ui_response", id: pending.id };
 

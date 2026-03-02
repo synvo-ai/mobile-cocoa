@@ -69,6 +69,8 @@ function baseProps() {
     sessionRunning: false,
     waitingForUserInput: false,
     permissionMode: "default",
+    isAutoApproveToolConfirm: true,
+    onAutoApproveToolConfirmChange: jest.fn(),
     onSubmit: jest.fn(),
     pendingCodeRefs: [],
     onRemoveCodeRef: jest.fn(),

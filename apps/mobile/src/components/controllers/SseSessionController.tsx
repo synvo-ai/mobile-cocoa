@@ -32,6 +32,7 @@ export type SseSessionControllerState = {
   pendingAskQuestion: PendingAskUserQuestion | null;
   submitPrompt: ReturnType<typeof useChat>["submitPrompt"];
   submitAskQuestionAnswer: ReturnType<typeof useChat>["submitAskQuestionAnswer"];
+  submitPermissionDecision: ReturnType<typeof useChat>["submitPermissionDecision"];
   dismissAskQuestion: ReturnType<typeof useChat>["dismissAskQuestion"];
   retryAfterPermission: ReturnType<typeof useChat>["retryAfterPermission"];
   dismissPermission: ReturnType<typeof useChat>["dismissPermission"];
@@ -116,6 +117,7 @@ export const SseSessionController = memo(function SseSessionController({
     sessionId,
     submitPrompt,
     submitAskQuestionAnswer,
+    submitPermissionDecision,
     dismissAskQuestion,
     retryAfterPermission,
     dismissPermission,
@@ -304,6 +306,7 @@ export const SseSessionController = memo(function SseSessionController({
       pendingAskQuestion,
       submitPrompt,
       submitAskQuestionAnswer,
+      submitPermissionDecision,
       dismissAskQuestion,
       retryAfterPermission,
       dismissPermission,
@@ -337,6 +340,7 @@ export const SseSessionController = memo(function SseSessionController({
       pendingAskQuestion,
       submitPrompt,
       submitAskQuestionAnswer,
+      submitPermissionDecision,
       dismissAskQuestion,
       retryAfterPermission,
       dismissPermission,

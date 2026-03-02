@@ -35,7 +35,7 @@ Getting started with Mobile Cocoa is simple. The architecture is split between a
 - Docker (optional, for secure sandboxed execution)
 - Expo Go app on your phone (or an iOS/Android simulator)
 
-### Step 1 — Install Pi (CLI Agent Backend)
+### Step 1 — Install [Pi](https://github.com/badlogic/pi-mono) (CLI Agent Backend)
 Mobile Cocoa uses **Pi** as the underlying CLI agent that connects to LLM providers. You must install Pi and register with at least one coding plan:
 
 1. **Install Pi CLI** — follow the official installation instructions for your platform.

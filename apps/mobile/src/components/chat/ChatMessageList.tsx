@@ -151,6 +151,8 @@ export const ChatMessageList = memo(function ChatMessageList({
       showsHorizontalScrollIndicator={false}
       keyboardDismissMode="on-drag"
       keyboardShouldPersistTaps="handled"
+      bounces={false}
+      overScrollMode="never"
       onContentSizeChange={onContentSizeChange}
     >
       {renderedMessages}

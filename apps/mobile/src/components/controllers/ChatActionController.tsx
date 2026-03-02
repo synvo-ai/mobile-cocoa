@@ -14,6 +14,7 @@ export type ChatActionControllerProps = {
   messages: Message[];
   submitPrompt: SseApi["submitPrompt"];
   submitAskQuestionAnswer: SseApi["submitAskQuestionAnswer"];
+  submitPermissionDecision: SseApi["submitPermissionDecision"];
   dismissAskQuestion: SseApi["dismissAskQuestion"];
   retryAfterPermission: SseApi["retryAfterPermission"];
   closeFileViewer: () => void;
@@ -28,9 +29,11 @@ export type ChatActionControllerState = {
   onAddCodeReference: (payload: CodeRefPayload) => void;
   onRemoveCodeRef: (index: number) => void;
   onAskQuestionSubmit: (answers: Array<{ header: string; selected: string[] }>) => void;
+  onPermissionDecision: (approved: boolean) => void;
   onAskQuestionCancel: () => void;
   onRetryPermission: () => void;
   onCommitByAI: (userRequest: string) => void;
+  onAutoApproveToolConfirmChange: (next: boolean) => void;
   onOpenWebPreview: () => void;
   onOpenPreviewInApp: (url: string) => void;
   previewUrl: string | null;
@@ -43,6 +46,7 @@ export const ChatActionController = memo(function ChatActionController({
   messages,
   submitPrompt,
   submitAskQuestionAnswer,
+  submitPermissionDecision,
   dismissAskQuestion,
   retryAfterPermission,
   closeFileViewer,
@@ -100,6 +104,13 @@ export const ChatActionController = memo(function ChatActionController({
     dismissAskQuestion();
   }, [dismissAskQuestion]);
 
+  const onPermissionDecision = useCallback(
+    (approved: boolean) => {
+      submitPermissionDecision(approved);
+    },
+    [submitPermissionDecision]
+  );
+
   const onRetryPermission = useCallback(() => {
     const backend = getSubmitPermissionConfig();
     const lastUserMessage = [...messagesRef.current].reverse().find((message) => message.role === "user");
@@ -138,6 +149,7 @@ export const ChatActionController = memo(function ChatActionController({
       onAddCodeReference,
       onRemoveCodeRef,
       onAskQuestionSubmit,
+      onPermissionDecision,
       onAskQuestionCancel,
       onRetryPermission,
       onCommitByAI,

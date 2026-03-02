@@ -25,6 +25,8 @@ type ChatInputDockProps = {
   onOpenSkillsConfig: () => void;
   onOpenDocker: () => void;
   serverBaseUrl: string;
+  isAutoApproveToolConfirm: boolean;
+  onAutoApproveToolConfirmChange: (next: boolean) => void;
 };
 
 export function ChatInputDock({
@@ -44,9 +46,11 @@ export function ChatInputDock({
   onOpenSkillsConfig,
   onOpenDocker,
   serverBaseUrl,
+  isAutoApproveToolConfirm,
+  onAutoApproveToolConfirmChange,
 }: ChatInputDockProps) {
   return (
-    <InputPanel
+      <InputPanel
       connected={connected}
       sessionRunning={sessionRunning}
       waitingForUserInput={waitingForUserInput}
@@ -64,6 +68,8 @@ export function ChatInputDock({
       onOpenSkillsConfig={onOpenSkillsConfig}
       onOpenDocker={onOpenDocker}
       serverBaseUrl={serverBaseUrl}
+      isAutoApproveToolConfirm={isAutoApproveToolConfirm}
+      onAutoApproveToolConfirmChange={onAutoApproveToolConfirmChange}
     />
   );
 }

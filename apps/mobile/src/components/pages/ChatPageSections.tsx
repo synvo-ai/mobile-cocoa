@@ -95,7 +95,7 @@ export function ChatInputDockSection({
 
   return (
     <Box
-      className="pb-2"
+      className="absolute bottom-0 w-full pb-2 z-10"
       onLayout={(event: LayoutChangeEvent) => {
         const height = event.nativeEvent.layout.height;
         onInputDockLayout(height);

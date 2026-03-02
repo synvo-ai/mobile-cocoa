@@ -113,6 +113,8 @@ export type PendingAskUserQuestion = {
   uuid?: string;
   /** Questions to display */
   questions: AskUserQuestionItem[];
+  /** Optional request method from extension_ui_request (confirm/input/select/editor). */
+  requestMethod?: string;
 };
 
 /** Chat messages and typing state. Used by chat UI components. */

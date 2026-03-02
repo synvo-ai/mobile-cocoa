@@ -5,9 +5,10 @@ import {
     TextInput,
     LayoutAnimation,
     UIManager,
+    Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Motion } from '@legendapp/motion';
+import Animated, { FadeInDown, ZoomIn, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { BlurView } from 'expo-blur';
 
@@ -39,10 +40,8 @@ const MessageBubble = React.memo(({ message }: { message: Message }) => {
     const isUser = message.isUser;
 
     return (
-        <Motion.View
-            initial={{ opacity: 0, y: 15, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: 'spring', damping: 18, stiffness: 200 }}
+        <Animated.View
+            entering={FadeInDown.springify().damping(18).stiffness(200)}
             className={cn(
                 "my-1.5 max-w-[85%]", // messageWrapper
                 isUser ? "self-end" : "self-start"
@@ -65,12 +64,41 @@ const MessageBubble = React.memo(({ message }: { message: Message }) => {
                     {message.text}
                 </Text>
             </Box>
-        </Motion.View>
+        </Animated.View>
     );
 });
 
 // --- Subview: Tactile Send Button ---
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 const SendButton = ({ onPress, disabled }: { onPress: () => void; disabled: boolean }) => {
+    const pressed = useSharedValue(false);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [
+                {
+                    scale: withSpring(pressed.value && !disabled ? 0.92 : 1, {
+                        damping: 10,
+                        stiffness: 300,
+                    }),
+                },
+            ],
+            opacity: withSpring(disabled ? 0.5 : 1, {
+                damping: 10,
+                stiffness: 300,
+            }),
+        };
+    });
+
+    const handlePressIn = () => {
+        pressed.value = true;
+    };
+
+    const handlePressOut = () => {
+        pressed.value = false;
+    };
+
     const handlePress = () => {
         if (disabled) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -78,24 +106,22 @@ const SendButton = ({ onPress, disabled }: { onPress: () => void; disabled: bool
     };
 
     return (
-        <Motion.Pressable
+        <AnimatedPressable
             onPress={handlePress}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
             disabled={disabled}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            whileTap={{ scale: disabled ? 1 : 0.92 }}
-            animate={{ opacity: disabled ? 0.5 : 1 }}
-            transition={{ default: { type: 'spring', damping: 10, stiffness: 300 } }}
+            style={animatedStyle}
             className="ml-3 bg-blue-500 rounded-[18px] py-2 px-4 justify-center items-center mb-[-2px]"
         >
-            <Motion.Text
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ type: 'spring', damping: 12, stiffness: 250 }}
+            <Animated.Text
+                entering={ZoomIn.springify().damping(12).stiffness(250)}
                 className="text-white text-[15px] font-semibold"
             >
                 Send
-            </Motion.Text>
-        </Motion.Pressable>
+            </Animated.Text>
+        </AnimatedPressable>
     );
 };
 

@@ -2,6 +2,7 @@ import { HStack } from "@/components/ui/hstack";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
 import React from "react";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 type Tone = "default" | "primary" | "danger";
 
@@ -49,28 +50,46 @@ export function ActionIconButton({
   accessibilityLabel,
 }: ActionIconButtonProps) {
   const toneClass = getToneClasses(tone);
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  const handlePressIn = () => {
+    scale.value = withTiming(0.95, { duration: 100 });
+  };
+
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+  };
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityLabel={accessibilityLabel ?? label ?? "action"}
-      accessibilityRole="button"
-      className={[
-        "min-h-11 px-3 rounded-lg border items-center justify-center",
-        toneClass.button,
-        disabled ? "opacity-40" : "",
-        className ?? "",
-      ].join(" ")}
-    >
-      <HStack space="xs" className="items-center">
-        <Icon size={iconSize} className={toneClass.icon} />
-        {label ? (
-          <Text size="sm" bold className={toneClass.text}>
-            {label}
-          </Text>
-        ) : null}
-      </HStack>
-    </Pressable>
+    <Animated.View style={animatedStyle}>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        accessibilityLabel={accessibilityLabel ?? label ?? "action"}
+        accessibilityRole="button"
+        className={[
+          "min-h-11 px-3 rounded-lg border items-center justify-center",
+          toneClass.button,
+          disabled ? "opacity-40" : "",
+          className ?? "",
+        ].join(" ")}
+      >
+        <HStack space="xs" className="items-center">
+          <Icon size={iconSize} className={toneClass.icon} />
+          {label ? (
+            <Text size="sm" bold className={toneClass.text}>
+              {label}
+            </Text>
+          ) : null}
+        </HStack>
+      </Pressable>
+    </Animated.View>
   );
 }
 

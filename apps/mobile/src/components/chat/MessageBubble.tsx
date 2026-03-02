@@ -2,6 +2,7 @@ import { ChevronDownIcon, VibeIcon, TerminalIcon } from "@/components/icons/Chat
 import { BookOpenIcon, FilePenIcon, PencilIcon } from "@/components/icons/FileActivityIcons";
 import { CodexIcon } from "@/components/icons/ProviderIcons";
 import { MarkdownContent } from "@/components/reusable/MarkdownContent";
+import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { Badge, BadgeText } from "@/components/ui/badge";
 import { Box } from "@/components/ui/box";
 import { Pressable } from "@/components/ui/pressable";
@@ -11,6 +12,9 @@ import { EntranceAnimation, radii, spacing, triggerHaptic } from "@/designSystem
 import type { Message } from "@/services/chat/hooks";
 import { stripTrailingIncompleteTag } from "@/services/providers/stream";
 import { useTheme } from "@/theme/index";
+import { PremiumMessageBubble } from "@/components/chat/PremiumMessageBubble";
+import { MessageActionToolbar } from "@/components/chat/MessageActionToolbar";
+import { ThinkingSection } from "@/components/chat/ThinkingSection";
 import {
   collapseIdenticalCommandSteps, extractBashCommandOnly, fillEmptyBashBlocks,
   stripTrailingTerminalHeaderLines
@@ -18,8 +22,10 @@ import {
 import { parseTextWithUrlSegments, wrapBareUrlsInMarkdown } from "@/utils/markdown";
 import { getFileName } from "@/utils/path";
 import { BlurView } from "expo-blur";
+import * as Clipboard from "expo-clipboard";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Dimensions, Linking, Platform, StyleSheet, View as RNView } from "react-native";
+import Animated, { useAnimatedStyle, withSpring, LinearTransition, SlideInDown } from "react-native-reanimated";
 import type { MarkdownProps } from "react-native-markdown-display";
 import Svg, { Polygon } from "react-native-svg";
 import {
@@ -39,72 +45,7 @@ export {
   parseContentSegments,
 } from "@/components/chat/messageBubble/contentParsers";
 
-function NeonGlassBubbleWrapper({ isUser, isDark, width, height, theme }: { isUser: boolean; isDark: boolean; width: number; height: number; theme: any }) {
-  if (isUser) {
-    return (
-      <Box style={{
-        width,
-        height,
-        position: "absolute",
-        top: 0,
-        left: 0,
-        backgroundColor: isDark ? "#0F172A" : "#E0F2FE", // Light blue for light mode user bubble
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        borderBottomLeftRadius: 24,
-        borderBottomRightRadius: 6, // organic chat tail
-        borderWidth: isDark ? 1 : 0,
-        borderColor: isDark ? "rgba(255,255,255,0.05)" : "transparent",
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.25,
-        shadowRadius: 12,
-      }} />
-    );
-  }
-
-  if (!isDark) {
-    return (
-      <Box style={{
-        width,
-        height,
-        position: "absolute",
-        top: 0,
-        left: 0,
-        backgroundColor: theme.colors.surfaceMuted, // light theme surface
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        borderBottomLeftRadius: 6, // organic chat tail
-        borderBottomRightRadius: 24,
-        borderWidth: 1,
-        borderColor: theme.colors.border, // frosted edge highlight
-        shadowColor: theme.colors.shadow,
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.15,
-        shadowRadius: 16,
-        overflow: "hidden"
-      }}>
-        <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
-      </Box>
-    );
-  }
-
-  const cut = 16;
-  const color = "#00E5FF";
-  const bg = "rgba(0,229,255,0.1)";
-
-  const points = `0,0 ${width - cut},0 ${width},${cut} ${width},${height} ${cut},${height} 0,${height - cut}`;
-
-  return (
-    <Box style={{ width, height, position: "absolute", top: 0, left: 0 }}>
-      <Svg width={width} height={height}>
-        <Polygon points={points} fill="none" stroke={color} strokeWidth={6} opacity={0.3} />
-        <Polygon points={points} fill="none" stroke={color} strokeWidth={3} opacity={0.6} />
-        <Polygon points={points} fill={bg} stroke={color} strokeWidth={1.5} />
-      </Svg>
-    </Box>
-  );
-}
+// NeonGlassBubbleWrapper removed in favor of PremiumMessageBubble
 
 /** Replace span background-color highlights with text color using the provider's theme accent. */
 function replaceHighlightWithTextColor(content: string, highlightColor: string): string {
@@ -123,62 +64,7 @@ function replaceHighlightWithTextColor(content: string, highlightColor: string):
 /** Collapsible "Thinking" / "Show reasoning" block. Default collapsed, 44px min touch target.
  * Uses accentSoft background + left accent border to distinguish from codeblocks (surfaceMuted).
  * Unfolds during generation; folds when generation finishes; stays folded until user opens it. */
-function CollapsibleThinkingBlock({
-  content,
-  theme,
-  renderContent,
-  initiallyExpanded = false,
-  isLoading = false,
-}: {
-  content: string;
-  theme: any;
-  renderContent: (content: string) => React.ReactNode;
-  initiallyExpanded?: boolean;
-  isLoading?: boolean;
-}) {
-  const [expanded, setExpanded] = useState(initiallyExpanded);
-
-  useEffect(() => {
-    setExpanded(initiallyExpanded);
-  }, [initiallyExpanded]);
-
-  return (
-    <Box
-      className="my-2 rounded-xl border border-l-4 overflow-hidden"
-      style={{
-        borderColor: theme.colors.border,
-        borderLeftColor: theme.colors.accent,
-        backgroundColor: theme.colors.accentSoft,
-      }}
-    >
-      <Pressable
-        onPress={() => {
-          triggerHaptic("light");
-          setExpanded((e) => !e);
-        }}
-        className="flex-row items-center justify-between py-3 px-4 min-h-11 active:opacity-80"
-        accessibilityRole="button"
-        accessibilityLabel={expanded ? "Hide reasoning" : "Show reasoning"}
-        accessibilityState={{ expanded }}
-      >
-        <RNView style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          {isLoading && <ActivityIndicator size="small" color={theme.colors.accent} />}
-          <Text size="xs" bold className="text-typography-500">
-            {expanded ? "Reasoning" : "Show reasoning"}
-          </Text>
-        </RNView>
-        <Box style={{ transform: [{ rotate: expanded ? "180deg" : "0deg" }] }}>
-          <ChevronDownIcon size={14} color={theme.colors.textMuted} strokeWidth={2} />
-        </Box>
-      </Pressable>
-      {expanded && (
-        <Box className="px-4 pb-3">
-          {renderContent(content)}
-        </Box>
-      )}
-    </Box>
-  );
-}
+// CollapsibleThinkingBlock removed in favor of ThinkingSection
 
 /** Collapsible block for long read results (skill files, etc.). Shows preview + "Show more" / "Show less". */
 function CollapsibleReadResult({
@@ -286,6 +172,7 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
   const refs = message.codeReferences ?? [];
   const tailScrollRef = useRef<ScrollView>(null);
   const isDark = theme.mode === "dark";
+  const [isToolbarVisible, setIsToolbarVisible] = useState(false);
 
   const textColor = isDark
     ? (isUser ? "#FFFFFF" : "#E5FFFF")
@@ -947,7 +834,7 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
           <>
             {contentSegments.map((seg, i) => (
               seg.type === "thinking" ? (
-                <CollapsibleThinkingBlock
+                <ThinkingSection
                   key={`seg-${i}`}
                   content={seg.content}
                   theme={theme}
@@ -964,9 +851,9 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
           </>
         )
       ) : !isUser && !isSystem ? (
-        <Text className="text-typography-500" style={styles.bubbleTextPlaceholder}>
-          …
-        </Text>
+        <Box className="py-2 px-1">
+          <TypingIndicator color={theme.colors.textMuted} dotSize={6} />
+        </Box>
       ) : null)}
       {refs.length > 0 && (
         <Box style={[styles.refPills, message.content ? styles.refPillsWithContent : null]} className="flex-row flex-wrap gap-2">
@@ -986,7 +873,10 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
   const bubbleLayoutProps = {};
 
   return (
-    <EntranceAnimation variant="slideUp" duration={220} delay={0}>
+    <Animated.View
+      entering={SlideInDown.springify().damping(18).stiffness(200)}
+      layout={LinearTransition.springify()}
+    >
       <Box
         style={[
           styles.row,
@@ -1000,7 +890,14 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
             <ProviderIcon size={24} color={theme.colors.accent} />
           </Box>
         )}
-        <Box
+        <Pressable
+          onLongPress={() => {
+            triggerHaptic("heavy");
+            setIsToolbarVisible(true);
+          }}
+          onPress={() => {
+            if (isToolbarVisible) setIsToolbarVisible(false);
+          }}
           onLayout={(e) => setBubbleSize(e.nativeEvent.layout)}
           style={[
             styles.bubble,
@@ -1008,16 +905,25 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
             isSystem && styles.bubbleSystem,
             !isUser && !isSystem && styles.bubbleAssistant,
           ]}
-          {...bubbleLayoutProps}
         >
           {!isSystem && bubbleSize.width > 0 && bubbleSize.height > 0 && (
-            <NeonGlassBubbleWrapper isUser={isUser} isDark={isDark} width={bubbleSize.width} height={bubbleSize.height} theme={theme} />
+            <PremiumMessageBubble isUser={isUser} width={bubbleSize.width} height={bubbleSize.height} />
           )}
-          {/* Backgrounds handled by SVG wrapper */}
+          <MessageActionToolbar
+            isVisible={isToolbarVisible}
+            isUser={isUser}
+            onCopy={async () => {
+              if (message.content) {
+                await Clipboard.setStringAsync(message.content);
+                triggerHaptic("success");
+              }
+              setIsToolbarVisible(false);
+            }}
+          />
           {bubbleContent}
-        </Box>
+        </Pressable>
       </Box>
-    </EntranceAnimation>
+    </Animated.View>
   );
 }
 

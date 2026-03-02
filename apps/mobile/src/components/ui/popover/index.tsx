@@ -2,26 +2,16 @@
 import { createPopover } from '@gluestack-ui/core/popover/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva, useStyleContext, withStyleContext } from '@gluestack-ui/utils/nativewind-utils';
-import {
-    AnimatePresence, createMotionAnimatedComponent, Motion, MotionComponentProps
-} from '@legendapp/motion';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Pressable, ScrollView, View, ViewStyle } from 'react-native';
 
-type IAnimatedPressableProps = React.ComponentProps<typeof Pressable> &
-  MotionComponentProps<typeof Pressable, ViewStyle, unknown, unknown, unknown>;
-
-const AnimatedPressable = createMotionAnimatedComponent(
-  Pressable
-) as React.ComponentType<IAnimatedPressableProps>;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const SCOPE = 'POPOVER';
 
-type IMotionViewProps = React.ComponentProps<typeof View> &
-  MotionComponentProps<typeof View, ViewStyle, unknown, unknown, unknown>;
-
-const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
+const MotionView = Animated.View;
 
 const UIPopover = createPopover({
   Root: withStyleContext(View, SCOPE),
@@ -32,7 +22,7 @@ const UIPopover = createPopover({
   Content: MotionView,
   Footer: View,
   Header: View,
-  AnimatePresence: AnimatePresence,
+  AnimatePresence: React.Fragment,
 });
 
 cssInterop(MotionView, { className: 'style' });
@@ -170,17 +160,8 @@ const PopoverContent = React.forwardRef<
   return (
     <UIPopover.Content
       ref={ref}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 250,
-        mass: 0.9,
-        opacity: {
-          type: 'timing',
-          duration: 50,
-          delay: 50,
-        },
-      }}
+      entering={FadeIn.duration(50).delay(50)}
+      exiting={FadeOut.duration(50)}
       {...props}
       className={popoverContentStyle({
         parentVariants: {
@@ -202,17 +183,8 @@ const PopoverArrow = React.forwardRef<
   return (
     <UIPopover.Arrow
       ref={ref}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 250,
-        mass: 0.9,
-        opacity: {
-          type: 'timing',
-          duration: 50,
-          delay: 50,
-        },
-      }}
+      entering={FadeIn.duration(50).delay(50)}
+      exiting={FadeOut.duration(50)}
       {...props}
       className={popoverArrowStyle({
         class: className,
@@ -232,26 +204,8 @@ const PopoverBackdrop = React.forwardRef<
     <UIPopover.Backdrop
       ref={ref}
       {...props}
-      initial={{
-        opacity: 0,
-      }}
-      animate={{
-        opacity: 0.1,
-      }}
-      exit={{
-        opacity: 0,
-      }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 450,
-        mass: 0.9,
-        opacity: {
-          type: 'timing',
-          duration: 50,
-          delay: 50,
-        },
-      }}
+      entering={FadeIn.duration(50).delay(50)}
+      exiting={FadeOut.duration(50)}
       className={popoverBackdropStyle({
         class: className,
       })}
@@ -334,12 +288,12 @@ PopoverBody.displayName = 'PopoverBody';
 PopoverCloseButton.displayName = 'PopoverCloseButton';
 
 export {
-    Popover,
-    PopoverBackdrop,
-    PopoverArrow,
-    PopoverCloseButton,
-    PopoverFooter,
-    PopoverHeader,
-    PopoverBody,
-    PopoverContent,
+  Popover,
+  PopoverBackdrop,
+  PopoverArrow,
+  PopoverCloseButton,
+  PopoverFooter,
+  PopoverHeader,
+  PopoverBody,
+  PopoverContent,
 };

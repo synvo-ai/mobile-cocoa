@@ -2,26 +2,15 @@
 import { createModal } from '@gluestack-ui/core/modal/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva, useStyleContext, withStyleContext } from '@gluestack-ui/utils/nativewind-utils';
-import {
-    AnimatePresence,
-    createMotionAnimatedComponent, Motion, MotionComponentProps
-} from '@legendapp/motion';
+import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import React from 'react';
 import { Pressable, ScrollView, View, ViewStyle } from 'react-native';
 import { withUniwind } from 'uniwind';
 
-type IAnimatedPressableProps = React.ComponentProps<typeof Pressable> &
-  MotionComponentProps<typeof Pressable, ViewStyle, unknown, unknown, unknown>;
-
-const AnimatedPressable = createMotionAnimatedComponent(
-  Pressable
-) as React.ComponentType<IAnimatedPressableProps>;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const SCOPE = 'MODAL';
 
-type IMotionViewProps = React.ComponentProps<typeof View> &
-  MotionComponentProps<typeof View, ViewStyle, unknown, unknown, unknown>;
-
-const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
+const MotionView = Animated.View;
 
 const StyledAnimatedPressable = withUniwind(AnimatedPressable);
 const StyledMotionView = withUniwind(MotionView);
@@ -34,7 +23,7 @@ const UIModal = createModal({
   CloseButton: Pressable,
   Footer: View,
   Header: View,
-  AnimatePresence: AnimatePresence,
+  AnimatePresence: React.Fragment,
 });
 
 const modalStyle = tva({
@@ -138,24 +127,8 @@ const ModalBackdrop = React.forwardRef<
   return (
     <UIModal.Backdrop
       ref={ref}
-      initial={{
-        opacity: 0,
-      }}
-      animate={{
-        opacity: 0.5,
-      }}
-      exit={{
-        opacity: 0,
-      }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 250,
-        opacity: {
-          type: 'timing',
-          duration: 250,
-        },
-      }}
+      entering={FadeIn.duration(250)}
+      exiting={FadeOut.duration(250)}
       {...props}
       className={modalBackdropStyle({
         class: className,
@@ -173,26 +146,8 @@ const ModalContent = React.forwardRef<
   return (
     <UIModal.Content
       ref={ref}
-      initial={{
-        opacity: 0,
-        scale: 0.9,
-      }}
-      animate={{
-        opacity: 1,
-        scale: 1,
-      }}
-      exit={{
-        opacity: 0,
-      }}
-      transition={{
-        type: 'spring',
-        damping: 18,
-        stiffness: 250,
-        opacity: {
-          type: 'timing',
-          duration: 250,
-        },
-      }}
+      entering={ZoomIn.duration(250).springify().damping(18).stiffness(250)}
+      exiting={FadeOut.duration(250)}
       {...props}
       className={modalContentStyle({
         parentVariants: {
@@ -275,11 +230,11 @@ ModalFooter.displayName = 'ModalFooter';
 ModalCloseButton.displayName = 'ModalCloseButton';
 
 export {
-    Modal,
-    ModalBackdrop,
-    ModalContent,
-    ModalCloseButton,
-    ModalHeader,
-    ModalBody,
-    ModalFooter,
+  Modal,
+  ModalBackdrop,
+  ModalContent,
+  ModalCloseButton,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
 };

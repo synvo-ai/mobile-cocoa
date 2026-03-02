@@ -5,7 +5,9 @@ import React, { memo, useCallback, useMemo } from "react";
 import { GluestackUIProvider } from "@/components/ui/gluestack-ui-provider";
 import { getDefaultServerConfig } from "@/core";
 import { ThemeProvider } from "@/theme/index";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { ImageBackground, StyleSheet, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { ChatActionController, type ChatActionControllerState } from "@/components/controllers/ChatActionController";
 import { useSessionSideEffects } from "@/components/controllers/SessionSideEffectManager";
@@ -101,10 +103,12 @@ const AppInner = memo(function AppInner({
   return (
     <ThemeProvider mode={themeState.themeMode}>
       <GluestackUIProvider mode={themeState.themeMode}>
-        <View style={{ flex: 1 }}>
-          <AppBackground />
-          <ChatPage {...chatPageProps} />
-        </View>
+        <BottomSheetModalProvider>
+          <View style={{ flex: 1 }}>
+            <AppBackground />
+            <ChatPage {...chatPageProps} />
+          </View>
+        </BottomSheetModalProvider>
       </GluestackUIProvider>
     </ThemeProvider>
   );
@@ -202,6 +206,8 @@ export default function App() {
   );
 
   return (
-    <ThemeSessionState>{renderWorkspace}</ThemeSessionState>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeSessionState>{renderWorkspace}</ThemeSessionState>
+    </GestureHandlerRootView>
   );
 }

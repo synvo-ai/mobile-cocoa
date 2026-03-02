@@ -27,5 +27,9 @@
     "eventsource": "^4.1.0",
     "nodemon": "^3.1.11",
     "patch-package": "^8.0.0"
+  },
+  "overrides": {
+    "react-native-reanimated": "~4.1.1",
+    "react-native-worklets": "0.5.1"
   }
 }

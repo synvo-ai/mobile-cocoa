@@ -240,3 +240,24 @@ export function BoxIcon({ color = "currentColor", size = 18, strokeWidth = 1.8 }
     </Svg>
   );
 }
+
+export function CopyIcon({ color = "currentColor", size = 16, strokeWidth = 2 }: IconProps) {
+  const stroke = getStrokeProps(color, strokeWidth);
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect {...stroke} x="9" y="9" width="10" height="10" rx="2" />
+      <Path {...stroke} d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </Svg>
+  );
+}
+
+export function ShareIcon({ color = "currentColor", size = 16, strokeWidth = 2 }: IconProps) {
+  const stroke = getStrokeProps(color, strokeWidth);
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path {...stroke} d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <Path {...stroke} d="m16 6-4-4-4 4" />
+      <Path {...stroke} d="M12 2v13" />
+    </Svg>
+  );
+}

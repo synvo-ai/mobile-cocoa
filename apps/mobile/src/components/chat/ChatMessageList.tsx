@@ -64,17 +64,15 @@ const ChatMessageRow = memo(function ChatMessageRow({
     hasCodeOrFileContent;
 
   return (
-    <EntranceAnimation variant="slideUp" duration={400}>
-      <MessageBubble
-        message={item}
-        isTerminatedLabel={showTerminated}
-        showAsTailBox={showTailBox}
-        tailBoxMaxHeight={tailBoxMaxHeight}
-        provider={provider}
-        onOpenUrl={onOpenUrl}
-        onFileSelect={onFileSelect}
-      />
-    </EntranceAnimation>
+    <MessageBubble
+      message={item}
+      isTerminatedLabel={showTerminated}
+      showAsTailBox={showTailBox}
+      tailBoxMaxHeight={tailBoxMaxHeight}
+      provider={provider}
+      onOpenUrl={onOpenUrl}
+      onFileSelect={onFileSelect}
+    />
   );
 }, (prev, next) => {
   if (prev.item.id !== next.item.id) return false;
@@ -110,17 +108,26 @@ export const ChatMessageList = memo(function ChatMessageList({
     () =>
       messages.map((item, index) => {
         const isLast = index === messages.length - 1;
+        // Only stagger for the first few messages or recent ones
+        const staggerDelay = messages.length > 10 ? (index > messages.length - 5 ? (index - (messages.length - 5)) * 100 : 0) : index * 100;
+
         return (
-          <ChatMessageRow
+          <EntranceAnimation
             key={item.id}
-            item={item}
-            isLast={isLast}
-            lastSessionTerminated={lastSessionTerminated}
-            tailBoxMaxHeight={tailBoxMaxHeight}
-            provider={provider}
-            onOpenUrl={onOpenUrl}
-            onFileSelect={onFileSelect}
-          />
+            variant="slideUp"
+            delay={staggerDelay}
+            duration={400}
+          >
+            <ChatMessageRow
+              item={item}
+              isLast={isLast}
+              lastSessionTerminated={lastSessionTerminated}
+              tailBoxMaxHeight={tailBoxMaxHeight}
+              provider={provider}
+              onOpenUrl={onOpenUrl}
+              onFileSelect={onFileSelect}
+            />
+          </EntranceAnimation>
         );
       }),
     [messages, lastSessionTerminated, tailBoxMaxHeight, provider, onOpenUrl, onFileSelect]

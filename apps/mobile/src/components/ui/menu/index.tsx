@@ -2,17 +2,12 @@
 import { createMenu } from '@gluestack-ui/core/menu/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva } from '@gluestack-ui/utils/nativewind-utils';
-import {
-    AnimatePresence, Motion, MotionComponentProps
-} from '@legendapp/motion';
+import Animated, { FadeIn, FadeOut, ZoomIn } from 'react-native-reanimated';
 import { cssInterop } from 'nativewind';
 import React from 'react';
 import { Pressable, Text, View, ViewStyle } from 'react-native';
 
-type IMotionViewProps = React.ComponentProps<typeof View> &
-  MotionComponentProps<typeof View, ViewStyle, unknown, unknown, unknown>;
-
-const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
+const MotionView = Animated.View;
 
 const menuStyle = tva({
   base: 'rounded-md bg-background-0 border border-outline-100 p-1 shadow-hard-5',
@@ -133,7 +128,7 @@ export const UIMenu = createMenu({
   Item: Item,
   Label: Text,
   Backdrop: BackdropPressable,
-  AnimatePresence: AnimatePresence,
+  AnimatePresence: React.Fragment,
   Separator: Separator,
 });
 
@@ -149,22 +144,8 @@ const Menu = React.forwardRef<React.ComponentRef<typeof UIMenu>, IMenuProps>(
     return (
       <UIMenu
         ref={ref}
-        initial={{
-          opacity: 0,
-          scale: 0.8,
-        }}
-        animate={{
-          opacity: 1,
-          scale: 1,
-        }}
-        exit={{
-          opacity: 0,
-          scale: 0.8,
-        }}
-        transition={{
-          type: 'timing',
-          duration: 100,
-        }}
+        entering={FadeIn.duration(100)}
+        exiting={FadeOut.duration(100)}
         className={menuStyle({
           class: className,
         })}

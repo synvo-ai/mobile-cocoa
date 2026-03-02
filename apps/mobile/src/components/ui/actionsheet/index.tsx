@@ -4,13 +4,10 @@ import { createActionsheet } from '@gluestack-ui/core/actionsheet/creator';
 import { UIIcon } from '@gluestack-ui/core/icon/creator';
 import type { VariantProps } from '@gluestack-ui/utils/nativewind-utils';
 import { tva } from '@gluestack-ui/utils/nativewind-utils';
-import {
-    AnimatePresence,
-    createMotionAnimatedComponent, Motion, MotionComponentProps
-} from '@legendapp/motion';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import React from 'react';
 import {
-    FlatList, Pressable, PressableProps, ScrollView, SectionList, Text, View, ViewStyle, VirtualizedList
+  FlatList, Pressable, PressableProps, ScrollView, SectionList, Text, View, ViewStyle, VirtualizedList
 } from 'react-native';
 import { withUniwind } from 'uniwind';
 
@@ -21,17 +18,9 @@ const ItemWrapper = React.forwardRef<
   return <Pressable {...props} ref={ref} />;
 });
 
-type IMotionViewProps = React.ComponentProps<typeof View> &
-  MotionComponentProps<typeof View, ViewStyle, unknown, unknown, unknown>;
+const MotionView = Animated.View;
 
-const MotionView = Motion.View as React.ComponentType<IMotionViewProps>;
-
-type IAnimatedPressableProps = React.ComponentProps<typeof Pressable> &
-  MotionComponentProps<typeof Pressable, ViewStyle, unknown, unknown, unknown>;
-
-const AnimatedPressable = createMotionAnimatedComponent(
-  Pressable
-) as React.ComponentType<IAnimatedPressableProps>;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const StyledMotionView = withUniwind(MotionView);
 const StyledItemWrapper = withUniwind(ItemWrapper);
 const StyledAnimatedPressable = withUniwind(AnimatedPressable);
@@ -51,7 +40,7 @@ export const UIActionsheet = createActionsheet({
   SectionList: SectionList,
   SectionHeaderText: H4,
   Icon: StyledUIIcon,
-  AnimatePresence: AnimatePresence,
+  AnimatePresence: React.Fragment,
 });
 
 const actionsheetStyle = tva({ base: 'w-full h-full web:pointer-events-none' });
@@ -351,15 +340,8 @@ const ActionsheetBackdrop = React.forwardRef<
 >(function ActionsheetBackdrop({ className, ...props }, ref) {
   return (
     <UIActionsheet.Backdrop
-      initial={{
-        opacity: 0,
-      }}
-      animate={{
-        opacity: 1,
-      }}
-      exit={{
-        opacity: 0,
-      }}
+      entering={FadeIn}
+      exiting={FadeOut}
       {...props}
       className={actionsheetBackdropStyle({
         class: className,
@@ -504,17 +486,17 @@ const ActionsheetIcon = React.forwardRef<
 });
 
 export {
-    Actionsheet,
-    ActionsheetContent,
-    ActionsheetItem,
-    ActionsheetItemText,
-    ActionsheetDragIndicator,
-    ActionsheetDragIndicatorWrapper,
-    ActionsheetBackdrop,
-    ActionsheetScrollView,
-    ActionsheetVirtualizedList,
-    ActionsheetFlatList,
-    ActionsheetSectionList,
-    ActionsheetSectionHeaderText,
-    ActionsheetIcon,
+  Actionsheet,
+  ActionsheetContent,
+  ActionsheetItem,
+  ActionsheetItemText,
+  ActionsheetDragIndicator,
+  ActionsheetDragIndicatorWrapper,
+  ActionsheetBackdrop,
+  ActionsheetScrollView,
+  ActionsheetVirtualizedList,
+  ActionsheetFlatList,
+  ActionsheetSectionList,
+  ActionsheetSectionHeaderText,
+  ActionsheetIcon,
 };

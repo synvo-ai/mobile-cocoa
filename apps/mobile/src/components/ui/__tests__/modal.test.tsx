@@ -2,13 +2,14 @@ import { render } from '@testing-library/react-native';
 import type { Ref } from 'react';
 import React from 'react';
 
-jest.mock('@legendapp/motion', () => {
-  const React = require('react');
-  const { View } = require('react-native');
+jest.mock('react-native-reanimated', () => {
+  const Reanimated = require('react-native-reanimated/mock');
+  Reanimated.default.call = () => { };
   return {
-    Motion: { View },
-    AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-    createMotionAnimatedComponent: (Component: React.ComponentType<any>) => Component,
+    ...Reanimated,
+    FadeIn: { duration: () => ({ delay: () => ({}) }) },
+    FadeOut: { duration: () => ({ delay: () => ({}) }) },
+    ZoomIn: { duration: () => ({ springify: () => ({ damping: () => ({ stiffness: () => ({}) }) }) }) },
   };
 });
 

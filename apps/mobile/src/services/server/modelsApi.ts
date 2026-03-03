@@ -54,16 +54,50 @@ export function getFallbackDefaultModelForProvider(provider: Provider): string {
   return FALLBACK_CONFIG.providers[provider]?.defaultModel ?? "";
 }
 
+const FETCH_MAX_RETRIES = 4;
+const FETCH_BASE_DELAY_MS = 1500;
+
+async function fetchWithRetry(url: string, retries: number): Promise<Response> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url);
+      if (response.ok) return response;
+      if (response.status >= 500 || response.status === 404) {
+        if (attempt < retries) {
+          const delay = FETCH_BASE_DELAY_MS * Math.pow(2, attempt);
+          console.log(`[modelsApi] Retry ${attempt + 1}/${retries} in ${delay}ms (HTTP ${response.status})`);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
+      }
+      return response;
+    } catch (err) {
+      if (attempt < retries) {
+        const delay = FETCH_BASE_DELAY_MS * Math.pow(2, attempt);
+        console.log(`[modelsApi] Retry ${attempt + 1}/${retries} in ${delay}ms (${(err as Error)?.message})`);
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      throw err;
+    }
+  }
+  return fetch(url);
+}
+
 /**
  * Fetch the model configuration from the server.
  * Returns the cached value on subsequent calls.
  * Call `invalidateModelsCache()` to force a re-fetch.
+ *
+ * Retries with exponential backoff to handle transient tunnel failures
+ * (e.g. Cloudflare quick tunnels returning 404 during reconnection).
  */
 export async function fetchModelsConfig(): Promise<ModelsConfig> {
   if (modelsConfigCache) return modelsConfigCache;
   try {
     const baseUrl = getDefaultServerConfig().getBaseUrl();
-    const response = await fetch(`${baseUrl}/api/models`);
+    const url = `${baseUrl}/api/models`;
+    const response = await fetchWithRetry(url, FETCH_MAX_RETRIES);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const data: ModelsConfig = await response.json();
     if (!data?.providers || typeof data.providers !== "object") {

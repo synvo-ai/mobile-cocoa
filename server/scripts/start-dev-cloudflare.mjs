@@ -139,7 +139,7 @@ function printExpoCommand(url) {
 }
 
 setTimeout(() => {
-  const child = spawn("cloudflared", ["tunnel", "--url", `http://${PROXY_LOOPBACK_HOST}:${TUNNEL_PROXY_PORT}`], {
+  const child = spawn("cloudflared", ["tunnel", "--no-autoupdate", "--config", "/dev/null", "--url", `http://${PROXY_LOOPBACK_HOST}:${TUNNEL_PROXY_PORT}`], {
     stdio: ["pipe", "pipe", "pipe"],
     cwd: ROOT,
     env: process.env,

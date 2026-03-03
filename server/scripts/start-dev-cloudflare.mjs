@@ -100,10 +100,41 @@ function printExpoCommand(url) {
   const clean = url.replace(/[)\],'"\s]+$/, "").trim();
   if (tunnelUrlPrinted) return;
   tunnelUrlPrinted = true;
+
+  const cmd = `EXPO_PUBLIC_SERVER_URL=${clean} npm run dev:mobile:cloudflare`;
+
+  // ANSI color codes
+  const RESET = "\x1b[0m";
+  const BOLD = "\x1b[1m";
+  const CYAN = "\x1b[36m";
+  const GREEN = "\x1b[32m";
+  const YELLOW = "\x1b[33m";
+  const WHITE = "\x1b[37m";
+  const DIM = "\x1b[2m";
+
+  // Header / description text
+  const header = " 🚀  EXPO TUNNEL COMMAND — Ready! ";
+  const desc = " Copy & run the command below in another terminal: ";
+  const w = Math.max(header.length, desc.length) + 2;
+
+  const hBar = "━".repeat(w);
+  const top = `┏${hBar}┓`;
+  const mid = `┣${hBar}┫`;
+  const bot = `┗${hBar}┛`;
+  const pad = (s) => s + " ".repeat(Math.max(0, w - s.length));
+
   console.log("");
-  console.log("[dev:cloudflare] Run Expo with the tunnel URL (copy and run in another terminal):");
   console.log("");
-  console.log(`  EXPO_PUBLIC_SERVER_URL=${clean} npm run dev:mobile:cloudflare`);
+  console.log(`${BOLD}${CYAN}${top}${RESET}`);
+  console.log(`${BOLD}${CYAN}┃${GREEN}${BOLD}${pad(header)}${CYAN}┃${RESET}`);
+  console.log(`${BOLD}${CYAN}${mid}${RESET}`);
+  console.log(`${BOLD}${CYAN}┃${RESET}${WHITE}${pad(desc)}${BOLD}${CYAN}┃${RESET}`);
+  console.log(`${BOLD}${CYAN}${bot}${RESET}`);
+  console.log("");
+  console.log(`  ${BOLD}${YELLOW}${cmd}${RESET}`);
+  console.log("");
+  console.log(`${DIM}  (triple-click the line above to select it)${RESET}`);
+  console.log("");
   console.log("");
 }
 

@@ -111,20 +111,38 @@ npm run dev:mobile
 > **Tip:** For local development, your phone and dev machine must be on the same Wi-Fi network. For remote access, see the Cloudflare tunnel method below.
 
 ### Cloudflare Tunnel (Remote Access)
-To access Mobile Cocoa from outside your local network (e.g., when your phone is on cellular data):
+To access Mobile Cocoa from outside your local network (e.g., when your phone is on cellular data), you can use Cloudflare Tunnel to expose your local server over a secure public URL.
 
-**Prerequisites:** Install `cloudflared` — `brew install cloudflared` (macOS).
+**Prerequisites:**
+- Install `cloudflared` — `brew install cloudflared` (macOS) or see [Cloudflare docs](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) for other platforms.
 
-1. **Start the server + tunnel in one command:**
+**Steps:**
+
+1. **Start everything with one command:**
    ```bash
    npm run dev:cloudflare
    ```
-2. Wait for the tunnel URL to appear in the terminal (e.g., `https://xxx.trycloudflare.com`).
-3. **In a separate terminal**, start Expo with the tunnel URL:
-   ```bash
-   EXPO_PUBLIC_SERVER_URL=https://YOUR_TUNNEL_URL npm run dev:mobile:cloudflare
+   This starts **three things** simultaneously:
+   - The proxy server (port 9443)
+   - The backend dev server (port 3456, with auto-restart)
+   - A Cloudflare quick tunnel
+
+2. **Wait for the tunnel URL** — after a few seconds you'll see a highlighted box in your terminal:
    ```
-4. Scan the QR code on your phone — your app will now connect through the secure Cloudflare tunnel.
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃ 🚀  EXPO TUNNEL COMMAND — Ready!                       ┃
+   ┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+   ┃ Copy & run the command below in another terminal:      ┃
+   ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+     EXPO_PUBLIC_SERVER_URL=https://xxx.trycloudflare.com npm run dev:mobile:cloudflare
+   ```
+
+3. **Copy and run the printed command** in a separate terminal. The full command is printed on its own line below the box for easy copying.
+
+4. **Scan the QR code** on your phone — your app will now connect through the secure Cloudflare tunnel.
+
+> **Note:** Quick tunnels are free and require no Cloudflare account, but they have no uptime guarantee. A new URL is generated each time you start the tunnel.
 
 ### 📚 Documentation References
 For deeper architectural insights, see the `docs/` folder:

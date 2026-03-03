@@ -265,7 +265,6 @@ export function ChatPage({
                   sidebar={sidebar}
                   inputDock={inputDock}
                   modalHandlers={modalHandlers}
-                  portForwarding={modals.portForwarding}
                 />
 
                 {sidebar.visible && (

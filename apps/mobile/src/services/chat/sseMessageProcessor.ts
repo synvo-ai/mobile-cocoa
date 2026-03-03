@@ -176,21 +176,3 @@ export function resolveStreamUrl(
   };
 }
 
-/**
- * Resolve the SSE stream URL and body for POST-based streaming.
- * Legacy: previously used for Cloudflare Quick Tunnel; Cloudflare mode now uses WebSocket.
- * Retained for backward compatibility.
- */
-export function resolveStreamUrlPost(
-  serverUrl: string,
-  sessionId: string,
-  skipReplayForSession: string | null
-): { url: string; body: { activeOnly: boolean; skipReplay: boolean }; applySkipReplay: boolean } {
-  const url = `${serverUrl}/api/sessions/${sessionId}/stream`;
-  const applySkipReplay = skipReplayForSession === sessionId;
-  return {
-    url,
-    body: { activeOnly: true, skipReplay: applySkipReplay },
-    applySkipReplay,
-  };
-}

@@ -5,7 +5,6 @@ import {
   CloseIcon,
   DockerIcon,
   GlobeIcon,
-  PortForwardIcon,
   SkillIcon,
   VibeIcon,
   StopCircleIcon,
@@ -72,8 +71,6 @@ export interface InputPanelProps {
   onOpenModelPicker?: () => void;
   onOpenSkillsConfig?: () => void;
   onOpenDocker?: () => void;
-  onOpenPortForwarding?: () => void;
-  isCloudflareMode?: boolean;
   serverBaseUrl?: string;
 }
 
@@ -94,8 +91,6 @@ export function InputPanel({
   onOpenModelPicker,
   onOpenSkillsConfig,
   onOpenDocker,
-  onOpenPortForwarding,
-  isCloudflareMode,
   serverBaseUrl,
 }: InputPanelProps) {
   const theme = useTheme();
@@ -412,8 +407,6 @@ export function InputPanel({
                 onOpenProcesses={onOpenProcesses}
                 onOpenDocker={onOpenDocker}
                 onOpenWebPreview={onOpenWebPreview}
-                isCloudflareMode={isCloudflareMode}
-                onOpenPortForwarding={onOpenPortForwarding}
               />
             )}
             {onTerminateAgent && sessionRunning && (

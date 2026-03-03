@@ -1,4 +1,4 @@
-import { AttachPlusIcon, ChevronDownIcon, ChevronUpIcon, DockerIcon, GlobeIcon, PortForwardIcon, SettingsIcon, TerminalIcon } from "@/components/icons/ChatActionIcons";
+import { AttachPlusIcon, ChevronDownIcon, ChevronUpIcon, DockerIcon, GlobeIcon, SettingsIcon, TerminalIcon } from "@/components/icons/ChatActionIcons";
 import { Popover, PopoverBackdrop, PopoverContent } from "@/components/ui/popover";
 import { Pressable } from "@/components/ui/pressable";
 import { Text } from "@/components/ui/text";
@@ -19,8 +19,6 @@ interface SystemMenuPopoverProps {
     onOpenProcesses?: () => void;
     onOpenDocker?: () => void;
     onOpenWebPreview?: () => void;
-    isCloudflareMode?: boolean;
-    onOpenPortForwarding?: () => void;
 }
 
 export function SystemMenuPopover({
@@ -31,8 +29,6 @@ export function SystemMenuPopover({
     onOpenProcesses,
     onOpenDocker,
     onOpenWebPreview,
-    isCloudflareMode,
-    onOpenPortForwarding,
 }: SystemMenuPopoverProps) {
     return (
         <Popover
@@ -155,21 +151,6 @@ export function SystemMenuPopover({
                             )}
                         </HStack>
 
-                        {isCloudflareMode && onOpenPortForwarding && (
-                            <Pressable
-                                onPress={() => {
-                                    triggerHaptic("selection");
-                                    setTerminalMenuVisible(false);
-                                    onOpenPortForwarding();
-                                }}
-                                className="flex-row items-center gap-3 px-2 py-2 rounded-xl active:bg-black/5"
-                            >
-                                <Box className="w-8 h-8 rounded-lg items-center justify-center bg-success-500/10">
-                                    <PortForwardIcon size={18} color={theme.colors.success} />
-                                </Box>
-                                <Text size="sm" style={{ color: theme.colors.textPrimary, fontWeight: "500" }}>Port Forwarding</Text>
-                            </Pressable>
-                        )}
                     </VStack>
                 </BlurView>
             </PopoverContent>

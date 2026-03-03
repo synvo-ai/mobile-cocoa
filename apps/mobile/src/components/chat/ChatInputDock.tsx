@@ -24,8 +24,6 @@ type ChatInputDockProps = {
   onOpenModelPicker: () => void;
   onOpenSkillsConfig: () => void;
   onOpenDocker: () => void;
-  onOpenPortForwarding?: () => void;
-  isCloudflareMode?: boolean;
   serverBaseUrl: string;
 };
 
@@ -45,8 +43,6 @@ export function ChatInputDock({
   onOpenModelPicker,
   onOpenSkillsConfig,
   onOpenDocker,
-  onOpenPortForwarding,
-  isCloudflareMode,
   serverBaseUrl,
 }: ChatInputDockProps) {
   return (
@@ -66,8 +62,6 @@ export function ChatInputDock({
       onOpenModelPicker={onOpenModelPicker}
       onOpenSkillsConfig={onOpenSkillsConfig}
       onOpenDocker={onOpenDocker}
-      onOpenPortForwarding={onOpenPortForwarding}
-      isCloudflareMode={isCloudflareMode}
       serverBaseUrl={serverBaseUrl}
       permissionMode={null}
     />

@@ -1,129 +1,5 @@
 {
-  "lockVersion": 2,
   "version": 1,
-  "entries": [
-    {
-      "id": "component-refactoring",
-      "name": "component-refactoring",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/component-refactoring",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/langgenius/dify/component-refactoring",
-      "sourceRef": "98d951503a52e094d701a15fedfe9448d1dffa7f50cc075c2e8483a3cb754c10",
-      "version": "98d951503a52e094d701a15fedfe9448d1dffa7f50cc075c2e8483a3cb754c10",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "docker-expert",
-      "name": "docker-expert",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/docker-expert",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/sickn33/antigravity-awesome-skills/docker-expert",
-      "sourceRef": "76bd52d934142cb8f3861cb37f2a39ad93bf3b03dcbc94a02beaa0544f6dd7c2",
-      "version": "76bd52d934142cb8f3861cb37f2a39ad93bf3b03dcbc94a02beaa0544f6dd7c2",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "git-advanced-workflows",
-      "name": "git-advanced-workflows",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/git-advanced-workflows",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/wshobson/agents/git-advanced-workflows",
-      "sourceRef": "d46ca590d97215674b986dbc8d0085739032117669483bead7eba739948abbdd",
-      "version": "d46ca590d97215674b986dbc8d0085739032117669483bead7eba739948abbdd",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "migrate-nativewind-to-uniwind",
-      "name": "migrate-nativewind-to-uniwind",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/migrate-nativewind-to-uniwind",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/uni-stack/uniwind/migrate-nativewind-to-uniwind",
-      "sourceRef": "b4744b2223872aa2ea542c6f2dedf79893f7797decec348109a8278c05cb9ef2",
-      "version": "b4744b2223872aa2ea542c6f2dedf79893f7797decec348109a8278c05cb9ef2",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "nano-banana",
-      "name": "nano-banana",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/nano-banana",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/inference-sh-9/skills/nano-banana",
-      "sourceRef": "91638a265753a50a8a30dfda3844462c2d3e94ca15c1f47cf8c5897e5e8fa7f4",
-      "version": "91638a265753a50a8a30dfda3844462c2d3e94ca15c1f47cf8c5897e5e8fa7f4",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "nano-banana-2",
-      "name": "nano-banana-2",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/nano-banana-2",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/inference-sh-9/skills/nano-banana-2",
-      "sourceRef": "ac3d77d31fc4349e567e860868dc55759eb50cd3315a1dacfb490a275c4bf476",
-      "version": "ac3d77d31fc4349e567e860868dc55759eb50cd3315a1dacfb490a275c4bf476",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "nanobanana",
-      "name": "nanobanana",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/nanobanana",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/resciencelab/opc-skills/nanobanana",
-      "sourceRef": "b3ef6022c2d2b1be94fa2d52ae0da749495eef1fe4ea2becd413f052c03a13e6",
-      "version": "b3ef6022c2d2b1be94fa2d52ae0da749495eef1fe4ea2becd413f052c03a13e6",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "refactor",
-      "name": "refactor",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/refactor",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/github/awesome-copilot/refactor",
-      "sourceRef": "87789a786b96f99ba0680e89345a975106e10e7db1071c7cdc2e76d507c449d6",
-      "version": "87789a786b96f99ba0680e89345a975106e10e7db1071c7cdc2e76d507c449d6",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "refactor-module",
-      "name": "refactor-module",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/refactor-module",
-      "source": "github",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/hashicorp/agent-skills/refactor-module",
-      "sourceRef": "f506f95f84ff344a3e522f2e58069b632a5b3539d978f00c935ee8bab25b03f0",
-      "version": "f506f95f84ff344a3e522f2e58069b632a5b3539d978f00c935ee8bab25b03f0",
-      "installedAt": "2026-03-02T20:01:55.918Z",
-      "createdAt": "2026-03-02T20:01:55.918Z"
-    },
-    {
-      "id": "cloudflare-deploy",
-      "name": "cloudflare-deploy",
-      "path": "/Users/yifanxu/machine_learning/LoVC/vibe-coding-everywhere_v3/server/skills/library/cloudflare-deploy",
-      "source": "find-skills",
-      "sourceType": "find-skills",
-      "sourceUrl": "https://github.com/openai/skills/tree/main/skills/.curated/cloudflare-deploy",
-      "repoUrl": "https://github.com/openai/skills",
-      "sourceRef": "main",
-      "version": "latest",
-      "installedAt": "2026-03-02T20:49:18.732Z",
-      "createdAt": "2026-03-02T20:49:18.732Z"
-    }
-  ],
   "skills": {
     "component-refactoring": {
       "source": "langgenius/dify",
@@ -169,6 +45,11 @@
       "source": "hashicorp/agent-skills",
       "sourceType": "github",
       "computedHash": "f506f95f84ff344a3e522f2e58069b632a5b3539d978f00c935ee8bab25b03f0"
+    },
+    "using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "computedHash": "4310d74a75f89e81f999bfa5b10886be977f95ee0c7fc1d547f94e32c7c8d7f3"
     }
   }
 }

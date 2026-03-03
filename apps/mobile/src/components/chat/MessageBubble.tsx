@@ -47,18 +47,7 @@ export {
 
 // NeonGlassBubbleWrapper removed in favor of PremiumMessageBubble
 
-/** Replace span background-color highlights with text color using the provider's theme accent. */
-function replaceHighlightWithTextColor(content: string, highlightColor: string): string {
-  return content.replace(/style="([^"]+)"/gi, (match, inner) => {
-    if (!/background-color\s*:/i.test(inner)) return match;
-    const cleaned = inner
-      .replace(/\s*background-color\s*:\s*[^;]+;?/gi, "")
-      .replace(/\s*;\s*;\s*/g, ";")
-      .replace(/^[\s;]+|[\s;]+$/g, "")
-      .trim();
-    return cleaned ? `style="color: ${highlightColor}; ${cleaned}"` : `style="color: ${highlightColor}"`;
-  });
-}
+
 
 
 /** Collapsible "Thinking" / "Show reasoning" block. Default collapsed, 44px min touch target.
@@ -75,7 +64,7 @@ function CollapsibleReadResult({
   markdownRules,
   onLinkPress,
   wrapBareUrls,
-  replaceHighlight,
+
 }: {
   content: string;
   previewLength: number;
@@ -84,7 +73,7 @@ function CollapsibleReadResult({
   markdownRules: MarkdownProps["rules"];
   onLinkPress: (url: string) => boolean;
   wrapBareUrls: (s: string) => string;
-  replaceHighlight: (s: string, c: string) => string;
+
 }) {
   const [expanded, setExpanded] = useState(false);
   const isLong = content.length > previewLength;
@@ -95,7 +84,7 @@ function CollapsibleReadResult({
   return (
     <Box style={isLong && !expanded ? { minHeight: 80 } : undefined}>
       <MarkdownContent
-        content={wrapBareUrls(replaceHighlight(displayContent, theme.colors.accent))}
+        content={wrapBareUrls(displayContent)}
         markdownProps={{ style: markdownStyles, mergeStyle: true, rules: markdownRules ?? undefined }}
         onLinkPress={onLinkPress}
       />
@@ -582,14 +571,14 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
                 markdownRules={markdownRules ?? undefined}
                 onLinkPress={handleMarkdownLinkPress}
                 wrapBareUrls={wrapBareUrlsInMarkdown}
-                replaceHighlight={replaceHighlightWithTextColor}
+
               />
             );
           }
           return (
             <MarkdownContent
               key={`${keyPrefix}-file-activity-text-${index}`}
-              content={wrapBareUrlsInMarkdown(replaceHighlightWithTextColor(seg.text, theme.colors.accent))}
+              content={wrapBareUrlsInMarkdown(seg.text)}
               markdownProps={{ style: markdownStyles, mergeStyle: true, rules: markdownRules }}
               onLinkPress={handleMarkdownLinkPress}
             />
@@ -617,7 +606,7 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
       const fileActivitySegments = parseFileActivitySegments(textContent);
       const hasRawFileActivityLinks = fileActivitySegments.some((seg) => seg.kind === "file");
 
-      let markdownContent = replaceHighlightWithTextColor(textContent, theme.colors.accent);
+      let markdownContent = textContent;
       for (let i = 0; i < 8; i++) {
         const next = fillEmptyBashBlocks(markdownContent);
         if (next === markdownContent) break;
@@ -717,7 +706,7 @@ function MessageBubbleInner({ message, isTerminatedLabel, showAsTailBox, onOpenU
                 <MarkdownContent
                   key={`md-${index}`}
                   content={wrapBareUrlsInMarkdown(
-                    replaceHighlightWithTextColor(textSection, theme.colors.accent)
+                    textSection
                   )}
                   markdownProps={{ style: markdownStyles, mergeStyle: true, rules: markdownRules }}
                   onLinkPress={handleMarkdownLinkPress}

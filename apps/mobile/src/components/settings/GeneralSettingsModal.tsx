@@ -1,4 +1,4 @@
-import { CloseIcon } from "@/components/icons/ChatActionIcons";
+import { CloseIcon, PortForwardIcon } from "@/components/icons/ChatActionIcons";
 import { Box } from "@/components/ui/box";
 import { Modal } from "@/components/ui/modal";
 import { Pressable } from "@/components/ui/pressable";
@@ -24,6 +24,7 @@ export interface GeneralSettingsModalProps {
     onClose: () => void;
     connectionMode: ConnectionMode;
     workspacePath: string | null;
+    onOpenPortForwarding?: () => void;
 }
 
 export function GeneralSettingsModal({
@@ -31,6 +32,7 @@ export function GeneralSettingsModal({
     onClose,
     connectionMode,
     workspacePath,
+    onOpenPortForwarding,
 }: GeneralSettingsModalProps) {
     const theme = useTheme();
     const insets = useSafeAreaInsets();
@@ -214,6 +216,30 @@ export function GeneralSettingsModal({
                                 <Text size="xs" style={{ color: mutedColor, fontStyle: "italic", marginTop: 4 }}>
                                     Set via EXPO_PUBLIC_CONNECTION_MODE environment variable.
                                 </Text>
+
+                                {connectionMode === "cloudflare" && onOpenPortForwarding && (
+                                    <Pressable
+                                        onPress={() => {
+                                            triggerHaptic("selection");
+                                            onClose();
+                                            onOpenPortForwarding();
+                                        }}
+                                        className="flex-row items-center gap-3 p-3 rounded-xl mt-2 active:opacity-80"
+                                        style={{
+                                            backgroundColor: isDark ? "rgba(34, 197, 94, 0.08)" : "rgba(34, 197, 94, 0.06)",
+                                            borderWidth: 1,
+                                            borderColor: isDark ? "rgba(34, 197, 94, 0.2)" : "rgba(34, 197, 94, 0.15)",
+                                        }}
+                                    >
+                                        <Box className="w-8 h-8 rounded-lg items-center justify-center" style={{ backgroundColor: isDark ? "rgba(34, 197, 94, 0.15)" : "rgba(34, 197, 94, 0.12)" }}>
+                                            <PortForwardIcon size={18} color={isDark ? "#4ADE80" : "#16A34A"} />
+                                        </Box>
+                                        <VStack>
+                                            <Text size="sm" bold style={{ color: titleColor }}>Port Forwarding</Text>
+                                            <Text size="xs" style={{ color: mutedColor }}>Configure port mappings for Cloudflare Tunnel</Text>
+                                        </VStack>
+                                    </Pressable>
+                                )}
                             </VStack>
                         </VStack>
 

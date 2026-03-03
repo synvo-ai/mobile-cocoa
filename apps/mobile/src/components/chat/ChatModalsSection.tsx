@@ -143,6 +143,7 @@ export function ChatModalsSection({
         onClose={modalStates.generalSettings.close}
         connectionMode={modals.generalSettings.connectionMode as any}
         workspacePath={modals.generalSettings.workspacePath}
+        onOpenPortForwarding={modals.portForwarding.isCloudflareMode ? openHandlers.onOpenPortForwarding : undefined}
       />
     </>
   );

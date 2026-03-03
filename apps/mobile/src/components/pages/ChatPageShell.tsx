@@ -1,4 +1,4 @@
-import type { ChatPageContext, ChatPageConversation, ChatPageHeader, ChatPageInputDock, ChatPageModals, ChatPageRuntime, ChatPageSidebar } from "@/components/pages/ChatPage";
+import type { ChatPageContext, ChatPageConversation, ChatPageHeader, ChatPageInputDock, ChatPageRuntime, ChatPageSidebar } from "@/components/pages/ChatPage";
 import { ChatConversationSection, ChatHeaderSection, ChatInputDockSection } from "@/components/pages/ChatPageSections";
 import { layoutOuterStyle } from "@/components/styles/appStyles";
 import type { ChatModalOpenHandlers } from "@/components/types/chatModalTypes";
@@ -17,7 +17,6 @@ export type ChatPageShellProps = {
   sidebar: ChatPageSidebar;
   inputDock: ChatPageInputDock;
   modalHandlers: ChatModalOpenHandlers;
-  portForwarding?: ChatPageModals["portForwarding"];
 };
 
 export function ChatPageShell({
@@ -28,7 +27,6 @@ export function ChatPageShell({
   sidebar,
   inputDock,
   modalHandlers,
-  portForwarding,
 }: ChatPageShellProps) {
   const insets = useSafeAreaInsets();
   const [inputDockHeight, setInputDockHeight] = useState(0);
@@ -74,8 +72,6 @@ export function ChatPageShell({
                 onOpenSkillsConfig={modalHandlers.onOpenSkillsConfig}
                 onOpenProcesses={modalHandlers.onOpenProcesses}
                 onOpenDocker={modalHandlers.onOpenDocker}
-                onOpenPortForwarding={modalHandlers.onOpenPortForwarding}
-                isCloudflareMode={portForwarding?.isCloudflareMode}
                 onOpenModelPicker={modalHandlers.onOpenModelPicker}
                 onInputDockLayout={handleInputDockLayout}
               />

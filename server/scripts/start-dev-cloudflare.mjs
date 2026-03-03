@@ -149,11 +149,12 @@ function startMobileFrontend(apiTunnelUrl) {
   const GREEN = "\x1b[32m";
   const DIM = "\x1b[2m";
   const YELLOW = "\x1b[33m";
+  const WHITE = "\x1b[37m";
 
-  // 1. Start the Metro cloudflared tunnel FIRST so we know the public URL
-  //    BEFORE Expo starts. This lets us set EXPO_PACKAGER_PROXY_URL so Metro's
-  //    manifest contains the correct public URLs instead of localhost:8081.
-  console.log(`\n${BOLD}${GREEN} 📱  Starting Metro Cloudflare tunnel...${RESET}\n`);
+  // Start the Metro cloudflared tunnel FIRST so we get the public URL
+  // before Expo starts. EXPO_PACKAGER_PROXY_URL makes Metro generate
+  // correct public URLs in its manifest instead of localhost:8081.
+  console.log(`\n${DIM}[mobile] Starting Metro Cloudflare tunnel...${RESET}\n`);
 
   const metroTunnel = spawn("cloudflared", [
     "tunnel", "--no-autoupdate", "--config", "/dev/null",
@@ -176,28 +177,26 @@ function startMobileFrontend(apiTunnelUrl) {
     if (metroUrlFound) return;
     metroUrlFound = true;
     const metroPublicUrl = metroTunnelUrl.replace(/[)\],'"\s]+$/, "").trim();
-    const hostname = metroPublicUrl.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
-    const expoUrl = `exps://${hostname}`;
 
+    // Print connection info banner
+    const hBar = "━".repeat(56);
     console.log("");
-    console.log(`${BOLD}${GREEN} 📱  Metro tunnel ready!${RESET}`);
-    console.log(`${DIM}     Metro:  ${metroPublicUrl}${RESET}`);
-    console.log(`${DIM}     API:    ${apiTunnelUrl}${RESET}`);
-    console.log(`${BOLD}${CYAN}     Expo URL: ${expoUrl}${RESET}`);
+    console.log(`${BOLD}${CYAN}┏${hBar}┓${RESET}`);
+    console.log(`${BOLD}${CYAN}┃${GREEN}${BOLD}  📱  Mobile App — Ready!                                ${CYAN}┃${RESET}`);
+    console.log(`${BOLD}${CYAN}┣${hBar}┫${RESET}`);
+    console.log(`${BOLD}${CYAN}┃${RESET}${WHITE}  Open Expo Go on your phone and tap "Enter URL manually" ${BOLD}${CYAN}┃${RESET}`);
+    console.log(`${BOLD}${CYAN}┃${RESET}${WHITE}  then paste the URL below:                               ${BOLD}${CYAN}┃${RESET}`);
+    console.log(`${BOLD}${CYAN}┗${hBar}┛${RESET}`);
     console.log("");
-    console.log(`${BOLD}${GREEN} Scan this QR code with Expo Go:${RESET}`);
-    qrcode.generate(expoUrl, { small: true }, (code) => {
+    console.log(`  ${BOLD}${YELLOW}${metroPublicUrl}${RESET}`);
+    console.log("");
+    console.log(`${DIM}  QR code (for quick copy — scan with any QR reader):${RESET}`);
+    qrcode.generate(metroPublicUrl, { small: true }, (code) => {
       console.log(code);
-      console.log(`${DIM}  Or enter the URL manually in Expo Go → "Enter URL manually"${RESET}`);
-      console.log(`${BOLD}${YELLOW}  ${expoUrl}${RESET}`);
-      console.log("");
     });
 
-    // 2. NOW start Expo with EXPO_PACKAGER_PROXY_URL so Metro's manifest
-    //    contains the cloudflare tunnel URL instead of localhost:8081
-    console.log(`${BOLD}${GREEN} 🚀  Starting Expo dev server with proxy URL...${RESET}`);
-    console.log(`${DIM}     EXPO_PACKAGER_PROXY_URL=${metroPublicUrl}${RESET}\n`);
-
+    // Start Expo with EXPO_PACKAGER_PROXY_URL so Metro's manifest
+    // uses the cloudflare tunnel URL (not localhost:8081)
     run("mobile", npm, ["run", "-w", "mobile", "start"], {
       inherit: true,
       fatal: false,

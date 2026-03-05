@@ -19,7 +19,7 @@ import { fileURLToPath } from "url";
 import { dirname, join } from "path";
 import { createRequire } from "module";
 import http from "http";
-import { TUNNEL_PROXY_PORT, PROXY_LOOPBACK_HOST } from "../config/index.js";
+import { TUNNEL_PROXY_PORT, PROXY_LOOPBACK_HOST, PROXY_DEFAULT_TARGET_PORT } from "../config/index.js";
 
 const require = createRequire(import.meta.url);
 const qrcode = require("qrcode-terminal");
@@ -77,7 +77,7 @@ process.on("SIGTERM", () => {
 });
 
 // 1. Proxy (port 9443) — background
-run("proxy", "node", ["server/utils/proxy.js"], { inherit: false });
+// Moved to after dev server starts
 
 // 2. Dev server (port 3456) — background with auto-restart.
 // fatal: false prevents the entire stack from dying if the AI agent kills the server.
@@ -104,7 +104,7 @@ function startDevServer() {
   });
 }
 
-setTimeout(startDevServer, 1500);
+// setTimeout(startDevServer, 1500); // Removed, called explicitly below
 
 // 3. Cloudflare tunnel — foreground so user sees the URL; capture and print Expo command
 const urlRegex = /https:\/\/[^\s"'<>]+\.(trycloudflare\.com|cfargotunnel\.com)[^\s"'<>]*/i;
@@ -295,8 +295,18 @@ function printExpoCommand(url) {
   }
 }
 
-// 3. Wait for proxy to be ready, then start Cloudflare tunnel
-waitForPort(TUNNEL_PROXY_PORT, { label: "proxy", timeoutMs: 30_000 })
+// 3. Start sequence: Dev Server -> Wait -> Proxy -> Wait -> Cloudflare Tunnel
+startDevServer();
+
+waitForPort(PROXY_DEFAULT_TARGET_PORT, { label: "dev-server", timeoutMs: 30_000 })
+  .then(() => {
+    console.log(`\x1b[1m\x1b[32m ✓  Dev Server is ready on port ${PROXY_DEFAULT_TARGET_PORT}\x1b[0m`);
+
+    // Start Proxy
+    run("proxy", "node", ["server/utils/proxy.js"], { inherit: false });
+
+    return waitForPort(TUNNEL_PROXY_PORT, { label: "proxy", timeoutMs: 30_000 });
+  })
   .then(() => {
     console.log(`\x1b[1m\x1b[32m ✓  Proxy is ready on port ${TUNNEL_PROXY_PORT}\x1b[0m`);
     console.log(`\x1b[2m     Starting Cloudflare API tunnel...\x1b[0m\n`);
@@ -330,7 +340,7 @@ waitForPort(TUNNEL_PROXY_PORT, { label: "proxy", timeoutMs: 30_000 })
   })
   .catch((err) => {
     console.error(`\x1b[1m\x1b[31m ✗  ${err.message}\x1b[0m`);
-    console.error(`\x1b[2m     Proxy did not start in time. Check for errors above.\x1b[0m\n`);
+    console.error(`\x1b[2m     Server/Proxy did not start in time. Check for errors above.\x1b[0m\n`);
     killAll();
     process.exit(1);
   });

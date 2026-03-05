@@ -335,8 +335,8 @@ export function createPiRpcSession({
     const skillsAgentDir = resolveAgentDir(cwd, projectRoot);
     const skillsEnabledDir = path.join(projectRoot, skillsCfg.skillsEnabledDir);
     const skillPaths = syncEnabledSkillsFolder(skillsDir, skillsAgentDir, skillsEnabledDir);
-    if (skillPaths.length > 0) {
-      args.push("--skill", skillsEnabledDir);
+    for (const sp of skillPaths) {
+      args.push("--skill", sp);
     }
 
 

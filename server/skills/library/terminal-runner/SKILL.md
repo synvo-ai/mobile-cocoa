@@ -1,6 +1,6 @@
 ---
-## name: terminal-runner
-description: 'Use this skill whenever the user wants to run terminal commands, execute scripts, render/run a page or project, start/stop processes, run build tools, test runners, compilers, linters, servers, or any shell-based task — including multi-service projects like frontend + backend. Triggers on: "run this", "execute", "start the server", "render the page", "run tests", "build", "start the app", or any request implying shell execution. MANDATORY: Execute every terminal command step via the Bash tool (never run_terminal_cmd or alternatives). Always use this skill so commands are planned, tracked, and properly terminated at end of conversation.'*
+name: terminal-runner
+description: 'Use this skill whenever the user wants to run terminal commands, execute scripts, render/run a page or project, start/stop processes, run build tools, test runners, compilers, linters, servers, or any shell-based task — including multi-service projects like frontend + backend. Triggers on: "run this", "execute", "start the server", "render the page", "run tests", "build", "start the app", or any request implying shell execution. MANDATORY: Execute every terminal command step via the Bash tool (never run_terminal_cmd or alternatives). Always use this skill so commands are planned, tracked, and properly terminated at end of conversation.'
 ---
 # *Terminal Runner Skill*
 
